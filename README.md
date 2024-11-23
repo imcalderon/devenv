@@ -1,237 +1,336 @@
-# Development Environment Setup
+# Advanced Development Environment Setup System
 
-A modular, configurable system for setting up and managing a complete development environment on RHEL/CentOS-based systems. This toolset provides automated installation, configuration, health checking, and management of development tools and settings.
+## Overview
+This system provides an automated, modular setup for a complete development environment on Linux systems, focusing on Red Hat-based distributions. It includes comprehensive configurations for C++, Python, and ML development, with robust shell customization, local package management, and containerized workflows.
 
-## 🚀 Features
+## 🌟 Core Features
 
-- **Modular Design**: Separate scripts for each component (Docker, VS Code, Python, etc.)
-- **Configuration Management**: YAML-based configuration for easy customization
-- **Backup & Restore**: Automated backup and restoration of configurations
-- **Health Monitoring**: System health checks and self-healing capabilities
-- **Detailed Logging**: Comprehensive logging system with timestamps
-- **Report Generation**: Detailed system reports in both text and HTML formats
-- **MacBook Optimizations**: Special utilities and configurations for MacBook hardware
+### System Components
+- 🛠️ Automated system configuration and package management
+- 🐳 Docker configuration with production-ready defaults
+- 📝 VS Code setup with curated extensions
+- 🐍 Conda environment management with multiple presets
+- 🔧 ZSH configuration with Powerlevel10k and custom plugins
+- 📦 Local package development infrastructure
+- 🔄 Backup and restore capabilities
+- 🏥 System health monitoring and self-healing
+- 📊 Comprehensive system reporting
 
-## 📋 Prerequisites
+### Development Environments
 
-- RHEL/CentOS 8 or later
-- Bash 4.0 or higher
-- Internet connectivity
-- Sudo privileges
+#### C++ Development
+```bash
+conda activate cpp
+```
+- Complete build toolchain (GCC, CMake, Ninja)
+- Debug tools (GDB, ccache)
+- Key libraries (Boost, Eigen, fmt, spdlog)
+- Testing frameworks (Catch2, benchmark)
+- Documentation tools (Doxygen)
 
-## 🗂️ Project Structure
+#### Python Development
+```bash
+conda activate python
+```
+- Core Python 3.11 environment
+- Data science stack (NumPy, Pandas, SciPy)
+- Visualization tools (Matplotlib, Seaborn)
+- Development tools (pytest, black, flake8, mypy)
+- Documentation (Sphinx)
 
+#### Machine Learning
+```bash
+conda activate ml
+```
+- Deep learning frameworks (TensorFlow, PyTorch)
+- CUDA support (cudatoolkit, cupy)
+- Visualization and monitoring (Tensorboard)
+- Data processing tools
+
+### ZSH Environment
+- Powerlevel10k theme with optimal configuration
+- Custom plugins for development workflows
+- Intelligent command suggestions
+- Syntax highlighting
+- Git integration
+- Development shortcuts and aliases
+
+## 📥 Installation
+
+### Prerequisites
+```bash
+# Red Hat-based Linux distribution
+# Sudo privileges required
+sudo dnf groupinstall "Development Tools"
+```
+
+### Quick Start
+```bash
+# Clone repository
+git clone https://github.com/yourusername/devenv.git
+cd devenv
+
+# Make scripts executable
+chmod +x devenv.sh
+chmod +x lib/*.sh
+
+# Run installation
+./devenv.sh install
+```
+
+### Command Reference
+```bash
+./devenv.sh install  # Full environment setup
+./devenv.sh health  # System health check
+./devenv.sh heal    # Auto-fix issues
+./devenv.sh revert  # Revert changes
+```
+
+## 📁 Directory Structure
 ```
 devenv/
-├── config.yml                 # Main configuration file
-├── devenv.sh                 # Main script
-└── scripts/
-    ├── lib/
-    │   └── common.sh        # Shared functions and utilities
-    ├── backup.sh            # Backup functionality
-    ├── docker.sh            # Docker installation and setup
-    ├── health.sh            # Health checking
-    ├── node.sh              # Node.js/NVM setup
-    ├── python.sh            # Python environment setup
-    ├── report.sh            # System reporting
-    ├── revert.sh            # Environment reversion
-    ├── shell.sh             # Shell configuration
-    ├── system.sh            # System package management
-    ├── tools.sh             # Development tools setup
-    ├── update.sh            # Update functionality
-    └── vscode.sh            # VS Code setup
+├── devenv.sh              # Main script
+├── README.md             # Documentation
+└── lib/
+    ├── logging.sh       # Logging system
+    ├── backup.sh        # Backup/restore
+    ├── health.sh        # Health monitoring
+    ├── vscode.sh        # VS Code setup
+    ├── docker.sh        # Docker config
+    ├── conda.sh         # Conda management
+    ├── zsh.sh           # ZSH configuration
+    └── report.sh        # System reporting
 ```
 
-## 🛠️ Installation
+## 💻 Development Workflow
 
-1. Clone the repository:
+### ZSH Shortcuts
+
+#### Project Navigation
 ```bash
-git clone https://github.com/imcalderon/devenv/devenv.git
-cd devenv
+cddev     # Development directory
+cdproj    # Projects directory
+cddock    # Docker directory
+cdpkg     # Packages directory
 ```
 
-2. Make the main script executable:
+#### Git Operations
 ```bash
-chmod +x devenv.sh
+gs        # git status
+ga        # git add
+gc        # git commit
+gp        # git push
+gl        # git pull
+gd        # git diff
+gco       # git checkout
 ```
 
-3. Run the installation:
+#### Development Tools
 ```bash
-./devenv.sh install
+dc        # docker-compose
+k         # kubectl
+py        # python
+jupynb    # jupyter notebook
+jupylab   # jupyter lab
 ```
 
-## 📝 Configuration
+### Project Creation
+```bash
+# Create new project
+create_project myproject python
+create_project mycpplib cpp
 
-The system is configured through `config.yml`. Here's an example configuration:
+# Project structure created automatically
+myproject/
+├── src/
+├── tests/
+├── docs/
+└── README.md
+```
 
+## 📦 Package Development
+
+### Local Package Management
+```bash
+# Create new package
+$HOME/Development/packages/create_package.sh cpp math-lib 0.1.0
+$HOME/Development/packages/create_package.sh python data-tools 0.1.0
+
+# Build package
+build_local_package "$LOCAL_PKG_DIR/src/math-lib" cpp
+
+# Install in environment
+install_local_package math-lib 0.1.0 cpp
+```
+
+### Package Structure
+```
+packages/
+├── src/                  # Source code
+├── dist/                # Built packages
+├── build/              # Build artifacts
+├── docs/              # Documentation
+└── templates/        # Package templates
+    ├── cpp/
+    └── python/
+```
+
+## 🐍 Conda Management
+
+### Environment Operations
+```bash
+# Create environment
+conda create -n myenv -y
+
+# Activate environment
+conda activate myenv
+
+# Update all environments
+update_environments
+```
+
+### Available Templates
+- `cpp`: C++ development
+- `python`: Python data science
+- `ml`: Machine learning
+
+## ⚙️ Configuration Files
+
+### ZSH Configuration
+Location: `$HOME/.zshrc`
+```bash
+# Custom aliases
+alias dc='docker-compose'
+alias k='kubectl'
+alias py='python'
+
+# Development functions
+mkcd() { mkdir -p "$1" && cd "$1"; }
+extract() { # Universal extraction }
+create_project() { # Project scaffolding }
+```
+
+### Conda Configuration
+Location: `$HOME/.condarc`
 ```yaml
-paths:
-  log_dir: "${HOME}/.devenv/logs"
-  backup_dir: "${HOME}/.devenv/backups"
-  vscode_config_dir: "${HOME}/.config/Code/User"
-  scripts_dir: "${HOME}/Development/scripts"
-
-versions:
-  node: "lts"
-  python: "3.11"
-  docker: "latest"
-
-packages:
-  system:
-    - git
-    - curl
-    - wget
-    # Add more packages...
+channels:
+  - conda-forge
+  - defaults
+channel_priority: strict
 ```
 
-## 🎮 Usage
+### Docker Configuration
+Location: `/etc/docker/daemon.json`
+```json
+{
+    "default-memory-swap": "1G",
+    "memory": "8G",
+    "cpu-shares": 1024
+}
+```
 
-### Basic Commands
+## 🏥 Health Monitoring
 
+### System Checks
 ```bash
-# Install development environment
-./devenv.sh install
-
-# Check system health
+# Run health check
 ./devenv.sh health
 
-# Attempt to fix issues
+# Auto-heal issues
 ./devenv.sh heal
-
-# Revert changes
-./devenv.sh revert
-
-# Update components
-./devenv.sh update
 ```
 
-### Logs and Reports
-
-- Logs are stored in: `~/.devenv/logs/`
-- System reports are generated in: `~/.devenv/logs/system_report_*.txt`
-- HTML reports are available at: `~/.devenv/logs/system_report_*.html`
-
-### Backup and Restore
-
-The system automatically creates backups before making changes. Backups are stored in:
-```
-~/.devenv/backups/YYYYMMDD_HHMMSS/
-```
-
-## 🔧 Customization
-
-### Adding New Packages
-
-Edit `config.yml` to add new packages:
-
-```yaml
-packages:
-  system:
-    - your-new-package
-  python:
-    - your-new-python-package
-```
-
-### Adding New Components
-
-1. Create a new script in the `scripts/` directory
-2. Add configuration in `config.yml`
-3. Update the main `devenv.sh` script to include the new component
-
-## 🏥 Health Checks
-
-The system performs health checks on:
+Monitored Components:
 - System packages
 - Development tools
-- Docker configuration
+- Docker service
+- Conda environments
 - VS Code extensions
-- Python environment
-- Node.js setup
-- Shell configuration
+- Development directories
+- ZSH configuration
 
-## 🔒 Security Features
+## 🔄 Backup and Recovery
 
-- Secure default configurations
-- Backup before modifications
-- Permission checks
-- Package verification
-- Network security settings
+### Automatic Backups
+- Configuration files
+- VS Code settings
+- Git configuration
+- ZSH configuration
+- Shell customizations
 
-## 🐛 Troubleshooting
-
-Common issues and solutions:
-
-1. **Network Connectivity Issues**
-   ```bash
-   # Check network connectivity
-   ./devenv.sh health
-   # View logs for details
-   tail -f ~/.devenv/logs/devenv_latest.log
-   ```
-
-2. **Permission Issues**
-   ```bash
-   # Ensure correct ownership
-   sudo chown -R $USER:$USER ~/.devenv
-   ```
-
-3. **Docker Issues**
-   ```bash
-   # Reset Docker configuration
-   ./devenv.sh revert docker
-   # Reinstall Docker
-   ./devenv.sh install docker
-   ```
-
-## 📊 Monitoring
-
-Monitor your development environment:
-
+### Recovery Operations
 ```bash
-# Generate system report
-./devenv.sh report
+# Revert to last good state
+./devenv.sh revert
+```
 
-# Check component status
-./devenv.sh health
+## 📊 Logging and Reporting
 
-# View logs
-tail -f ~/.devenv/logs/devenv_latest.log
+### Log Files
+```bash
+$HOME/.devenv/logs/devenv_YYYYMMDD_HHMMSS.log
+```
+
+### System Reports
+```bash
+$HOME/.devenv/logs/system_report_YYYYMMDD_HHMMSS.txt
+$HOME/.devenv/logs/system_report_YYYYMMDD_HHMMSS.html
+```
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### ZSH Theme Issues
+```bash
+# Rebuild font cache
+fc-cache -f -v
+
+# Verify Powerlevel10k installation
+ls ~/.oh-my-zsh/custom/themes/powerlevel10k
+```
+
+#### Conda Environment Issues
+```bash
+conda clean --all
+conda update --all
+```
+
+#### Docker Service Issues
+```bash
+sudo systemctl status docker
+sudo journalctl -xu docker
 ```
 
 ## 🤝 Contributing
+1. Fork repository
+2. Create feature branch
+3. Commit changes
+4. Push to branch
+5. Create Pull Request
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-Please include:
-- Clear description of changes
-- Updated documentation
-- Test results
-- Any necessary configuration updates
-
-## 📝 License
-
-MIT License - see LICENSE file for details
+## 📄 License
+MIT License - see LICENSE file
 
 ## 🙏 Acknowledgments
+- Oh My ZSH community
+- Powerlevel10k developers
+- Conda team
+- Docker team
+- VS Code team
+- All open-source contributors
 
-- Inspired by various development environment management tools
-- Uses components from several open-source projects
-- Community contributions and feedback
+## 📝 Version History
+- 1.1.0: Added ZSH configuration
+  - Powerlevel10k integration
+  - Custom plugins and themes
+  - Development shortcuts
+- 1.0.0: Initial release
+  - Basic environment setup
+  - Conda integration
+  - Docker support
+  - VS Code configuration
 
-## ⚠️ Disclaimer
+---
 
-This tool makes significant changes to your system configuration. Always:
-- Review the configuration before running
-- Backup important data
-- Test in a safe environment first
-- Review logs for any issues
-
-## 📞 Support
-
-- File an issue in the GitHub repository
-- Check the troubleshooting guide
-- Review closed issues for solutions
-- Check the logs for detailed error messages
+For module-specific documentation, see the corresponding files in the `lib/` directory.
