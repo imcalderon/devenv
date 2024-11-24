@@ -1,8 +1,24 @@
 # Global configuration for all development environment modules
 modules:
+  # Module execution order configuration
+  _order:
+    - zsh  # zsh must be first for shell configuration
+    - vscode
+    - docker
+    - conda
+    - backup
+
+  # Global paths configuration
+  _paths:
+    root: "$HOME/.devenv"
+    logs: "$HOME/.devenv/logs"
+    backups: "$HOME/.devenv/backups"
+    state: "$HOME/.devenv/state"
+
   # ZSH Configuration
   zsh:
     enabled: true
+    runlevel: 1  # Lower numbers run first
     theme: "powerlevel10k/powerlevel10k"
     paths:
       custom_dir: "$HOME/.oh-my-zsh/custom"
@@ -36,10 +52,19 @@ modules:
         - "MesloLGS NF Italic.ttf"
         - "MesloLGS NF Bold Italic.ttf"
       install_path: "$HOME/.local/share/fonts"
+    aliases:
+      shell:
+        - name: "zshconfig"
+          command: "code ~/.zshrc"
+        - name: "ohmyzsh"
+          command: "code ~/.oh-my-zsh"
+        - name: "reload"
+          command: "source ~/.zshrc"
 
   # VSCode Configuration  
   vscode:
     enabled: true
+    runlevel: 2
     package:
       name: "code"
       repositories:
@@ -97,10 +122,19 @@ modules:
           required: true
         - id: "ms-python.python"
           required: true
+    aliases:
+      editor:
+        - name: "code."
+          command: "code ."
+        - name: "codei"
+          command: "code-insiders"
+        - name: "coder"
+          command: "code-remote"
 
   # Docker Configuration
   docker:
     enabled: true
+    runlevel: 3
     package:
       name: "docker-ce"
       components:
@@ -119,27 +153,55 @@ modules:
       config_dir: "/etc/docker"
       daemon_config: "/etc/docker/daemon.json"
     daemon_config:
+      logging:
+        driver: "json-file"
+        options:
+          max_size: "10m"
+          max_files: "3"
+    container_defaults:
       resources:
         memory:
           swap: "1G"
           limit: "8G"
         cpu:
           shares: 1024
-      logging:
-        driver: "json-file"
-        options:
-          max_size: "10m"
-          max_files: "3"
-    user_groups:
-      - "docker"
-    service:
-      name: "docker"
-      enabled: true
-      restart: true
+    aliases:
+      basic:
+        - name: "d"
+          command: "docker"
+        - name: "dc"
+          command: "docker compose"
+        - name: "dcu"
+          command: "docker compose up"
+        - name: "dcub"
+          command: "docker compose up --build"
+        - name: "dcd"
+          command: "docker compose down"
+        - name: "dcl"
+          command: "docker compose logs -f"
+      container:
+        - name: "dps"
+          command: "docker ps"
+        - name: "dpsa"
+          command: "docker ps -a"
+        - name: "dex"
+          command: "docker exec -it"
+        - name: "dtop"
+          command: "docker top"
+        - name: "dstats"
+          command: "docker stats"
+      cleanup:
+        - name: "dprune"
+          command: "docker system prune -f"
+        - name: "dvprune"
+          command: "docker volume prune -f"
+        - name: "dclean"
+          command: "docker system prune -af --volumes"
 
   # Conda Configuration
   conda:
     enabled: true
+    runlevel: 4
     installer:
       url: "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
       path: "/tmp/miniconda_installer.sh"
@@ -241,16 +303,46 @@ modules:
           - "meta.yaml"
           - "setup.py"
           - "pyproject.toml"
+    aliases:
+      environment:
+        - name: "ca"
+          command: "conda activate"
+        - name: "cda"
+          command: "conda deactivate"
+        - name: "cl"
+          command: "conda list"
+        - name: "ce"
+          command: "conda env list"
+      package:
+        - name: "ci"
+          command: "conda install"
+        - name: "cu"
+          command: "conda update"
+        - name: "cr"
+          command: "conda remove"
+      build:
+        - name: "cb"
+          command: "conda build"
+        - name: "cbt"
+          command: "conda build --test"
+
   backup:
-      enabled: true
-      paths:
-        root: "$HOME/.devenv/backups"
-      retention_days: 30
-      items:
-        - git: "$HOME/.gitconfig"
-        - zsh: "$HOME/.zshrc,$HOME/.p10k.zsh"
-        - vscode: "$HOME/.config/Code/User/settings.json,$HOME/.config/Code/User/keybindings.json"
-        - conda: "$HOME/.condarc"
-        - docker: "$HOME/.docker/config.json"
-        - ssh: "$HOME/.ssh/config"
-        - gnupg: "$HOME/.gnupg/gpg.conf,$HOME/.gnupg/gpg-agent.conf"
+    enabled: true
+    runlevel: 5
+    paths:
+      root: "$HOME/.devenv/backups"
+    retention_days: 30
+    items:
+      - git: "$HOME/.gitconfig"
+      - zsh: "$HOME/.zshrc,$HOME/.p10k.zsh"
+      - vscode: "$HOME/.config/Code/User/settings.json,$HOME/.config/Code/User/keybindings.json"
+      - conda: "$HOME/.condarc"
+      - docker: "$HOME/.docker/config.json"
+      - ssh: "$HOME/.ssh/config"
+      - gnupg: "$HOME/.gnupg/gpg.conf,$HOME/.gnupg/gpg-agent.conf"
+    aliases:
+      backup:
+        - name: "backup"
+          command: "devenv.sh backup"
+        - name: "restore"
+          command: "devenv.sh restore"
