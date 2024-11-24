@@ -1,72 +1,79 @@
 #!/bin/bash
+# main.sh - Main entry point for development environment setup
 
 set -euo pipefail
 
-# Source all modules
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/lib/logging.sh"
-source "${SCRIPT_DIR}/lib/backup.sh"
-source "${SCRIPT_DIR}/lib/health.sh"
-source "${SCRIPT_DIR}/lib/vscode.sh"
-source "${SCRIPT_DIR}/lib/docker.sh"
-source "${SCRIPT_DIR}/lib/conda.sh"
-source "${SCRIPT_DIR}/lib/report.sh"
-source "${SCRIPT_DIR}/lib/zsh.sh"
+# Load yaml parser
+source ./lib/yaml_parser.sh
 
-# Main installation function
+# Constants
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+CONFIG_FILE="$SCRIPT_DIR/config.yaml"
+BACKUP_DIR="$HOME/.dev_env_backups/$(date +%Y%m%d_%H%M%S)"
+LOG_FILE="$SCRIPT_DIR/setup.log"
+
+# Initialize logging
+mkdir -p "$(dirname "$LOG_FILE")"
+exec 1> >(tee -a "$LOG_FILE")
+exec 2>&1
+
+# Function to load and parse config
+load_config() {
+    parse_yaml "$CONFIG_FILE"
+}
+
+# Function to execute a stage for all enabled modules
+execute_stage() {
+    local stage=$1
+    local modules=($(get_enabled_modules))
+    
+    echo "Executing stage: $stage"
+    for module in "${modules[@]}"; do
+        if [[ -f "$SCRIPT_DIR/lib/$module/$module.sh" ]]; then
+            echo "Running $stage for module: $module"
+            bash "$SCRIPT_DIR/lib/$module/$module.sh" "$stage"
+        fi
+    done
+}
+
+# Function to create backup
+create_backup() {
+    mkdir -p "$BACKUP_DIR"
+    if [[ -f "$HOME/.zshrc" ]]; then
+        cp "$HOME/.zshrc" "$BACKUP_DIR/.zshrc.backup"
+    fi
+    echo "Created backup at: $BACKUP_DIR"
+}
+
+# Main execution
 main() {
-    case "${1:-install}" in
-        "install")
-            log "INFO" "Starting development environment setup..."
-            backup_configs
-            
-            # Enable EPEL repository
-            heal_component "EPEL" "rpm -q epel-release" "sudo dnf install -y epel-release"
-            
-            # System update and tool installation
-            log "INFO" "Updating system packages..."
-            sudo dnf update -y
-            heal_component "Development Tools" "rpm -q @development-tools" "sudo dnf groupinstall -y 'Development Tools'"
-            
-            # Install components
-            setup_docker
-            setup_vscode_settings
-            setup_vscode_extensions
-            setup_conda
-            setup_zsh
-
-            # Generate final report
-            generate_system_report
-            
-            log "INFO" "Installation complete!"
+    local action=$1
+    
+    case "$action" in
+        install)
+            create_backup
+            execute_stage "grovel"
+            execute_stage "install"
+            execute_stage "verify"
             ;;
-            
-        "revert")
-            source "${SCRIPT_DIR}/lib/revert.sh"
-            revert_environment
+        remove)
+            execute_stage "remove"
             ;;
-            
-        "health")
-            check_system_health
+        verify)
+            execute_stage "verify"
             ;;
-            
-        "heal")
-            log "INFO" "Starting system healing..."
-            check_system_health
-            if [ $? -gt 0 ]; then
-                log "INFO" "Issues found, attempting to heal..."
-                main "install"
-            else
-                log "INFO" "No issues found, system is healthy"
-            fi
-            ;;
-            
         *)
-            echo "Usage: $0 {install|revert|health|heal}"
+            echo "Usage: $0 {install|remove|verify}"
             exit 1
             ;;
     esac
 }
 
-# Execute main function with all arguments
-main "$@"
+# Execute main if script is run directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    if [[ $# -eq 0 ]]; then
+        echo "Usage: $0 {install|remove|verify}"
+        exit 1
+    fi
+    main "$1"
+fi

@@ -1,336 +1,221 @@
-# Advanced Development Environment Setup System
+# Development Environment Setup System
+
+A modular system for automating the setup and maintenance of development environments across Linux systems. The system provides automated installation, configuration, and management of common development tools and environments.
 
 ## Overview
-This system provides an automated, modular setup for a complete development environment on Linux systems, focusing on Red Hat-based distributions. It includes comprehensive configurations for C++, Python, and ML development, with robust shell customization, local package management, and containerized workflows.
 
-## 🌟 Core Features
+This system follows a modular approach where each component (like ZSH, Docker, VS Code, etc.) is managed independently but follows a consistent pattern. Each module can be enabled/disabled via configuration and handles its own installation, removal, and verification.
 
-### System Components
-- 🛠️ Automated system configuration and package management
-- 🐳 Docker configuration with production-ready defaults
-- 📝 VS Code setup with curated extensions
-- 🐍 Conda environment management with multiple presets
-- 🔧 ZSH configuration with Powerlevel10k and custom plugins
-- 📦 Local package development infrastructure
-- 🔄 Backup and restore capabilities
-- 🏥 System health monitoring and self-healing
-- 📊 Comprehensive system reporting
+### Key Features
 
-### Development Environments
+- 🔧 Modular design with consistent patterns
+- ⚙️ YAML-based configuration
+- 🔄 Automated backup and restore
+- ✅ Built-in verification
+- 📝 Comprehensive logging
+- 🚀 Support for multiple Linux distributions
 
-#### C++ Development
-```bash
-conda activate cpp
+## System Requirements
+
+- Bash 4.0+
+- Linux (Debian/Ubuntu or RHEL/CentOS/Fedora)
+- Internet connection for package downloads
+- sudo privileges
+
+## Directory Structure
+
 ```
-- Complete build toolchain (GCC, CMake, Ninja)
-- Debug tools (GDB, ccache)
-- Key libraries (Boost, Eigen, fmt, spdlog)
-- Testing frameworks (Catch2, benchmark)
-- Documentation tools (Doxygen)
-
-#### Python Development
-```bash
-conda activate python
-```
-- Core Python 3.11 environment
-- Data science stack (NumPy, Pandas, SciPy)
-- Visualization tools (Matplotlib, Seaborn)
-- Development tools (pytest, black, flake8, mypy)
-- Documentation (Sphinx)
-
-#### Machine Learning
-```bash
-conda activate ml
-```
-- Deep learning frameworks (TensorFlow, PyTorch)
-- CUDA support (cudatoolkit, cupy)
-- Visualization and monitoring (Tensorboard)
-- Data processing tools
-
-### ZSH Environment
-- Powerlevel10k theme with optimal configuration
-- Custom plugins for development workflows
-- Intelligent command suggestions
-- Syntax highlighting
-- Git integration
-- Development shortcuts and aliases
-
-## 📥 Installation
-
-### Prerequisites
-```bash
-# Red Hat-based Linux distribution
-# Sudo privileges required
-sudo dnf groupinstall "Development Tools"
+.
+├── config.yaml           # Main configuration file
+├── devenv.sh            # Main entry script
+├── lib/                 # Library modules
+│   ├── logging.sh       # Logging utilities
+│   ├── yaml_parser.sh   # YAML parsing utilities
+│   ├── module_base.sh   # Base module functionality
+│   ├── backup/         # Backup module
+│   ├── conda/          # Conda module
+│   ├── docker/         # Docker module
+│   ├── vscode/         # VS Code module
+│   └── zsh/            # ZSH module
+└── setup.log           # System log file
 ```
 
-### Quick Start
-```bash
-# Clone repository
-git clone https://github.com/yourusername/devenv.git
-cd devenv
+## Modules
 
-# Make scripts executable
-chmod +x devenv.sh
-chmod +x lib/*.sh
+### Currently Supported
 
-# Run installation
-./devenv.sh install
-```
+- **ZSH**: Shell environment with Oh My ZSH and Powerlevel10k
+- **VS Code**: Editor setup with extensions and settings
+- **Docker**: Container runtime with daemon configuration
+- **Conda**: Python environment management with predefined environments
+- **Backup**: System configuration backup and restore
 
-### Command Reference
-```bash
-./devenv.sh install  # Full environment setup
-./devenv.sh health  # System health check
-./devenv.sh heal    # Auto-fix issues
-./devenv.sh revert  # Revert changes
-```
+Each module follows a standard lifecycle:
+- `grovel`: Check prerequisites and dependencies
+- `install`: Install and configure the component
+- `remove`: Remove configurations (optionally the software)
+- `verify`: Verify the installation and configuration
+- `update`: Update the component (where applicable)
 
-## 📁 Directory Structure
-```
-devenv/
-├── devenv.sh              # Main script
-├── README.md             # Documentation
-└── lib/
-    ├── logging.sh       # Logging system
-    ├── backup.sh        # Backup/restore
-    ├── health.sh        # Health monitoring
-    ├── vscode.sh        # VS Code setup
-    ├── docker.sh        # Docker config
-    ├── conda.sh         # Conda management
-    ├── zsh.sh           # ZSH configuration
-    └── report.sh        # System reporting
-```
+## Configuration
 
-## 💻 Development Workflow
+All configuration is managed through `config.yaml`. Example configuration:
 
-### ZSH Shortcuts
-
-#### Project Navigation
-```bash
-cddev     # Development directory
-cdproj    # Projects directory
-cddock    # Docker directory
-cdpkg     # Packages directory
-```
-
-#### Git Operations
-```bash
-gs        # git status
-ga        # git add
-gc        # git commit
-gp        # git push
-gl        # git pull
-gd        # git diff
-gco       # git checkout
-```
-
-#### Development Tools
-```bash
-dc        # docker-compose
-k         # kubectl
-py        # python
-jupynb    # jupyter notebook
-jupylab   # jupyter lab
-```
-
-### Project Creation
-```bash
-# Create new project
-create_project myproject python
-create_project mycpplib cpp
-
-# Project structure created automatically
-myproject/
-├── src/
-├── tests/
-├── docs/
-└── README.md
-```
-
-## 📦 Package Development
-
-### Local Package Management
-```bash
-# Create new package
-$HOME/Development/packages/create_package.sh cpp math-lib 0.1.0
-$HOME/Development/packages/create_package.sh python data-tools 0.1.0
-
-# Build package
-build_local_package "$LOCAL_PKG_DIR/src/math-lib" cpp
-
-# Install in environment
-install_local_package math-lib 0.1.0 cpp
-```
-
-### Package Structure
-```
-packages/
-├── src/                  # Source code
-├── dist/                # Built packages
-├── build/              # Build artifacts
-├── docs/              # Documentation
-└── templates/        # Package templates
-    ├── cpp/
-    └── python/
-```
-
-## 🐍 Conda Management
-
-### Environment Operations
-```bash
-# Create environment
-conda create -n myenv -y
-
-# Activate environment
-conda activate myenv
-
-# Update all environments
-update_environments
-```
-
-### Available Templates
-- `cpp`: C++ development
-- `python`: Python data science
-- `ml`: Machine learning
-
-## ⚙️ Configuration Files
-
-### ZSH Configuration
-Location: `$HOME/.zshrc`
-```bash
-# Custom aliases
-alias dc='docker-compose'
-alias k='kubectl'
-alias py='python'
-
-# Development functions
-mkcd() { mkdir -p "$1" && cd "$1"; }
-extract() { # Universal extraction }
-create_project() { # Project scaffolding }
-```
-
-### Conda Configuration
-Location: `$HOME/.condarc`
 ```yaml
-channels:
-  - conda-forge
-  - defaults
-channel_priority: strict
+modules:
+  zsh:
+    enabled: true
+    theme: "powerlevel10k/powerlevel10k"
+    plugins:
+      - git
+      - docker
+      # ... more plugins
+  
+  vscode:
+    enabled: true
+    settings:
+      editor:
+        - key: "workbench.colorTheme"
+          value: "Default High Contrast"
+    # ... more settings
+
+  # ... other module configurations
 ```
 
-### Docker Configuration
-Location: `/etc/docker/daemon.json`
-```json
-{
-    "default-memory-swap": "1G",
-    "memory": "8G",
-    "cpu-shares": 1024
-}
-```
+See `config.yaml` for complete configuration options.
 
-## 🏥 Health Monitoring
+## Usage
 
-### System Checks
+### Basic Usage
+
 ```bash
-# Run health check
-./devenv.sh health
+# Install all enabled modules
+./devenv.sh install
 
-# Auto-heal issues
-./devenv.sh heal
+# Verify all enabled modules
+./devenv.sh verify
+
+# Remove configurations
+./devenv.sh remove
 ```
 
-Monitored Components:
-- System packages
-- Development tools
-- Docker service
-- Conda environments
-- VS Code extensions
-- Development directories
-- ZSH configuration
+### Backup Management
 
-## 🔄 Backup and Recovery
-
-### Automatic Backups
-- Configuration files
-- VS Code settings
-- Git configuration
-- ZSH configuration
-- Shell customizations
-
-### Recovery Operations
 ```bash
-# Revert to last good state
-./devenv.sh revert
+# Create a backup
+./devenv.sh backup
+
+# Restore from latest backup
+./devenv.sh restore
+
+# Restore from specific backup
+./devenv.sh restore /path/to/backup
 ```
 
-## 📊 Logging and Reporting
+### Individual Module Management
 
-### Log Files
 ```bash
-$HOME/.devenv/logs/devenv_YYYYMMDD_HHMMSS.log
+# Install specific module
+./lib/docker/docker.sh install
+
+# Verify specific module
+./lib/vscode/vscode.sh verify
 ```
 
-### System Reports
-```bash
-$HOME/.devenv/logs/system_report_YYYYMMDD_HHMMSS.txt
-$HOME/.devenv/logs/system_report_YYYYMMDD_HHMMSS.html
-```
+## Logging
 
-## 🔧 Troubleshooting
+The system maintains detailed logs at `setup.log`. All operations are logged with timestamps and severity levels:
+- INFO: Normal operations
+- WARN: Non-critical issues
+- ERROR: Critical issues that need attention
+
+## Extending the System
+
+### Adding a New Module
+
+1. Create a new directory under `lib/` for your module
+2. Create the main module script following the existing pattern:
+   ```bash
+   #!/bin/bash
+   source "${SCRIPT_DIR}/../module_base.sh"
+   
+   grovel_mymodule() {
+     # Check dependencies
+   }
+   
+   install_mymodule() {
+     # Install and configure
+   }
+   
+   # ... other required functions
+   ```
+3. Add configuration section to `config.yaml`
+4. Test the module with `grovel`, `install`, and `verify` operations
+
+### Configuration Guidelines
+
+- All configurable values should be in `config.yaml`
+- Use environment variable expansion in paths
+- Group related settings logically
+- Include documentation for non-obvious settings
+
+## Troubleshooting
 
 ### Common Issues
 
-#### ZSH Theme Issues
-```bash
-# Rebuild font cache
-fc-cache -f -v
+1. **Permission Denied**
+   ```bash
+   sudo chmod +x devenv.sh
+   sudo chmod +x lib/**/*.sh
+   ```
 
-# Verify Powerlevel10k installation
-ls ~/.oh-my-zsh/custom/themes/powerlevel10k
+2. **Module Not Found**
+   - Check module is enabled in `config.yaml`
+   - Verify module directory exists
+   - Check execute permissions
+
+3. **Configuration Errors**
+   - Validate `config.yaml` syntax
+   - Check logs in `setup.log`
+   - Run verify operation
+
+### Debug Mode
+
+Enable detailed logging:
+```bash
+export LOG_LEVEL=DEBUG
+./devenv.sh install
 ```
 
-#### Conda Environment Issues
-```bash
-conda clean --all
-conda update --all
-```
+## Best Practices
 
-#### Docker Service Issues
-```bash
-sudo systemctl status docker
-sudo journalctl -xu docker
-```
+1. Always run `verify` after `install`
+2. Create backups before major changes
+3. Review logs for errors
+4. Keep `config.yaml` in version control
+5. Test changes in isolated environment first
 
-## 🤝 Contributing
-1. Fork repository
+## Contributing
+
+1. Fork the repository
 2. Create feature branch
-3. Commit changes
-4. Push to branch
-5. Create Pull Request
+3. Follow existing patterns and coding style
+4. Add tests and documentation
+5. Submit pull request
 
-## 📄 License
-MIT License - see LICENSE file
+## License
 
-## 🙏 Acknowledgments
-- Oh My ZSH community
-- Powerlevel10k developers
-- Conda team
-- Docker team
-- VS Code team
-- All open-source contributors
+MIT License - See LICENSE file for details
 
-## 📝 Version History
-- 1.1.0: Added ZSH configuration
-  - Powerlevel10k integration
-  - Custom plugins and themes
-  - Development shortcuts
-- 1.0.0: Initial release
-  - Basic environment setup
-  - Conda integration
-  - Docker support
-  - VS Code configuration
+## Credits
 
----
+- YAML parser based on https://github.com/jasperes/bash-yaml
+- Inspiration from various development environment management tools
 
-For module-specific documentation, see the corresponding files in the `lib/` directory.
+## Support
+
+- File issues on GitHub
+- Check setup.log for detailed errors
+- Consult module-specific documentation
+
+For more details on each module, consult the individual module documentation in their respective directories.
