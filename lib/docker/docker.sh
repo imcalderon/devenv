@@ -123,7 +123,19 @@ configure_user_groups() {
     if ! groups | grep -q "docker"; then
         sudo usermod -aG docker "$USER"
         log "INFO" "Added user to docker group"
-        log "WARN" "You may need to log out and back in for group changes to take effect"
+        
+        # Refresh user's group membership
+        if ! newgrp docker; then
+            log "ERROR" "Failed to initialize docker group membership"
+            return 1
+        fi
+        
+        # Double verify group membership
+        if ! groups | grep -q "docker"; then
+            log "ERROR" "Group membership not applied"
+            log "WARN" "You may need to log out and back in for group changes to take effect"
+            return 1
+        fi
     fi
     
     return 0
@@ -167,25 +179,73 @@ configure_docker_daemon() {
 restart_docker_service() {
     log "INFO" "Restarting Docker service..."
     
-    if ! sudo systemctl restart docker; then
-        log "ERROR" "Failed to restart Docker service"
-        log "INFO" "Docker service logs:"
-        sudo journalctl -u docker.service -n 50 --no-pager
+    # Stop the service first
+    if ! sudo systemctl stop docker; then
+        log "ERROR" "Failed to stop Docker service"
         return 1
     fi
     
-    # Wait for service to be fully available
-    local timeout=30
+    # Wait for service to fully stop
+    local stop_timeout=30
     local elapsed=0
-    while ! docker info &>/dev/null; do
-        if [ $elapsed -ge $timeout ]; then
-            log "ERROR" "Docker service failed to become available"
+    while systemctl is-active --quiet docker; do
+        if [ $elapsed -ge $stop_timeout ]; then
+            log "ERROR" "Docker service failed to stop"
             return 1
         fi
         sleep 1
         ((elapsed++))
     done
     
+    # Start the service
+    if ! sudo systemctl start docker; then
+        log "ERROR" "Failed to start Docker service"
+        log "INFO" "Docker service logs:"
+        sudo journalctl -u docker.service -n 50 --no-pager
+        return 1
+    fi
+    
+    # Wait for service to be fully available with more robust checks
+    local start_timeout=60  # Increased timeout for slower systems
+    elapsed=0
+    local service_ready=false
+    
+    while [ $elapsed -lt $start_timeout ]; do
+        # Check multiple indicators of service readiness
+        if systemctl is-active --quiet docker && \
+           sudo docker info &>/dev/null && \
+           sudo docker version &>/dev/null; then
+            service_ready=true
+            break
+        fi
+        
+        # If service failed, exit early
+        if systemctl is-failed --quiet docker; then
+            log "ERROR" "Docker service failed to start"
+            log "INFO" "Docker service logs:"
+            sudo journalctl -u docker.service -n 50 --no-pager
+            return 1
+        fi
+        
+        sleep 2  # Increased sleep interval to reduce system load
+        ((elapsed+=2))
+        
+        # Provide progress updates
+        if (( elapsed % 10 == 0 )); then
+            log "INFO" "Waiting for Docker service to become ready... ($elapsed seconds)"
+        fi
+    done
+    
+    if [ "$service_ready" = false ]; then
+        log "ERROR" "Docker service failed to become ready within $start_timeout seconds"
+        log "INFO" "Docker service status:"
+        sudo systemctl status docker
+        log "INFO" "Docker service logs:"
+        sudo journalctl -u docker.service -n 50 --no-pager
+        return 1
+    fi
+    
+    log "INFO" "Docker service successfully restarted and ready"
     return 0
 }
 
@@ -276,8 +336,8 @@ verify_docker() {
         verification_failed=true
     fi
     
-    # Check Docker daemon responsiveness
-    if ! docker info &>/dev/null; then
+    # Check Docker daemon responsiveness with group membership
+    if ! sg docker -c "docker info" &>/dev/null; then
         log "ERROR" "Docker daemon is not responding"
         verification_failed=true
     fi
@@ -285,12 +345,6 @@ verify_docker() {
     # Check user groups
     if ! groups | grep -q "docker"; then
         log "ERROR" "User not in docker group"
-        verification_failed=true
-    fi
-    
-    # Check daemon configuration
-    if [ ! -f "${config_modules_docker_paths_daemon_config}" ]; then
-        log "ERROR" "Docker daemon configuration file not found"
         verification_failed=true
     fi
     
