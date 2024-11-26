@@ -1,0 +1,84 @@
+{
+    "enabled": true,
+    "runlevel": 3,
+    "backup": {
+        "paths": [
+            "/etc/docker/daemon.json"
+        ]
+    },
+    "shell": {
+        "paths": {
+            "config_dir": "/etc/docker",
+            "daemon_config": "/etc/docker/daemon.json"
+        },
+        "aliases": {
+            "basic": {
+                "d": "docker",
+                "dc": "docker compose",
+                "dcu": "docker compose up",
+                "dcub": "docker compose up --build",
+                "dcd": "docker compose down",
+                "dcl": "docker compose logs -f"
+            },
+            "container": {
+                "dps": "docker ps",
+                "dpsa": "docker ps -a",
+                "dex": "docker exec -it",
+                "dtop": "docker top",
+                "dstats": "docker stats"
+            },
+            "cleanup": {
+                "dprune": "docker system prune -f",
+                "dvprune": "docker volume prune -f",
+                "dclean": "docker system prune -af --volumes"
+            }
+        }
+    },
+    "docker": {
+        "package": {
+            "name": "docker-ce",
+            "components": [
+                "docker-ce",
+                "docker-ce-cli",
+                "containerd.io"
+            ],
+            "repositories": {
+                "rpm": {
+                    "repo_url": "https://download.docker.com/linux/centos/docker-ce.repo"
+                },
+                "deb": {
+                    "key_url": "https://download.docker.com/linux/ubuntu/gpg",
+                    "key_path": "/usr/share/keyrings/docker-archive-keyring.gpg",
+                    "repo_file": "/etc/apt/sources.list.d/docker.list",
+                    "repo_config": "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu {release} stable"
+                }
+            }
+        },
+        "daemon": {
+            "logging": {
+                "driver": "json-file",
+                "options": {
+                    "max-size": "10m",
+                    "max-file": "3"
+                }
+            }
+        },
+        "container_defaults": {
+            "resources": {
+                "memory": {
+                    "swap": "1G",
+                    "limit": "8G"
+                },
+                "cpu": {
+                    "shares": 1024
+                }
+            }
+        },
+        "helper_functions": {
+            "dexec": "Execute command in container or open shell if no command provided",
+            "dlog": "View logs of container with optional tail",
+            "dbash": "Quick access to container bash shell",
+            "dcex": "Execute command in docker-compose service"
+        }
+    }
+}

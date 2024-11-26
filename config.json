@@ -1,0 +1,30 @@
+{
+    "version": "1.0.0",
+    "paths": {
+        "root": "$HOME/.devenv",
+        "logs": "$HOME/.devenv/logs",
+        "backups": "$HOME/.devenv/backups",
+        "state": "$HOME/.devenv/state",
+        "modules": "$HOME/.devenv/modules"
+    },
+    "modules": {
+        "order": [
+            "zsh",
+            "git",
+            "vscode",
+            "docker",
+            "conda"
+        ],
+        "defaults": {
+            "backup": {
+                "enabled": true,
+                "retention_days": 30
+            },
+            "logging": {
+                "level": "INFO",
+                "rotation_days": 7,
+                "max_size": "10M"
+            }
+        }
+    }
+}

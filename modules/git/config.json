@@ -1,0 +1,50 @@
+{
+    "enabled": true,
+    "runlevel": 2,
+    "backup": {
+        "paths": [
+            "$HOME/.gitconfig",
+            "$HOME/.ssh/config",
+            "$HOME/.ssh/id_ed25519",
+            "$HOME/.ssh/id_ed25519.pub"
+        ]
+    },
+    "shell": {
+        "paths": {
+            "ssh_dir": "$HOME/.ssh",
+            "git_config": "$HOME/.gitconfig"
+        },
+        "aliases": {
+            "git": {
+                "g": "git",
+                "ga": "git add",
+                "gaa": "git add --all",
+                "gst": "git status",
+                "gc": "git commit -v",
+                "gc!": "git commit -v --amend",
+                "gp": "git push",
+                "gpl": "git pull"
+            }
+        }
+    },
+    "git": {
+        "config": {
+            "user.name": "",
+            "user.email": "",
+            "core.editor": "vim",
+            "init.defaultBranch": "main",
+            "pull.rebase": "false",
+            "push.autoSetupRemote": "true"
+        },
+        "ssh": {
+            "key_type": "ed25519",
+            "hosts": [
+                {
+                    "host": "github.com",
+                    "user": "git",
+                    "identity_file": "$HOME/.ssh/id_ed25519"
+                }
+            ]
+        }
+    }
+}

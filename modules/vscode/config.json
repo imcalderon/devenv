@@ -1,0 +1,99 @@
+{
+    "enabled": true,
+    "runlevel": 2,
+    "backup": {
+        "paths": [
+            "$HOME/.config/Code/User/settings.json",
+            "$HOME/.config/Code/User/keybindings.json"
+        ]
+    },
+    "shell": {
+        "paths": {
+            "config_dir": "$HOME/.config/Code/User",
+            "extensions_dir": "$HOME/.vscode/extensions"
+        },
+        "aliases": {
+            "editor": {
+                "code.": "code .",
+                "codei": "code-insiders",
+                "coder": "code-remote"
+            }
+        }
+    },
+    "vscode": {
+        "package": {
+            "name": "code",
+            "repositories": {
+                "rpm": {
+                    "key_url": "https://packages.microsoft.com/keys/microsoft.asc",
+                    "repo_file": "/etc/yum.repos.d/vscode.repo",
+                    "repo_config": "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc"
+                },
+                "deb": {
+                    "key_url": "https://packages.microsoft.com/keys/microsoft.asc",
+                    "key_path": "/etc/apt/trusted.gpg.d/packages.microsoft.gpg",
+                    "repo_file": "/etc/apt/sources.list.d/vscode.list",
+                    "repo_config": "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main"
+                }
+            }
+        },
+        "settings": {
+            "workbench.colorTheme": "Default High Contrast",
+            "terminal.integrated.defaultProfile.linux": "zsh",
+            "terminal.integrated.profiles.linux.zsh.path": "/bin/zsh",
+            "terminal.integrated.profiles.linux.zsh.args": ["-l"]
+        },
+        "extensions": {
+            "development": [
+                {
+                    "id": "ms-vscode.cpptools",
+                    "required": true
+                },
+                {
+                    "id": "ms-vscode.cpptools-extension-pack",
+                    "required": true
+                },
+                {
+                    "id": "ms-vscode.cpptools-themes",
+                    "required": false
+                }
+            ],
+            "build": [
+                {
+                    "id": "twxs.cmake",
+                    "required": true
+                },
+                {
+                    "id": "ms-vscode.cmake-tools",
+                    "required": true
+                }
+            ],
+            "containers": [
+                {
+                    "id": "ms-vscode-remote.remote-containers",
+                    "required": true
+                },
+                {
+                    "id": "ms-azuretools.vscode-docker",
+                    "required": true
+                }
+            ],
+            "web": [
+                {
+                    "id": "william-voyek.vscode-nginx",
+                    "required": false
+                }
+            ],
+            "python": [
+                {
+                    "id": "ms-python.vscode-pylance",
+                    "required": true
+                },
+                {
+                    "id": "ms-python.python",
+                    "required": true
+                }
+            ]
+        }
+    }
+}

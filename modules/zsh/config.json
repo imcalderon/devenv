@@ -1,0 +1,38 @@
+{
+    "enabled": true,
+    "runlevel": 1,
+    "backup": {
+        "paths": [
+            "$HOME/.zshrc",
+            "$HOME/.p10k.zsh"
+        ]
+    },
+    "shell": {
+        "theme": "powerlevel10k/powerlevel10k",
+        "paths": {
+            "oh_my_zsh": "$HOME/.oh-my-zsh",
+            "custom_dir": "$HOME/.oh-my-zsh/custom",
+            "modules_dir": "$HOME/.oh-my-zsh/custom/modules",
+            "plugins_dir": "$HOME/.oh-my-zsh/custom/plugins",
+            "themes_dir": "$HOME/.oh-my-zsh/custom/themes"
+        },
+        "plugins": [
+            "git",
+            "docker",
+            "kubectl",
+            "zsh-autosuggestions",
+            "zsh-syntax-highlighting"
+        ],
+        "custom_plugins": {
+            "zsh-autosuggestions": "https://github.com/zsh-users/zsh-autosuggestions",
+            "zsh-syntax-highlighting": "https://github.com/zsh-users/zsh-syntax-highlighting"
+        },
+        "aliases": {
+            "shell": {
+                "zshconfig": "code ~/.zshrc",
+                "ohmyzsh": "code ~/.oh-my-zsh",
+                "reload": "source ~/.zshrc"
+            }
+        }
+    }
+}
