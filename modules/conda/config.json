@@ -1,0 +1,84 @@
+{
+    "enabled": true,
+    "runlevel": 4,
+    "backup": {
+        "paths": [
+            "$HOME/.condarc",
+            "$HOME/.conda/environments.txt"
+        ]
+    },
+    "shell": {
+        "paths": {
+            "conda_root": "$HOME/miniconda3",
+            "envs_dir": "$HOME/miniconda3/envs",
+            "pkgs_dir": "$HOME/miniconda3/pkgs",
+            "channel_dir": "$HOME/conda-channels"
+        },
+        "aliases": {
+            "conda": {
+                "ca": "conda activate",
+                "cda": "conda deactivate",
+                "cl": "conda list",
+                "ce": "conda env list",
+                "ci": "conda install -y",
+                "cr": "conda remove -y",
+                "cu": "conda update -y"
+            },
+            "env": {
+                "cmb": "conda env create -f environment.yml",
+                "cmu": "conda env update -f environment.yml",
+                "cmr": "conda env remove -n"
+            }
+        }
+    },
+    "package": {
+        "name": "Miniconda3",
+        "version": "latest",
+        "installer_urls": {
+            "linux-x86_64": "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
+        }
+    },
+    "config": {
+        "channels": [
+            "file://$HOME/conda-channels",
+            "conda-forge",
+            "defaults"
+        ],
+        "channel_priority": "strict",
+        "create_default_packages": [
+            "pip",
+            "ipython",
+            "jupyter"
+        ],
+        "env_prompt": "({name})",
+        "auto_activate_base": false,
+        "pip_interop_enabled": true
+    },
+    "docker": {
+        "base_images": [
+            "continuumio/miniconda3:latest"
+        ],
+        "dockerfile_templates": {
+            "default": {
+                "channel_mount": "/opt/conda/channels",
+                "env_setup": [
+                    "COPY environment.yml /tmp/",
+                    "RUN conda env create -f /tmp/environment.yml"
+                ]
+            }
+        }
+    },
+    "vscode": {
+        "settings": {
+            "python.condaPath": "$HOME/miniconda3/bin/conda",
+            "python.defaultInterpreterPath": "$HOME/miniconda3/bin/python",
+            "terminal.integrated.env.linux": {
+                "CONDA_AUTO_ACTIVATE": "false"
+            }
+        },
+        "extensions": [
+            "ms-python.python",
+            "ms-toolsai.jupyter"
+        ]
+    }
+}
