@@ -58,13 +58,16 @@ verify_module() {
 init_module() {
     local module=$1
     
+    # Save current LOG_LEVEL
+    local current_log_level="${LOG_LEVEL:-INFO}"
+    
     # Verify module first
     if ! verify_module "$module"; then
         return 1
     fi
     
-    # Initialize module-specific logging
-    init_logging "$module"
+    # Initialize module-specific logging with preserved log level
+    LOG_LEVEL="$current_log_level" init_logging "$module"
     
     # Export module context variables
     export MODULE_NAME="$module"

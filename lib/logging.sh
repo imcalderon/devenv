@@ -7,6 +7,9 @@ DEFAULT_LOG_DIR="$HOME/.devenv/logs"
 
 # Initialize logging
 init_logging() {
+    # Preserve existing LOG_LEVEL if set
+    export LOG_LEVEL=${LOG_LEVEL:-${DEFAULT_LOG_LEVEL}}
+    
     # Get log directory from module config if available
     local module_name=${1:-}
     local log_dir="$DEFAULT_LOG_DIR"
@@ -24,7 +27,6 @@ init_logging() {
     # Set up log file with module prefix if applicable
     local prefix=${module_name:+${module_name}_}
     export LOG_FILE="${log_dir}/devenv_${prefix}$(date +%Y%m%d).log"
-    export LOG_LEVEL=${LOG_LEVEL:-$DEFAULT_LOG_LEVEL}
     
     # Create symlink to latest log
     ln -sf "$LOG_FILE" "${log_dir}/${prefix}latest.log"
@@ -37,6 +39,25 @@ log() {
     local module=${3:-}
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
+    # Only log if level is appropriate for current LOG_LEVEL
+    case "$LOG_LEVEL" in
+        "DEBUG")
+            # Log everything
+            ;;
+        "INFO")
+            # Skip DEBUG
+            [[ "$level" == "DEBUG" ]] && return 0
+            ;;
+        "WARN")
+            # Skip DEBUG and INFO
+            [[ "$level" == "DEBUG" || "$level" == "INFO" ]] && return 0
+            ;;
+        "ERROR")
+            # Skip DEBUG, INFO, and WARN
+            [[ "$level" != "ERROR" ]] && return 0
+            ;;
+    esac
+
     # Ensure LOG_FILE is set
     if [[ -z "${LOG_FILE}" ]]; then
         echo "ERROR: LOG_FILE is not set" >&2
@@ -61,7 +82,7 @@ log() {
             echo -e "\e[32m[$level]${module:+ [$module]} $message\e[0m"
             ;;
         "DEBUG")
-            [[ "$LOG_LEVEL" == "DEBUG" ]] && echo -e "\e[36m[$level]${module:+ [$module]} $message\e[0m"
+            echo -e "\e[36m[$level]${module:+ [$module]} $message\e[0m"
             ;;
         *)
             echo "[$level]${module:+ [$module]} $message"

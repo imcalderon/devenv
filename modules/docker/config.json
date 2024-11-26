@@ -44,7 +44,10 @@
             ],
             "repositories": {
                 "rpm": {
-                    "repo_url": "https://download.docker.com/linux/centos/docker-ce.repo"
+                    "repo_url": "https://download.docker.com/linux/centos/docker-ce.repo",
+                    "os_release_file": "/etc/os-release",
+                    "platform_path": "/etc/yum.repos.d/",
+                    "platform_command": "dnf config-manager"
                 },
                 "deb": {
                     "key_url": "https://download.docker.com/linux/ubuntu/gpg",
@@ -55,14 +58,12 @@
             }
         },
         "daemon": {
-            "logging": {
-                "driver": "json-file",
-                "options": {
-                    "max-size": "10m",
-                    "max-file": "3"
-                }
+            "log-driver": "json-file",
+            "log-opts": {
+              "max-size": "10m",
+              "max-file": "3"
             }
-        },
+          },
         "container_defaults": {
             "resources": {
                 "memory": {

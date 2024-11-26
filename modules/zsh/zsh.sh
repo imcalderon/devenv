@@ -272,7 +272,7 @@ Other Terminal Tips:
   - If icons still look wrong after font change, restart your terminal
   - Make sure antialiasing is enabled in your terminal settings
   - For other terminals, look for "Font" or "Appearance" in preferences
-
+  - "MesloLGS NF" to vscode terminal too
 Next Steps:
   1. Restart your terminal or run: exec zsh
   2. Configure Powerlevel10k when prompted
