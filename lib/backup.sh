@@ -3,27 +3,32 @@
 
 # Backup a file with module context
 backup_file() {
-    local file=$1
+    local path=$1
     local module=${2:-}
-    
+
     # Get backup directory from module config if available
     local backup_base="$HOME/.devenv/backups"
     if [[ -n "$module" && -f "$MODULES_DIR/$module/config.json" ]]; then
         backup_base=$(get_json_value "$MODULES_DIR/$module/config.json" '.backup.dir' "$backup_base" "$module")
     fi
-    
+
     local backup_dir="$backup_base/$(date +%Y%m%d_%H%M%S)"
     local module_dir="$backup_dir/${module:+$module/}"
-    
-    if [[ -f "$file" ]]; then
+
+    if [[ -f "$path" ]]; then
         mkdir -p "$module_dir"
-        cp "$file" "$module_dir/$(basename "$file").backup"
-        log "INFO" "Backed up $file to $module_dir" "$module"
-        return 0
+        cp "$path" "$module_dir/$(basename "$path").backup"
+        log "INFO" "Backed up $path to $module_dir" "$module"
+    elif [[ -d "$path" ]]; then
+        mkdir -p "$module_dir"
+        cp -r "$path" "$module_dir/$(basename "$path").backup"
+        log "INFO" "Backed up directory $path to $module_dir" "$module"
     else
-        log "WARN" "File not found for backup: $file" "$module"
+        log "WARN" "Path not found for backup: $path" "$module"
         return 1
     fi
+
+    return 0
 }
 
 # Restore a file with module context

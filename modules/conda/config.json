@@ -10,9 +10,10 @@
     "shell": {
         "paths": {
             "conda_root": "$HOME/miniconda3",
-            "envs_dir": "$HOME/miniconda3/envs",
-            "pkgs_dir": "$HOME/miniconda3/pkgs",
-            "channel_dir": "$HOME/conda-channels"
+            "envs_dir": "$HOME/Development/conda/envs",
+            "pkgs_dir": "$HOME/Development/conda/pkgs",
+            "channel_dir": "$HOME/Development/conda/channels",
+            "templates_dir": "$HOME/Development/conda/templates"
         },
         "aliases": {
             "conda": {
@@ -40,9 +41,8 @@
     },
     "config": {
         "channels": [
-            "file://$HOME/conda-channels",
-            "conda-forge",
-            "defaults"
+            "defaults",
+            "conda-forge"
         ],
         "channel_priority": "strict",
         "create_default_packages": [
