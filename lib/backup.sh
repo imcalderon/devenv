@@ -1,5 +1,29 @@
 #!/bin/bash
 # lib/utils/backup.sh - Backup utilities
+create_backup() {
+    local module=${1:-}
+
+    # Get backup directory from module config if available
+    local backup_base="$HOME/.devenv/backups"
+    if [[ -n "$module" && -f "$MODULES_DIR/$module/config.json" ]]; then
+        backup_base=$(get_json_value "$MODULES_DIR/$module/config.json" '.backup.dir' "$backup_base" "$module")
+    fi
+
+    # Get backup paths from module config
+    local backup_paths
+    if [[ -n "$module" && -f "$MODULES_DIR/$module/config.json" ]]; then
+        backup_paths=($(get_json_value "$MODULES_DIR/$module/config.json" '.backup.paths[]' "" "$module"))
+    fi
+
+    for path in "${backup_paths[@]}"; do
+        path=$(eval echo "$path")  # Expand environment variables
+        if [[ -e "$path" ]]; then
+            backup_file "$path" "$module"
+        fi
+    done
+
+    return 0
+}
 
 # Backup a file with module context
 backup_file() {
