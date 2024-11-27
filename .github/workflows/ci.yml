@@ -1,0 +1,91 @@
+name: DevEnv CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  shellcheck:
+    name: Shell Script Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      
+      - name: Run ShellCheck
+        run: |
+          find . -type f -name "*.sh" -exec shellcheck {} +
+
+  json-validation:
+    name: JSON Configuration Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      
+      - name: Validate JSON Files
+        run: |
+          find . -type f -name "*.json" -exec sh -c '
+            for file do
+              if ! jq . "$file" >/dev/null 2>&1; then
+                echo "Invalid JSON: $file"
+                exit 1
+              fi
+            done
+          ' sh {} +
+
+  installation-test:
+    name: Installation Test
+    runs-on: ubuntu-latest
+    needs: [shellcheck, json-validation]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Test Python Module Installation
+        run: |
+          sudo ./devenv.sh install python
+          
+      - name: Test Git Module Installation
+        run: |
+          sudo ./devenv.sh install git
+          
+      - name: Verify Installations
+        run: |
+          ./devenv.sh verify python
+          ./devenv.sh verify git
+
+  module-generation:
+    name: Module Generation Test
+    runs-on: ubuntu-latest
+    needs: [shellcheck, json-validation]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Test Module Generation
+        run: |
+          ./generate.sh test_module
+          test -f modules/test_module/test_module.sh
+          test -f modules/test_module/config.json
+
+  documentation:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check Module Documentation
+        run: |
+          for module in modules/*/; do
+            if [ ! -f "${module}/README.md" ]; then
+              echo "Warning: Missing README.md in ${module}"
+            fi
+          done
+
+permissions:
+  contents: read
