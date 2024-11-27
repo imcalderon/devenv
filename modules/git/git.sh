@@ -2,46 +2,229 @@
 # modules/git/git.sh - Git module implementation
 
 # Load required utilities
-source "$SCRIPT_DIR/logging.sh"  # Load logging first
-source "$SCRIPT_DIR/json.sh"     # Then JSON handling
-source "$SCRIPT_DIR/module.sh"   # Then module utilities
-source "$SCRIPT_DIR/backup.sh"   # Finally backup utilities
-source "$SCRIPT_DIR/alias.sh"    # For shell alias support
+source "$SCRIPT_DIR/logging.sh"
+source "$SCRIPT_DIR/json.sh"
+source "$SCRIPT_DIR/module.sh"
+source "$SCRIPT_DIR/backup.sh"
+source "$SCRIPT_DIR/alias.sh"
 
 # Initialize module
 init_module "git" || exit 1
 
-# Check for git installation and configuration
-grovel_git() {
-    if ! command -v git &>/dev/null; then
-        log "INFO" "Git not found" "git"
-        return 1
-    fi
+# State file for tracking installation status
+STATE_FILE="$HOME/.devenv/state/git.state"
 
-    # Check for SSH directory and keys
-    local ssh_dir=$(get_module_config "git" ".shell.paths.ssh_dir")
-    ssh_dir=$(eval echo "$ssh_dir")
-    
-    if [[ ! -f "${ssh_dir}/id_ed25519" ]]; then
-        log "INFO" "SSH key not found" "git"
-        return 1
-    fi
+# Define module components
+COMPONENTS=(
+    "core"          # Base Git installation
+    "ssh"           # SSH key configuration
+    "config"        # Git configuration
+    "aliases"       # Git aliases
+)
 
-    # Verify git configuration
-    if ! git config --global user.name &>/dev/null || ! git config --global user.email &>/dev/null; then
-        log "INFO" "Git user configuration incomplete" "git"
-        return 1
-    fi
+# Display module information
+show_module_info() {
+    cat << 'EOF'
 
-    return 0
+🔄 Git Development Environment
+==========================
+
+Description:
+-----------
+Professional Git environment with SSH key management, 
+optimized configurations, and productivity-enhancing aliases.
+
+Benefits:
+--------
+✓ Secure Setup - Automated SSH key generation and management
+✓ Best Practices - Pre-configured Git settings for optimal workflow
+✓ Enhanced Productivity - Curated aliases for common operations
+✓ GitHub Ready - Automated GitHub SSH configuration
+✓ Backup Support - Automated backup of all configurations
+
+Components:
+----------
+1. Core Git
+   - Latest Git version
+   - SSH client
+   - GitHub integration
+
+2. SSH Configuration
+   - ED25519 key generation
+   - GitHub SSH setup
+   - Secure permissions
+
+3. Git Configuration
+   - Global settings
+   - Default branch config
+   - Push/pull behaviors
+   - Editor preferences
+
+Quick Start:
+-----------
+1. Check status:
+   $ gst
+
+2. Stage and commit:
+   $ ga file.txt
+   $ gc -m "commit message"
+
+3. Push/pull changes:
+   $ gp   # push
+   $ gpl  # pull
+
+Aliases:
+-------
+g    : git
+ga   : git add
+gaa  : git add --all
+gst  : git status
+gc   : git commit -v
+gc!  : git commit -v --amend
+gp   : git push
+gpl  : git pull
+
+Configuration:
+-------------
+Location: ~/.gitconfig
+Key files:
+- ~/.gitconfig    : Git configuration
+- ~/.ssh/config   : SSH configuration
+- ~/.ssh/id_ed25519* : SSH keys
+
+Tips:
+----
+• Use gaa to stage all changes
+• gc! to amend last commit
+• gst for quick status check
+• Always pull before pushing
+
+Security Note:
+------------
+SSH keys are generated with best practices:
+• ED25519 algorithm
+• Proper permissions
+• Passphrase protection (optional)
+
+For more information:
+-------------------
+Documentation: https://git-scm.com/doc
+GitHub Guide: https://docs.github.com/authentication
+
+EOF
+
+    # Show current installation status
+    echo "Current Status:"
+    echo "-------------"
+    for component in "${COMPONENTS[@]}"; do
+        if check_state "$component"; then
+            echo "✓ $component: Installed"
+            case "$component" in
+                "core")
+                    if command -v git &>/dev/null; then
+                        echo "  Version: $(git --version)"
+                    fi
+                    ;;
+                "ssh")
+                    local ssh_dir=$(get_module_config "git" ".shell.paths.ssh_dir")
+                    ssh_dir=$(eval echo "$ssh_dir")
+                    if [[ -f "${ssh_dir}/id_ed25519" ]]; then
+                        echo "  SSH Key: Present"
+                    fi
+                    ;;
+            esac
+        else
+            echo "✗ $component: Not installed"
+        fi
+    done
+    echo
 }
 
-# Install and configure git
-install_git() {
-    log "INFO" "Setting up Git environment..." "git"
+# Save component state
+save_state() {
+    local component=$1
+    local status=$2
+    mkdir -p "$(dirname "$STATE_FILE")"
+    echo "$component:$status:$(date +%s)" >> "$STATE_FILE"
+}
 
-    # Install git if needed
+# Check component state
+check_state() {
+    local component=$1
+    if [[ -f "$STATE_FILE" ]]; then
+        grep -q "^$component:installed:" "$STATE_FILE"
+        return $?
+    fi
+    return 1
+}
+
+# Verify specific component
+verify_component() {
+    local component=$1
+    case "$component" in
+        "core")
+            command -v git &>/dev/null
+            ;;
+        "ssh")
+            local ssh_dir=$(get_module_config "git" ".shell.paths.ssh_dir")
+            ssh_dir=$(eval echo "$ssh_dir")
+            [[ -f "${ssh_dir}/id_ed25519" ]] && [[ -f "${ssh_dir}/config" ]]
+            ;;
+        "config")
+            git config --global user.name &>/dev/null && \
+            git config --global user.email &>/dev/null
+            ;;
+        "aliases")
+            list_module_aliases "git" "git" &>/dev/null
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+    return $?
+}
+
+# Install specific component
+install_component() {
+    local component=$1
+    if check_state "$component" && verify_component "$component"; then
+        log "INFO" "Component $component already installed and verified" "git"
+        return 0
+    fi
+    
+    case "$component" in
+        "core")
+            if install_git_core; then
+                save_state "core" "installed"
+                return 0
+            fi
+            ;;
+        "ssh")
+            if configure_ssh; then
+                save_state "ssh" "installed"
+                return 0
+            fi
+            ;;
+        "config")
+            if configure_git; then
+                save_state "config" "installed"
+                return 0
+            fi
+            ;;
+        "aliases")
+            if configure_aliases; then
+                save_state "aliases" "installed"
+                return 0
+            fi
+            ;;
+    esac
+    return 1
+}
+
+# Install core Git
+install_git_core() {
     if ! command -v git &>/dev/null; then
+        log "INFO" "Installing git..." "git"
         if command -v apt-get &>/dev/null; then
             sudo apt-get update
             sudo apt-get install -y git openssh-client
@@ -52,20 +235,10 @@ install_git() {
             return 1
         fi
     fi
-
-    # Configure SSH
-    configure_ssh || return 1
-
-    # Configure git
-    configure_git || return 1
-
-    # Add git aliases
-    add_module_aliases "git" "git" || return 1
-
     return 0
 }
 
-# Configure SSH for git
+# Configure SSH
 configure_ssh() {
     log "INFO" "Configuring SSH..." "git"
 
@@ -80,7 +253,6 @@ configure_ssh() {
     if [[ ! -f "${ssh_dir}/id_ed25519" ]]; then
         log "INFO" "Generating SSH key..." "git"
         
-        # Get user input for key generation
         local git_email=$(get_module_config "git" ".git.config[\"user.email\"]")
         if [[ -z "$git_email" ]]; then
             read -p "Enter your email for SSH key: " git_email
@@ -90,58 +262,20 @@ configure_ssh() {
     fi
 
     # Configure SSH config file
-    local ssh_config="${ssh_dir}/config"
-
-    # Backup existing config if it exists
-    [[ -f "$ssh_config" ]] && backup_file "$ssh_config" "git"
-
-    # Create new config
-    {
-        echo "# SSH configuration managed by devenv"
-        echo ""
-
-        # Add host configurations from config
-        local hosts=($(get_module_config "git" ".git.ssh.hosts[].host"))
-        for host in "${hosts[@]}"; do
-            local user=$(get_module_config "git" ".git.ssh.hosts[] | select(.host == \"$host\") | .user")
-            local identity=$(get_module_config "git" ".git.ssh.hosts[] | select(.host == \"$host\") | .identity_file")
-            identity=$(eval echo "$identity")
-
-            echo "Host $host"
-            echo "    User $user"
-            echo "    IdentityFile $identity"
-            echo "    IdentitiesOnly yes"
-            echo ""
-        done
-    } > "$ssh_config"
-
-    chmod 600 "$ssh_config"
-
-    # Add GitHub to known hosts
-    ssh-keyscan github.com >> "${ssh_dir}/known_hosts" 2>/dev/null
-
-    # Start ssh-agent and add key
-    eval "$(ssh-agent -s)"
-    ssh-add "${ssh_dir}/id_ed25519"
-
-    # Display public key for GitHub setup
-    log "INFO" "Your public SSH key (add this to GitHub):" "git"
-    cat "${ssh_dir}/id_ed25519.pub"
+    configure_ssh_config || return 1
 
     return 0
 }
 
-# Configure git global settings
+# Configure Git
 configure_git() {
     log "INFO" "Configuring Git..." "git"
 
-    # Get configurations from config file
     local configs=($(get_module_config "git" ".git.config | keys[]"))
     
     for key in "${configs[@]}"; do
         local value=$(get_module_config "git" ".git.config[\"$key\"]")
         
-        # If value is empty and it's a required field, prompt user
         if [[ -z "$value" ]]; then
             case "$key" in
                 "user.name")
@@ -162,7 +296,85 @@ configure_git() {
     return 0
 }
 
-# Remove git configuration
+# Configure aliases
+configure_aliases() {
+    add_module_aliases "git" "git" || return 1
+    return 0
+}
+
+# Configure SSH config file
+configure_ssh_config() {
+    local ssh_dir=$(get_module_config "git" ".shell.paths.ssh_dir")
+    ssh_dir=$(eval echo "$ssh_dir")
+    local ssh_config="${ssh_dir}/config"
+
+    [[ -f "$ssh_config" ]] && backup_file "$ssh_config" "git"
+
+    {
+        echo "# SSH configuration managed by devenv"
+        echo ""
+
+        local hosts=($(get_module_config "git" ".git.ssh.hosts[].host"))
+        for host in "${hosts[@]}"; do
+            local user=$(get_module_config "git" ".git.ssh.hosts[] | select(.host == \"$host\") | .user")
+            local identity=$(get_module_config "git" ".git.ssh.hosts[] | select(.host == \"$host\") | .identity_file")
+            identity=$(eval echo "$identity")
+
+            echo "Host $host"
+            echo "    User $user"
+            echo "    IdentityFile $identity"
+            echo "    IdentitiesOnly yes"
+            echo ""
+        done
+    } > "$ssh_config"
+
+    chmod 600 "$ssh_config"
+    ssh-keyscan github.com >> "${ssh_dir}/known_hosts" 2>/dev/null
+
+    return 0
+}
+
+# Grovel checks existence and basic functionality
+grovel_git() {
+    local status=0
+    
+    for component in "${COMPONENTS[@]}"; do
+        if ! check_state "$component" || ! verify_component "$component"; then
+            log "INFO" "Component $component needs installation" "git"
+            status=1
+        fi
+    done
+    
+    return $status
+}
+
+# Install with state awareness
+install_git() {
+    local force=${1:-false}
+    
+    if [[ "$force" == "true" ]] || ! grovel_git &>/dev/null; then
+        create_backup
+    fi
+    
+    for component in "${COMPONENTS[@]}"; do
+        if [[ "$force" == "true" ]] || ! check_state "$component" || ! verify_component "$component"; then
+            log "INFO" "Installing component: $component" "git"
+            if ! install_component "$component"; then
+                log "ERROR" "Failed to install component: $component" "git"
+                return 1
+            fi
+        else
+            log "INFO" "Skipping already installed and verified component: $component" "git"
+        fi
+    done
+    
+    # Show module information after successful installation
+    show_module_info
+    
+    return 0
+}
+
+# Remove Git configuration
 remove_git() {
     log "INFO" "Removing Git configuration..." "git"
 
@@ -184,77 +396,38 @@ remove_git() {
     # Remove git aliases
     remove_module_aliases "git" "git"
 
+    # Remove state file
+    rm -f "$STATE_FILE"
+
     log "INFO" "Git configuration removed" "git"
     log "WARN" "SSH keys were preserved for safety. Remove manually if needed." "git"
 
     return 0
 }
 
-# Verify git installation and configuration
+# Verify entire installation
 verify_git() {
     log "INFO" "Verifying Git installation..." "git"
     local status=0
-
-    # Check git installation
-    if ! command -v git &>/dev/null; then
-        log "ERROR" "Git is not installed" "git"
-        status=1
-    fi
-
-    # Verify git configuration
-    local required_configs=("user.name" "user.email")
-    for config in "${required_configs[@]}"; do
-        if ! git config --global --get "$config" &>/dev/null; then
-            log "ERROR" "Git $config is not configured" "git"
+    
+    for component in "${COMPONENTS[@]}"; do
+        if ! verify_component "$component"; then
+            log "ERROR" "Verification failed for component: $component" "git"
             status=1
         fi
     done
 
-    # Check SSH configuration
-    local ssh_dir=$(get_module_config "git" ".shell.paths.ssh_dir")
-    ssh_dir=$(eval echo "$ssh_dir")
-    
-    if [[ ! -f "${ssh_dir}/id_ed25519" ]]; then
-        log "ERROR" "SSH key not found" "git"
-        status=1
-    fi
-
-    # Test GitHub SSH connection with more detailed error handling
-    log "DEBUG" "Testing GitHub SSH connection..." "git"
-    if ! ssh -T git@github.com -o BatchMode=yes -o StrictHostKeyChecking=no 2>&1 | grep -q "successfully authenticated"; then
-        # Check specific SSH issues
-        if ! ssh-add -l &>/dev/null; then
-            log "ERROR" "SSH agent has no keys loaded. Running ssh-add..." "git"
-            eval "$(ssh-agent -s)" >/dev/null
-            ssh-add "${ssh_dir}/id_ed25519" || {
-                log "ERROR" "Failed to add SSH key to agent" "git"
-                status=1
-            }
-        fi
-        
-        # Test connection again after loading key
-        if ! ssh -T git@github.com -o BatchMode=yes -o StrictHostKeyChecking=no 2>&1 | grep -q "successfully authenticated"; then
-            log "ERROR" "GitHub SSH authentication failed. Please ensure your key is added to GitHub" "git"
-            log "INFO" "Your public key for GitHub:" "git"
-            cat "${ssh_dir}/id_ed25519.pub"
-            status=1
-        fi
-    else
-        log "INFO" "GitHub SSH connection successful" "git"
-    fi
-
-    # Verify aliases
-    if ! list_module_aliases "git" "git" &>/dev/null; then
-        log "ERROR" "Git aliases not configured" "git"
-        status=1
-    fi
-
+    # Additional GitHub SSH verification
     if [ $status -eq 0 ]; then
-        log "INFO" "Git verification completed successfully" "git"
-    else
-        log "ERROR" "Git verification failed" "git"
+        log "INFO" "Testing GitHub SSH connection..." "git"
+        if ! ssh -T git@github.com -o BatchMode=yes -o StrictHostKeyChecking=no 2>&1 | grep -q "successfully authenticated"; then
+            log "ERROR" "GitHub SSH authentication failed" "git"
+            status=1
+        else
+            log "INFO" "GitHub SSH connection successful" "git"
+        fi
     fi
-
+    
     return $status
 }
 
@@ -264,16 +437,20 @@ case "${1:-}" in
         grovel_git
         ;;
     install)
-        install_git
-        ;;
-    remove)
-        remove_git
+        install_git "${2:-false}"  # Optional force parameter
         ;;
     verify)
         verify_git
         ;;
+    info)
+        show_module_info
+        ;;
+    remove)
+        remove_git
+        ;;
     *)
         log "ERROR" "Unknown action: ${1:-}" "git"
+        log "ERROR" "Usage: $0 {install|remove|verify|info} [--force]"
         exit 1
         ;;
 esac

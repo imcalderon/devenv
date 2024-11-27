@@ -42,14 +42,19 @@
             "workbench.colorTheme": "Default High Contrast",
             "terminal.integrated.defaultProfile.linux": "zsh",
             "terminal.integrated.profiles.linux.zsh.path": "/bin/zsh",
-            "terminal.integrated.profiles.linux.zsh.args": ["-l"],
+            "terminal.integrated.profiles.linux.zsh.args": [
+                "-l"
+            ],
             "python.defaultInterpreterPath": "${HOME}/.local/bin/python3",
             "python.linting.enabled": true,
             "python.linting.pylintEnabled": true,
             "python.linting.pylintPath": "${HOME}/.local/bin/pylint",
             "python.formatting.provider": "black",
             "python.formatting.blackPath": "${HOME}/.local/bin/black",
-            "python.formatting.blackArgs": ["--line-length", "100"],
+            "python.formatting.blackArgs": [
+                "--line-length",
+                "100"
+            ],
             "python.condaPath": "${HOME}/miniconda3/bin/conda",
             "python.terminal.activateEnvironment": true,
             "editor.formatOnSave": true,
@@ -81,7 +86,9 @@
                     "name": "Python: Debug Tests",
                     "type": "python",
                     "request": "launch",
-                    "purpose": ["debug-test"],
+                    "purpose": [
+                        "debug-test"
+                    ],
                     "console": "integratedTerminal",
                     "justMyCode": false,
                     "env": {
@@ -93,7 +100,10 @@
                     "type": "python",
                     "request": "launch",
                     "module": "uvicorn",
-                    "args": ["main:app", "--reload"],
+                    "args": [
+                        "main:app",
+                        "--reload"
+                    ],
                     "console": "integratedTerminal",
                     "justMyCode": false
                 },
@@ -125,7 +135,10 @@
             "compounds": [
                 {
                     "name": "Server/Client",
-                    "configurations": ["Python: FastAPI", "Python: Current File"]
+                    "configurations": [
+                        "Python: FastAPI",
+                        "Python: Current File"
+                    ]
                 }
             ]
         },
@@ -212,6 +225,14 @@
                     "required": true
                 },
                 {
+                    "id": "ms-python.debugpy",
+                    "required": true
+                },
+                {
+                    "id": "ms-toolsai.jupyter",
+                    "required": false
+                },
+                {
                     "id": "njpwerner.autodocstring",
                     "required": false
                 },
@@ -220,7 +241,7 @@
                     "required": false
                 },
                 {
-                    "id": "visualstudioexptteam.vscodeintellicode-python",
+                    "id": "charliermarsh.ruff",
                     "required": false
                 }
             ],

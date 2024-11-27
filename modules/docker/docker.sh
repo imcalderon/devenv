@@ -2,75 +2,155 @@
 # modules/docker/docker.sh - Docker module implementation
 
 # Load required utilities
-source "$SCRIPT_DIR/logging.sh"  # Load logging first
-source "$SCRIPT_DIR/json.sh"     # Then JSON handling
-source "$SCRIPT_DIR/module.sh"   # Then module utilities
-source "$SCRIPT_DIR/backup.sh"   # Finally backup utilities
-source "$SCRIPT_DIR/alias.sh"    # For shell alias support
+source "$SCRIPT_DIR/logging.sh"
+source "$SCRIPT_DIR/json.sh"
+source "$SCRIPT_DIR/module.sh"
+source "$SCRIPT_DIR/backup.sh"
+source "$SCRIPT_DIR/alias.sh"
 
 # Initialize module
 init_module "docker" || exit 1
 
-# Check for Docker installation and configuration
-grovel_docker() {
-    if ! command -v docker &>/dev/null; then
-        log "INFO" "Docker not found" "docker"
-        return 1
-    fi
-    
-    # Check user groups
-    if ! groups | grep -q "docker"; then
-        log "INFO" "User not in docker group" "docker"
-        return 1
-    fi
-    
-    # Check Docker daemon
-    if ! systemctl is-active --quiet docker; then
-        log "INFO" "Docker daemon not running" "docker"
-        return 1
-    fi
-    
-    return 0
-}
+# State file for tracking installation status
+STATE_FILE="$HOME/.devenv/state/docker.state"
 
-# Install and configure Docker
-install_docker() {
-    log "INFO" "Setting up Docker environment..." "docker"
+# Define module components
+COMPONENTS=(
+    "core"          # Base Docker installation
+    "daemon"        # Docker daemon configuration
+    "service"       # Docker service setup
+    "groups"        # User group configuration
+    "helpers"       # Helper functions and aliases
+)
 
-    # Install Docker if needed
-    if ! command -v docker &>/dev/null; then
-        if ! install_docker_package; then
-            return 1
+# Display module information
+show_module_info() {
+    cat << 'EOF'
+
+🐳 Docker Development Environment
+=============================
+
+Description:
+-----------
+Professional Docker environment with optimized daemon settings,
+helper functions, and shell integration for container development.
+
+Benefits:
+--------
+✓ Production-Ready Setup - Optimized daemon configuration
+✓ Enhanced Productivity - Custom aliases and helper functions
+✓ Security - Proper user group management
+✓ Resource Management - Container limits and logging configuration
+
+Components:
+----------
+1. Core Docker
+   - Docker Engine CE
+   - Docker Compose
+   - Container runtime
+
+2. Configuration
+   - Optimized daemon settings
+   - Log rotation
+   - Resource limits
+   - Network settings
+
+3. Helper Functions
+   - Container management
+   - Log viewing
+   - Compose operations
+   - Cleanup utilities
+
+Quick Start:
+-----------
+1. Run container:
+   $ d run -it ubuntu bash
+
+2. Manage services:
+   $ dc up -d     # Start services
+   $ dcl          # View logs
+   $ dcd          # Stop services
+
+3. Container operations:
+   $ dex web bash # Execute in container
+   $ dlog web     # View container logs
+
+Helper Functions:
+----------------
+dexec <container> [cmd]  : Execute command in container
+dlog <container> [lines] : View container logs
+dbash <container>        : Quick access to container shell
+dcex <service> [cmd]     : Execute in compose service
+
+Aliases:
+-------
+Basic:
+d    : docker
+dc   : docker compose
+dcu  : docker compose up
+dcub : docker compose up --build
+dcd  : docker compose down
+dcl  : docker compose logs -f
+
+Container:
+dps    : docker ps
+dpsa   : docker ps -a
+dex    : docker exec -it
+dtop   : docker top
+dstats : docker stats
+
+Cleanup:
+dprune  : docker system prune -f
+dvprune : docker volume prune -f
+dclean  : docker system prune -af --volumes
+
+Configuration:
+-------------
+Location: /etc/docker/
+Key files:
+- daemon.json     : Daemon configuration
+- config.json     : CLI configuration
+
+Tips:
+----
+• Use dbash for quick container access
+• Monitor resources with dstats
+• Regular cleanup with dprune
+• Use dcl for service debugging
+
+For more information:
+-------------------
+Documentation: https://docs.docker.com
+Support: https://www.docker.com/support
+
+EOF
+
+    # Show current installation status
+    echo "Current Status:"
+    echo "-------------"
+    for component in "${COMPONENTS[@]}"; do
+        if check_state "$component"; then
+            echo "✓ $component: Installed"
+            case "$component" in
+                "core")
+                    if command -v docker &>/dev/null; then
+                        echo "  Version: $(docker --version)"
+                    fi
+                    ;;
+                "service")
+                    if systemctl is-active --quiet docker; then
+                        echo "  Service: Running"
+                    else
+                        echo "  Service: Stopped"
+                    fi
+                    ;;
+            esac
+        else
+            echo "✗ $component: Not installed"
         fi
-    fi
-
-    # Configure Docker daemon first
-    if ! configure_docker_daemon; then
-        return 1
-    fi
-    # Then configure and start the service
-    if ! configure_docker_service; then
-        return 1
-    fi
-
-    # Configure user groups
-    if ! configure_user_groups; then
-        return 1
-    fi
-
-    # Configure helper functions and aliases
-    configure_helper_functions || return 1
-    add_module_aliases "docker" "basic" || return 1
-    add_module_aliases "docker" "container" || return 1
-    add_module_aliases "docker" "cleanup" || return 1
-    # Show summary on success
-    if [ $? -eq 0 ]; then
-        show_docker_summary
-    fi
-    return 0
+    done
+    echo
 }
-
-# Install Docker packages based on system package manager
 install_docker_package() {
     log "INFO" "Installing Docker..." "docker"
 
@@ -125,43 +205,27 @@ configure_docker_daemon() {
     local config_dir=$(get_module_config "docker" ".shell.paths.config_dir")
     local daemon_config=$(get_module_config "docker" ".shell.paths.daemon_config")
 
-    # Debug logging
-    log "DEBUG" "Config dir: $config_dir" "docker"
-    log "DEBUG" "Daemon config path: $daemon_config" "docker"
-
     # Create configuration directory with sudo
     sudo mkdir -p "$config_dir"
 
     # Backup existing configuration
     [[ -f "$daemon_config" ]] && backup_file "$daemon_config" "docker"
 
-    # Debug: Show the configuration we're trying to write
-    log "DEBUG" "Attempting to write daemon configuration:" "docker"
-    get_module_config "docker" ".docker.daemon" | tee /dev/stderr
-
     # Create temp file and write configuration
     local temp_config=$(mktemp)
-    log "DEBUG" "Created temp file: $temp_config" "docker"
     
     if get_module_config "docker" ".docker.daemon" > "$temp_config"; then
-        log "DEBUG" "Successfully wrote to temp file" "docker"
-        cat "$temp_config" | tee /dev/stderr
+        # Use sudo to move the temp file
+        if sudo cp "$temp_config" "$daemon_config"; then
+            sudo chown root:root "$daemon_config"
+            sudo chmod 644 "$daemon_config"
+        else
+            log "ERROR" "Failed to copy configuration to $daemon_config" "docker"
+            rm -f "$temp_config"
+            return 1
+        fi
     else
-        log "ERROR" "Failed to write daemon configuration to temp file" "docker"
-        rm -f "$temp_config"
-        return 1
-    fi
-
-    # Use sudo to move the temp file
-    if sudo cp "$temp_config" "$daemon_config"; then
-        log "DEBUG" "Successfully copied config to $daemon_config" "docker"
-        sudo chown root:root "$daemon_config"
-        sudo chmod 644 "$daemon_config"
-        # Verify the file contents
-        log "DEBUG" "Final daemon configuration:" "docker"
-        sudo cat "$daemon_config" | tee /dev/stderr
-    else
-        log "ERROR" "Failed to copy configuration to $daemon_config" "docker"
+        log "ERROR" "Failed to write daemon configuration" "docker"
         rm -f "$temp_config"
         return 1
     fi
@@ -170,7 +234,6 @@ configure_docker_daemon() {
     rm -f "$temp_config"
 
     # Restart Docker service to apply changes
-    log "INFO" "Restarting Docker service..." "docker"
     if ! restart_docker_service; then
         return 1
     fi
@@ -190,6 +253,29 @@ configure_docker_service() {
     fi
 
     return 0
+}
+
+# Restart Docker service
+restart_docker_service() {
+    log "INFO" "Restarting Docker service..." "docker"
+    
+    sudo systemctl restart docker
+    
+    # Wait for service to be ready
+    local timeout=30
+    local elapsed=0
+    
+    while [ $elapsed -lt $timeout ]; do
+        if sudo docker info &>/dev/null; then
+            log "INFO" "Docker service successfully restarted" "docker"
+            return 0
+        fi
+        sleep 1
+        ((elapsed++))
+    done
+    
+    log "ERROR" "Docker service failed to restart" "docker"
+    return 1
 }
 
 # Configure user groups
@@ -255,27 +341,144 @@ EOF
     return 0
 }
 
-# Restart Docker service
-restart_docker_service() {
-    log "INFO" "Restarting Docker service..." "docker"
+# Save component state
+save_state() {
+    local component=$1
+    local status=$2
+    mkdir -p "$(dirname "$STATE_FILE")"
+    echo "$component:$status:$(date +%s)" >> "$STATE_FILE"
+}
+
+# Check component state
+check_state() {
+    local component=$1
+    if [[ -f "$STATE_FILE" ]]; then
+        grep -q "^$component:installed:" "$STATE_FILE"
+        return $?
+    fi
+    return 1
+}
+
+# Verify specific component
+verify_component() {
+    local component=$1
+    case "$component" in
+        "core")
+            command -v docker &>/dev/null
+            ;;
+        "daemon")
+            [[ -f "/etc/docker/daemon.json" ]] && validate_json "/etc/docker/daemon.json"
+            ;;
+        "service")
+            systemctl is-active --quiet docker
+            ;;
+        "groups")
+            groups | grep -q "docker"
+            ;;
+        "helpers")
+            verify_helpers
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+    return $?
+}
+
+# Verify helper functions and aliases
+verify_helpers() {
+    local modules_dir=$(get_aliases_dir)
+    [[ -f "$modules_dir/functions.zsh" ]] && \
+    grep -q "Docker helper functions" "$modules_dir/functions.zsh" && \
+    list_module_aliases "docker" "basic" &>/dev/null && \
+    list_module_aliases "docker" "container" &>/dev/null && \
+    list_module_aliases "docker" "cleanup" &>/dev/null
+}
+
+# Install specific component
+install_component() {
+    local component=$1
+    if check_state "$component" && verify_component "$component"; then
+        log "INFO" "Component $component already installed and verified" "docker"
+        return 0
+    fi
     
-    sudo systemctl restart docker
+    case "$component" in
+        "core")
+            if install_docker_package; then
+                save_state "core" "installed"
+                return 0
+            fi
+            ;;
+        "daemon")
+            if configure_docker_daemon; then
+                save_state "daemon" "installed"
+                return 0
+            fi
+            ;;
+        "service")
+            if configure_docker_service; then
+                save_state "service" "installed"
+                return 0
+            fi
+            ;;
+        "groups")
+            if configure_user_groups; then
+                save_state "groups" "installed"
+                return 0
+            fi
+            ;;
+        "helpers")
+            if configure_helper_functions && \
+               add_module_aliases "docker" "basic" && \
+               add_module_aliases "docker" "container" && \
+               add_module_aliases "docker" "cleanup"; then
+                save_state "helpers" "installed"
+                return 0
+            fi
+            ;;
+    esac
+    return 1
+}
+
+# Grovel checks existence and basic functionality
+grovel_docker() {
+    local status=0
     
-    # Wait for service to be ready
-    local timeout=30
-    local elapsed=0
-    
-    while [ $elapsed -lt $timeout ]; do
-        if sudo docker info &>/dev/null; then
-            log "INFO" "Docker service successfully restarted" "docker"
-            return 0
+    for component in "${COMPONENTS[@]}"; do
+        if ! check_state "$component" || ! verify_component "$component"; then
+            log "INFO" "Component $component needs installation" "docker"
+            status=1
         fi
-        sleep 1
-        ((elapsed++))
     done
     
-    log "ERROR" "Docker service failed to restart" "docker"
-    return 1
+    return $status
+}
+
+# Install with state awareness
+install_docker() {
+    local force=${1:-false}
+    
+    if [[ "$force" == "true" ]] || ! grovel_docker &>/dev/null; then
+        create_backup
+    fi
+    
+    for component in "${COMPONENTS[@]}"; do
+        if [[ "$force" == "true" ]] || ! check_state "$component" || ! verify_component "$component"; then
+            log "INFO" "Installing component: $component" "docker"
+            if ! install_component "$component"; then
+                log "ERROR" "Failed to install component: $component" "docker"
+                return 1
+            fi
+        else
+            log "INFO" "Skipping already installed and verified component: $component" "docker"
+        fi
+    done
+    
+    # Show module information after successful installation
+    show_module_info
+    
+    return 0
 }
 
 # Remove Docker configuration
@@ -299,116 +502,54 @@ remove_docker() {
     local modules_dir=$(get_aliases_dir)
     sed -i '/# Docker helper functions - managed by devenv/,/# End Docker helper functions/d' "$modules_dir/functions.zsh"
 
+    # Remove state file
+    rm -f "$STATE_FILE"
+
     return 0
 }
 
-# Verify Docker installation and configuration
+# Verify entire installation
 verify_docker() {
     log "INFO" "Verifying Docker installation..." "docker"
     local status=0
-
-    # Check Docker installation
-    if ! command -v docker &>/dev/null; then
-        log "ERROR" "Docker is not installed" "docker"
-        status=1
-    fi
-
-    # Check Docker service
-    if ! systemctl is-active --quiet docker; then
-        log "ERROR" "Docker service is not running" "docker"
-        status=1
-    fi
-
-    # Check group membership
-    if ! groups | grep -q "docker"; then
-        log "ERROR" "User not in docker group" "docker"
-        status=1
-    fi
-
-    # Check Docker daemon
-    if ! docker info &>/dev/null; then
-        log "ERROR" "Docker daemon is not responding" "docker"
-        status=1
-    fi
-
-    # Check helper functions
-    local modules_dir=$(get_aliases_dir)
-    if ! grep -q "# Docker helper functions" "$modules_dir/functions.zsh"; then
-        log "ERROR" "Docker helper functions not configured" "docker"
-        status=1
-    fi
-
-    # Check aliases
-    if ! list_module_aliases "docker" "basic" &>/dev/null || \
-       ! list_module_aliases "docker" "container" &>/dev/null || \
-       ! list_module_aliases "docker" "cleanup" &>/dev/null; then
-        log "ERROR" "Docker aliases not configured" "docker"
-        status=1
+    
+    for component in "${COMPONENTS[@]}"; do
+        if ! verify_component "$component"; then
+            log "ERROR" "Verification failed for component: $component" "docker"
+            status=1
+        fi
+    done
+    
+    if [ $status -eq 0 ]; then
+        log "INFO" "Docker verification completed successfully" "docker"
+        # Show installation details
+        docker --version
+        docker compose version
     fi
 
     return $status
 }
 
-show_docker_summary() {
-    cat << 'EOF'
-
-🐳 Docker Setup Complete - Quick Reference
-========================================
-
-Helper Functions:
-----------------
-dexec <container> [cmd]  : Execute command in container (or open shell)
-dlog <container> [lines] : View container logs (default 100 lines)
-dbash <container>        : Quick access to container bash shell
-dcex <service> [cmd]     : Execute command in docker-compose service
-
-Basic Aliases:
--------------
-d    : docker
-dc   : docker compose
-dcu  : docker compose up
-dcub : docker compose up --build
-dcd  : docker compose down
-dcl  : docker compose logs -f
-
-Container Aliases:
-----------------
-dps    : docker ps
-dpsa   : docker ps -a
-dex    : docker exec -it
-dtop   : docker top
-dstats : docker stats
-
-Cleanup Aliases:
---------------
-dprune  : docker system prune -f
-dvprune : docker volume prune -f
-dclean  : docker system prune -af --volumes
-
-Start using Docker with:
-- List containers: dps
-- Create and start services: dcu
-- View logs: dlog <container>
-- Execute commands: dexec <container> <cmd>
-
-EOF
-}
 # Execute requested action
 case "${1:-}" in
     grovel)
         grovel_docker
         ;;
     install)
-        install_docker
-        ;;
-    remove)
-        remove_docker
+        install_docker "${2:-false}"  # Optional force parameter
         ;;
     verify)
         verify_docker
         ;;
+    info)
+        show_module_info
+        ;;
+    remove)
+        remove_docker
+        ;;
     *)
         log "ERROR" "Unknown action: ${1:-}" "docker"
+        log "ERROR" "Usage: $0 {install|remove|verify|info} [--force]"
         exit 1
         ;;
 esac

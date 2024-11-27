@@ -2,206 +2,303 @@
 # modules/conda/conda.sh - Conda module implementation
 
 # Load required utilities
-source "$SCRIPT_DIR/logging.sh"  # Load logging first
-source "$SCRIPT_DIR/json.sh"     # Then JSON handling
-source "$SCRIPT_DIR/module.sh"   # Then module utilities
-source "$SCRIPT_DIR/backup.sh"   # Finally backup utilities
-source "$SCRIPT_DIR/alias.sh"    # For shell alias support
+source "$SCRIPT_DIR/logging.sh"
+source "$SCRIPT_DIR/json.sh"
+source "$SCRIPT_DIR/module.sh"
+source "$SCRIPT_DIR/backup.sh"
+source "$SCRIPT_DIR/alias.sh"
 
 # Initialize module
 init_module "conda" || exit 1
 
-ensure_conda_path() {
-    local conda_root=$(get_module_config "conda" ".shell.paths.conda_root")
-    conda_root=$(eval echo "$conda_root")
-    export PATH="$conda_root/bin:$PATH"
+# State file for tracking installation status
+STATE_FILE="$HOME/.devenv/state/conda.state"
+
+# Define module components
+COMPONENTS=(
+    "core"          # Base Conda installation 
+    "channels"      # Channel configuration and local channel setup
+    "shell"         # Shell integration (ZSH setup)
+    "vscode"        # VSCode integration
+    "docker"        # Docker integration
+)
+
+# Display module information
+show_module_info() {
+    cat << 'EOF'
+
+🐍 Conda Environment Manager
+=========================
+
+Description:
+-----------
+Professional Conda environment with optimized configuration,
+local channel support, and comprehensive development integrations.
+
+Benefits:
+--------
+✓ Complete Package Management - Conda environments and packages
+✓ Local Channel Support - Custom package hosting and distribution
+✓ IDE Integration - VSCode and Jupyter support preconfigured
+✓ Container Ready - Docker integration for reproducible environments
+✓ Shell Enhanced - ZSH integration with useful aliases
+
+Components:
+----------
+1. Core Conda
+   - Miniconda3 base installation
+   - Conda package manager
+   - Environment management
+
+2. Channel Configuration
+   - Local channel support
+   - Custom package hosting
+   - Channel priority management
+
+3. Development Tools
+   - IPython for enhanced REPL
+   - Jupyter notebooks/lab
+   - Package building tools
+
+Integrations:
+-----------
+• VSCode - Conda environment selection and Jupyter support
+• Docker - Container templates with Conda preinstalled
+• ZSH - Shell completion and environment activation
+
+Quick Start:
+-----------
+1. Activate environment:
+   $ ca myenv
+
+2. Install packages:
+   $ ci numpy pandas
+
+3. Create from file:
+   $ cmb  # Uses environment.yml
+
+4. List environments:
+   $ ce
+
+Aliases:
+-------
+Environment:
+ca      : conda activate
+cda     : conda deactivate
+cl      : conda list
+ce      : conda env list
+
+Package Management:
+ci      : conda install -y
+cr      : conda remove -y
+cu      : conda update -y
+
+Environment Files:
+cmb     : conda env create -f
+cmu     : conda env update -f
+cmr     : conda env remove -n
+
+Configuration:
+-------------
+Location: ~/.condarc
+Directories:
+- ~/Development/conda/channels  : Local channel storage
+- ~/Development/conda/envs     : Environment location
+- ~/Development/conda/pkgs     : Package cache
+
+Tips:
+----
+• Use local channels for custom packages
+• Keep base environment minimal
+• Create specific environments per project
+• Use environment.yml for reproducibility
+
+For more information:
+-------------------
+Documentation: https://docs.conda.io
+Support: https://anaconda.org/conda/conda/issues
+
+EOF
+
+    # Show current installation status
+    echo "Current Status:"
+    echo "-------------"
+    for component in "${COMPONENTS[@]}"; do
+        if check_state "$component"; then
+            echo "✓ $component: Installed"
+            case "$component" in
+                "core")
+                    if command -v conda &>/dev/null; then
+                        echo "  Version: $(conda --version)"
+                        echo "  Python: $(conda run python --version 2>/dev/null)"
+                    fi
+                    ;;
+                "channels")
+                    local channels=$(conda config --show channels | grep -v "^#")
+                    echo "  Configured channels:"
+                    echo "$channels" | sed 's/^/    /'
+                    ;;
+            esac
+        else
+            echo "✗ $component: Not installed"
+        fi
+    done
+    echo
 }
 
-# Check for conda installation and configuration
-grovel_conda() {
-    local conda_root=$(get_module_config "conda" ".shell.paths.conda_root")
-    conda_root=$(eval echo "$conda_root")
-    
-    if [[ ! -d "$conda_root" ]]; then
-        log "INFO" "Conda installation not found" "conda"
-        return 1
-    fi
+# Save component state
+save_state() {
+    local component=$1
+    local status=$2
+    mkdir -p "$(dirname "$STATE_FILE")"
+    echo "$component:$status:$(date +%s)" >> "$STATE_FILE"
+}
 
-    if ! command -v conda &>/dev/null; then
-        log "INFO" "Conda command not found in PATH" "conda"
-        return 1
+# Check component state
+check_state() {
+    local component=$1
+    if [[ -f "$STATE_FILE" ]]; then
+        grep -q "^$component:installed:" "$STATE_FILE"
+        return $?
     fi
+    return 1
+}
 
-    # Check for local channel directory
+# Verify specific component
+verify_component() {
+    local component=$1
+    case "$component" in
+        "core")
+            command -v conda &>/dev/null && \
+            conda info &>/dev/null
+            ;;
+        "channels")
+            verify_channels
+            ;;
+        "shell")
+            verify_shell_integration
+            ;;
+        "vscode")
+            verify_vscode_integration
+            ;;
+        "docker")
+            verify_docker_integration
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+    return $?
+}
+
+# Component verification helpers
+verify_channels() {
     local channel_dir=$(get_module_config "conda" ".shell.paths.channel_dir")
     channel_dir=$(eval echo "$channel_dir")
-    if [[ ! -d "$channel_dir" ]]; then
-        log "INFO" "Local channel directory not found" "conda"
-        return 1
-    fi
-
-    return 0
+    
+    [[ -d "$channel_dir" ]] && \
+    [[ -f "$channel_dir/channeldata.json" ]] && \
+    [[ -d "$channel_dir/linux-64" ]] && \
+    [[ -d "$channel_dir/noarch" ]]
 }
 
-# Install and configure conda
-install_conda() {
-    log "INFO" "Setting up Conda environment..." "conda"
-
-    # Install conda if needed
-    if ! command -v conda &>/dev/null; then
-        if ! install_conda_package; then
-            return 1
-        fi
-    fi
-
-    # Ensure conda is in PATH
-    ensure_conda_path
-    
-    local conda_root=$(get_module_config "conda" ".shell.paths.conda_root")
-    conda_root=$(eval echo "$conda_root")
-
-    # Configure conda
-    if ! configure_conda; then
-        return 1
-    fi
-
-    # Configure shell integration
-    if ! configure_shell_integration; then
-        return 1
-    fi
-
-    # Configure VSCode integration
-    if ! configure_vscode_integration; then
-        return 1
-    fi
-
-    # Configure Docker integration
-    if ! configure_docker_integration; then
-        return 1
-    fi
-
-    # Add conda aliases
-    add_module_aliases "conda" "conda" || return 1
-    add_module_aliases "conda" "env" || return 1
-
-    # Reload shell configuration to ensure conda is available
-    if [[ -f "$conda_root/etc/profile.d/conda.sh" ]]; then
-        source "$conda_root/etc/profile.d/conda.sh"
-    else
-        log "WARN" "Conda shell script not found at $conda_root/etc/profile.d/conda.sh" "conda"
-    fi
-    
-    if [ $? -eq 0 ]; then
-        show_conda_summary
-    fi
-    
-    return 0
+verify_shell_integration() {
+    local modules_dir=$(get_aliases_dir)
+    [[ -f "$modules_dir/conda.zsh" ]] && \
+    list_module_aliases "conda" "conda" &>/dev/null && \
+    list_module_aliases "conda" "env" &>/dev/null
 }
 
-reset_conda_config() {
-    log "INFO" "Resetting conda configuration..." "conda"
-    
-    # Backup existing configuration
-    [[ -f "$HOME/.condarc" ]] && backup_file "$HOME/.condarc" "conda"
-    
-    # Remove existing .condarc
-    rm -f "$HOME/.condarc"
-    
-    # Create minimal configuration
-    cat > "$HOME/.condarc" << EOF
-channels:
-  - defaults
-channel_priority: strict
-EOF
-    
-    return 0
+verify_vscode_integration() {
+    local vscode_config_dir=$(get_module_config "vscode" ".shell.paths.config_dir")
+    vscode_config_dir=$(eval echo "$vscode_config_dir")
+    [[ -f "$vscode_config_dir/settings.json" ]] && \
+    grep -q "python.condaPath" "$vscode_config_dir/settings.json"
 }
 
-# Install Conda package
+verify_docker_integration() {
+    local templates_dir=$(get_module_config "conda" ".shell.paths.templates_dir")
+    templates_dir=$(eval echo "$templates_dir")
+    [[ -f "$templates_dir/Dockerfile.conda" ]]
+}
+
+# Install specific component
+install_component() {
+    local component=$1
+    if check_state "$component" && verify_component "$component"; then
+        log "INFO" "Component $component already installed and verified" "conda"
+        return 0
+    fi
+    
+    case "$component" in
+        "core")
+            if install_conda_package; then
+                save_state "core" "installed"
+                return 0
+            fi
+            ;;
+        "channels")
+            if configure_channels; then
+                save_state "channels" "installed"
+                return 0
+            fi
+            ;;
+        "shell")
+            if configure_shell_integration; then
+                save_state "shell" "installed"
+                return 0
+            fi
+            ;;
+        "vscode")
+            if configure_vscode_integration; then
+                save_state "vscode" "installed"
+                return 0
+            fi
+            ;;
+        "docker")
+            if configure_docker_integration; then
+                save_state "docker" "installed"
+                return 0
+            fi
+            ;;
+    esac
+    return 1
+}
+
+# Component installation implementations
 install_conda_package() {
-    log "INFO" "Installing Conda..." "conda"
-
     local conda_root=$(get_module_config "conda" ".shell.paths.conda_root")
     conda_root=$(eval echo "$conda_root")
 
-    # Check if conda is already installed
     if [[ -d "$conda_root" ]]; then
         log "INFO" "Conda already installed at $conda_root" "conda"
-        
-        # Add conda to PATH
         export PATH="$conda_root/bin:$PATH"
-        
-        # Reset conda configuration
-        reset_conda_config || return 1
-        
-        # Update conda using default channel only
-        if conda update -n base conda -y; then
-            log "INFO" "Successfully updated existing conda installation" "conda"
-            return 0
-        else
-            log "ERROR" "Failed to update existing conda installation" "conda"
-            return 1
-        fi
+        conda update -n base conda -y
+        return 0
     fi
 
-    # If not installed, proceed with fresh installation
     local installer_url=$(get_module_config "conda" ".package.installer_urls[\"linux-x86_64\"]")
-    log "DEBUG" "Installer URL: $installer_url" "conda"
-    
     local installer_script="/tmp/miniconda.sh"
 
-    if ! wget -q "$installer_url" -O "$installer_script"; then
-        log "ERROR" "Failed to download Conda installer" "conda"
-        return 1
-    fi
-
-    # Install Miniconda
-    if ! bash "$installer_script" -b -p "$conda_root"; then
-        log "ERROR" "Failed to install Conda" "conda"
-        rm -f "$installer_script"
-        return 1
-    fi
-
-    # Clean up
+    wget -q "$installer_url" -O "$installer_script" || return 1
+    bash "$installer_script" -b -p "$conda_root" || return 1
     rm -f "$installer_script"
 
-    # Add to PATH
     export PATH="$conda_root/bin:$PATH"
-
-    # Initialize conda for shell
-    "$conda_root/bin/conda" init bash
-    "$conda_root/bin/conda" init zsh
+    conda init bash
+    conda init zsh
 
     return 0
 }
-# Configure conda
-configure_conda() {
-    log "INFO" "Configuring Conda..." "conda"
 
-    # Add conda to PATH for this session
-    local conda_root=$(get_module_config "conda" ".shell.paths.conda_root")
-    conda_root=$(eval echo "$conda_root")
-    export PATH="$conda_root/bin:$PATH"
+configure_channels() {
+    local channel_dir=$(get_module_config "conda" ".shell.paths.channel_dir")
+    channel_dir=$(eval echo "$channel_dir")
 
-    # Set up development directories
-    local dev_base="$HOME/Development/conda"
-    mkdir -p "$dev_base"/{channels,envs,pkgs,templates}
-
-    local channel_dir="$dev_base/channels"
-    local envs_dir="$dev_base/envs"
-    local pkgs_dir="$dev_base/pkgs"
-
-    # Create channel directory structure
     mkdir -p "$channel_dir"/{linux-64,noarch}
-    
-    # Create initial repodata files with proper structure
+
+    # Initialize channel metadata
     for subdir in linux-64 noarch; do
-        log "DEBUG" "Creating repodata for $subdir" "conda"
-        
-        # Create directory if it doesn't exist
-        mkdir -p "$channel_dir/$subdir"
-        
-        # Create repodata.json
         cat > "$channel_dir/$subdir/repodata.json" << EOF
 {
     "info": {
@@ -213,23 +310,19 @@ configure_conda() {
     "repodata_version": 1
 }
 EOF
-        
-        # Create .bz2 version
         bzip2 -k -f "$channel_dir/$subdir/repodata.json"
-        
-        # Create channeldata.json in root if it doesn't exist
-        if [[ ! -f "$channel_dir/channeldata.json" ]]; then
-            cat > "$channel_dir/channeldata.json" << EOF
+    done
+
+    # Create channeldata.json
+    cat > "$channel_dir/channeldata.json" << EOF
 {
     "channeldata_version": 1,
     "packages": {},
     "subdirs": ["linux-64", "noarch"]
 }
 EOF
-        fi
-    done
 
-    # Configure conda with all settings
+    # Configure .condarc
     cat > "$HOME/.condarc" << EOF
 channels:
   - defaults
@@ -243,40 +336,19 @@ create_default_packages:
 env_prompt: ({name})
 auto_activate_base: false
 pip_interop_enabled: true
-envs_dirs:
-  - $envs_dir
-pkgs_dirs:
-  - $pkgs_dir
-pkg_format: '2'
 EOF
 
-    # Clear the conda cache to ensure clean start
     conda clean -y --all
-
-    # Update conda using default channels only
-    if ! conda update -n base -c defaults conda -y; then
-        log "ERROR" "Failed to update conda" "conda"
-        return 1
-    fi
-
-    # Verify channel access
-    if ! conda search --json -c "file://$channel_dir" > /dev/null 2>&1; then
-        log "ERROR" "Local channel verification failed" "conda"
-        return 1
-    fi
-
-    log "INFO" "Conda configuration complete" "conda"
     return 0
 }
 
-# Configure shell integration
 configure_shell_integration() {
-    log "INFO" "Configuring shell integration..." "conda"
-
     local modules_dir=$(get_aliases_dir)
     local conda_init="$modules_dir/conda.zsh"
 
-    # Add conda initialization to ZSH
+    mkdir -p "$modules_dir"
+
+    # Create conda initialization script
     cat > "$conda_init" << 'EOF'
 # Conda initialization
 __conda_setup="$($HOME/miniconda3/bin/conda 'shell.zsh' 'hook' 2> /dev/null)"
@@ -292,25 +364,18 @@ fi
 unset __conda_setup
 EOF
 
+    # Add aliases
+    add_module_aliases "conda" "conda" || return 1
+    add_module_aliases "conda" "env" || return 1
+
     return 0
 }
 
-# Configure VSCode integration
 configure_vscode_integration() {
-    log "INFO" "Configuring VSCode integration..." "conda"
-
-    # Get VSCode settings
     local vscode_settings=$(get_module_config "conda" ".vscode.settings")
-    
-    if [[ -z "$vscode_settings" ]]; then
-        log "WARN" "No VSCode settings found in config" "conda"
-        return 0
-    fi
-    
-    # Expand environment variables in settings
+    [[ -z "$vscode_settings" ]] && return 0
+
     vscode_settings=$(echo "$vscode_settings" | envsubst)
-    
-    # Update VSCode settings using the vscode module's configuration
     local vscode_config_dir=$(get_module_config "vscode" ".shell.paths.config_dir")
     vscode_config_dir=$(eval echo "$vscode_config_dir")
     local settings_file="$vscode_config_dir/settings.json"
@@ -318,51 +383,30 @@ configure_vscode_integration() {
     mkdir -p "$vscode_config_dir"
 
     if [[ -f "$settings_file" ]]; then
-        # Merge settings
         local temp_settings=$(mktemp)
-        if ! jq -s '.[0] * .[1]' "$settings_file" <(echo "$vscode_settings") > "$temp_settings"; then
-            log "ERROR" "Failed to merge VSCode settings" "conda"
-            rm -f "$temp_settings"
-            return 1
-        fi
+        jq -s '.[0] * .[1]' "$settings_file" <(echo "$vscode_settings") > "$temp_settings" && \
         mv "$temp_settings" "$settings_file"
     else
         echo "$vscode_settings" > "$settings_file"
     fi
 
-    # Install required extensions
-    local extensions
-    if ! extensions=($(get_module_config "conda" ".vscode.extensions[]")); then
-        log "WARN" "No VSCode extensions found in config" "conda"
-        return 0
-    fi
-
+    # Install extensions
+    local extensions=($(get_module_config "conda" ".vscode.extensions[]"))
     for ext in "${extensions[@]}"; do
-        if [[ -n "$ext" ]]; then
-            code --install-extension "$ext" --force
-        fi
+        code --install-extension "$ext" --force
     done
 
     return 0
 }
 
-# Configure Docker integration
 configure_docker_integration() {
-    log "INFO" "Configuring Docker integration..." "conda"
-
-    local channel_dir=$(get_module_config "conda" ".shell.paths.channel_dir")
     local templates_dir=$(get_module_config "conda" ".shell.paths.templates_dir")
-    channel_dir=$(eval echo "$channel_dir")
     templates_dir=$(eval echo "$templates_dir")
 
-    # Create templates directory
     mkdir -p "$templates_dir"
 
     cat > "$templates_dir/Dockerfile.conda" << EOF
 FROM continuumio/miniconda3:latest
-
-# Mount point for local channel
-VOLUME ["$channel_dir:/opt/conda/channels"]
 
 # Copy environment file
 COPY environment.yml /tmp/
@@ -377,6 +421,46 @@ EOF
     return 0
 }
 
+# Grovel checks existence and basic functionality
+grovel_conda() {
+    local status=0
+    
+    for component in "${COMPONENTS[@]}"; do
+        if ! check_state "$component" || ! verify_component "$component"; then
+            log "INFO" "Component $component needs installation" "conda"
+            status=1
+        fi
+    done
+    
+    return $status
+}
+
+# Install with state awareness
+install_conda() {
+    local force=${1:-false}
+    
+    if [[ "$force" == "true" ]] || ! grovel_conda &>/dev/null; then
+        create_backup
+    fi
+    
+    for component in "${COMPONENTS[@]}"; do
+        if [[ "$force" == "true" ]] || ! check_state "$component" || ! verify_component "$component"; then
+            log "INFO" "Installing component: $component" "conda"
+            if ! install_component "$component"; then
+                log "ERROR" "Failed to install component: $component" "conda"
+                return 1
+            fi
+        else
+            log "INFO" "Skipping already installed and verified component: $component" "conda"
+        fi
+    done
+    
+    # Show module information after successful installation
+    show_module_info
+    
+    return 0
+}
+
 # Remove conda configuration
 remove_conda() {
     log "INFO" "Removing Conda configuration..." "conda"
@@ -384,7 +468,7 @@ remove_conda() {
     # Backup existing configurations
     [[ -f "$HOME/.condarc" ]] && backup_file "$HOME/.condarc" "conda"
 
-    # Remove conda initialization from shell
+    # Remove shell integration
     local modules_dir=$(get_aliases_dir)
     rm -f "$modules_dir/conda.zsh"
 
@@ -394,197 +478,53 @@ remove_conda() {
 
     # Remove development directories
     local dev_base="$HOME/Development/conda"
-    if [[ -d "$dev_base" ]]; then
-        log "INFO" "Removing conda development directories..." "conda"
-        rm -rf "$dev_base"
-    fi
+    [[ -d "$dev_base" ]] && rm -rf "$dev_base"
+
+    # Remove state file
+    rm -f "$STATE_FILE"
 
     log "WARN" "Conda installation preserved at $HOME/miniconda3. Run 'rm -rf ~/miniconda3' to remove completely." "conda"
 
     return 0
 }
 
-# Verify conda installation and configuration
+# Verify entire installation
 verify_conda() {
     log "INFO" "Verifying Conda installation..." "conda"
     local status=0
-
-    # Ensure conda is in PATH
-    ensure_conda_path
-
-    # Check conda installation
-    if ! command -v conda &>/dev/null; then
-        log "ERROR" "Conda is not installed" "conda"
-        status=1
-    fi
-
-    # Check conda initialization
-    local modules_dir=$(get_aliases_dir)
-    if [[ ! -f "$modules_dir/conda.zsh" ]]; then
-        log "ERROR" "Conda shell integration not configured" "conda"
-        status=1
-    fi
-
-    # Check development directories
-    local dev_base="$HOME/Development/conda"
-    local channel_dir="$dev_base/channels"
-    local envs_dir="$dev_base/envs"
-    local pkgs_dir="$dev_base/pkgs"
-
-    for dir in "$channel_dir" "$envs_dir" "$pkgs_dir"; do
-        if [[ ! -d "$dir" ]]; then
-            log "ERROR" "Directory not found: $dir" "conda"
+    
+    for component in "${COMPONENTS[@]}"; do
+        if ! verify_component "$component"; then
+            log "ERROR" "Verification failed for component: $component" "conda"
             status=1
         fi
     done
-
-    # Check channel structure
-    for subdir in linux-64 noarch; do
-        if [[ ! -f "$channel_dir/$subdir/repodata.json" ]] || [[ ! -f "$channel_dir/$subdir/repodata.json.bz2" ]]; then
-            log "ERROR" "Missing repodata files in $subdir" "conda"
-            status=1
-        fi
-    done
-
-    if [[ ! -f "$channel_dir/channeldata.json" ]]; then
-        log "ERROR" "Missing channeldata.json" "conda"
-        status=1
-    fi
-
-    # Check conda configuration
-    if ! conda config --show channels | grep -q "file://$channel_dir"; then
-        log "ERROR" "Local channel not configured" "conda"
-        status=1
-    fi
-
-    # Check aliases
-    if ! list_module_aliases "conda" "conda" &>/dev/null || \
-       ! list_module_aliases "conda" "env" &>/dev/null; then
-        log "ERROR" "Conda aliases not configured" "conda"
-        status=1
-    fi
-
-    # Check if conda is functional
-    if ! conda list &>/dev/null; then
-        log "ERROR" "Conda is not functioning properly" "conda"
-        status=1
-    fi
-
+    
     if [ $status -eq 0 ]; then
         log "INFO" "Conda verification completed successfully" "conda"
-        
-        # Show installation details
-        log "INFO" "Conda version:" "conda"
         conda --version
-        
-        log "INFO" "Configured channels:" "conda"
-        conda config --show channels | grep -v "^#"
+        conda info --base
     fi
 
     return $status
 }
 
-show_conda_summary() {
-    cat << 'EOF'
-
-🐍 Conda Setup Complete - Quick Reference
-=======================================
-
-Environment Management:
----------------------
-ca   : conda activate         - Activate an environment
-cda  : conda deactivate      - Deactivate current environment
-cl   : conda list            - List installed packages
-ce   : conda env list        - List all environments
-ci   : conda install -y      - Install packages
-cr   : conda remove -y       - Remove packages
-cu   : conda update -y       - Update packages
-
-Environment File Commands:
-------------------------
-cmb  : conda env create -f   - Build environment from environment.yml
-cmu  : conda env update -f   - Update environment from environment.yml
-cmr  : conda env remove -n   - Remove an environment
-
-Local Channel Repository:
------------------------
-Location: ~/conda-channels/
-Structure:
-  ~/conda-channels/
-  ├── linux-64/    - Platform-specific packages
-  └── noarch/      - Platform-independent packages
-
-To add packages to local channel:
-1. Download package: conda download <package>
-2. Copy to appropriate directory: 
-   - For most packages: ~/conda-channels/linux-64/
-   - For noarch packages: ~/conda-channels/noarch/
-3. Index channel: conda index ~/conda-channels/
-
-Docker Integration:
------------------
-- Base image: continuumio/miniconda3:latest
-- Local channel mounted at: /opt/conda/channels
-- Template available at: ~/.devenv/modules/conda/templates/Dockerfile.conda
-
-VSCode Integration:
------------------
-- Python and Jupyter extensions installed
-- Conda path configured
-- Environment switching supported
-- Jupyter notebook support enabled
-
-Common Workflows:
----------------
-1. Create new environment:
-   $ cmb  # Reads from environment.yml
-   or
-   $ conda create -n myenv python=3.9
-
-2. Activate and install packages:
-   $ ca myenv
-   $ ci numpy pandas
-
-3. Create environment.yml:
-   $ conda env export > environment.yml
-
-4. Use with Docker:
-   $ docker build -f ~/.devenv/modules/conda/templates/Dockerfile.conda .
-
-5. Open in VSCode:
-   - Use Command Palette (Ctrl+Shift+P)
-   - Select "Python: Select Interpreter"
-   - Choose your conda environment
-
-Documentation:
-------------
-- Conda commands: conda --help
-- Environment files: conda env --help
-- More info: https://docs.conda.io
-
-EOF
-
-    # Show current conda version
-    echo "Currently installed conda version:"
-    conda --version
-
-    # Show configured channels
-    echo -e "\nConfigured channels (in order of priority):"
-    conda config --show channels | grep -v "^#" | grep "  -"
-}
 # Execute requested action
 case "${1:-}" in
     grovel)
         grovel_conda
         ;;
     install)
-        install_conda
-        ;;
-    remove)
-        remove_conda
+        install_conda "${2:-false}"  # Optional force parameter
         ;;
     verify)
         verify_conda
+        ;;
+    info)
+        show_module_info
+        ;;
+    remove)
+        remove_conda
         ;;
     *)
         log "ERROR" "Unknown action: ${1:-}" "conda"
