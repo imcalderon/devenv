@@ -8,12 +8,16 @@ export ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export SCRIPT_DIR="$ROOT_DIR/lib"
 export MODULES_DIR="$ROOT_DIR/modules"
 export CONFIG_FILE="$ROOT_DIR/config.json"
+export STATE_DIR="$HOME/.devenv/state"
 
 # Load utilities
 source "$SCRIPT_DIR/logging.sh"  # Load logging first
 source "$SCRIPT_DIR/json.sh"     # Then JSON handling
 source "$SCRIPT_DIR/module.sh"   # Then module utilities
 source "$SCRIPT_DIR/backup.sh"   # Finally backup utilities
+
+# Create required directories
+mkdir -p "$STATE_DIR"
 
 # Verify environment
 verify_environment() {
@@ -31,26 +35,11 @@ verify_environment() {
         return 1
     fi
     
-    log "DEBUG" "About to validate config file: $CONFIG_FILE"
-    log "DEBUG" "Current directory: $(pwd)"
-    log "DEBUG" "Config file contents:"
-    cat "$CONFIG_FILE" >&2
-    
-    # Ensure fq is available before validation
+    # Ensure jq is available
     if ! ensure_json_parser; then
         log "ERROR" "jq is not available"
         return 1
     fi
-    
-    # Test fq directly
-    log "DEBUG" "Testing fq with config file..."
-    if ! jq . "$CONFIG_FILE" 2>jq_error.log; then
-        log "ERROR" "Direct fq test failed:"
-        cat jq_error.log >&2
-        rm jq_error.log
-        return 1
-    fi
-    rm -f jq_error.log
     
     # Validate global config
     if ! validate_json "$CONFIG_FILE"; then
@@ -79,6 +68,7 @@ get_ordered_modules() {
 execute_stage() {
     local stage=$1
     local specific_module=${2:-}
+    local force=${3:-false}
     local -a modules
     
     if [[ -n "$specific_module" ]]; then
@@ -109,17 +99,17 @@ execute_stage() {
         if [[ -f "$module_script" ]]; then
             log "INFO" "Running $stage for module: $module" "$module"
             
-            if [[ "$stage" == "grovel" ]]; then
-                bash "$module_script" "$stage" || {
-                    log "WARN" "Module $module needs installation" "$module"
-                    continue
-                }
-            else
-                bash "$module_script" "$stage" || {
-                    log "ERROR" "Stage $stage failed for module: $module" "$module"
-                    exit_code=1
-                }
-            fi
+            case "$stage" in
+                "install")
+                    bash "$module_script" "$stage" "$force" || exit_code=1
+                    ;;
+                "info")
+                    bash "$module_script" "$stage" || true  # Don't fail on info
+                    ;;
+                *)
+                    bash "$module_script" "$stage" || exit_code=1
+                    ;;
+            esac
         else
             log "ERROR" "Module script not found: $module_script" "$module"
             [[ "$stage" != "grovel" ]] && exit_code=1
@@ -129,7 +119,30 @@ execute_stage() {
     return $exit_code
 }
 
-# Create backup of current environment
+# Show usage information
+show_usage() {
+    cat << EOF
+Usage: $0 COMMAND [MODULE] [OPTIONS]
+
+Commands:
+  install   Install one or all modules
+  remove    Remove one or all modules
+  verify    Verify one or all modules
+  info      Show information about one or all modules
+  backup    Create backup of current environment
+  restore   Restore from backup
+
+Options:
+  --force   Force installation even if already installed
+
+Examples:
+  $0 install              # Install all modules
+  $0 install git --force  # Force install git module
+  $0 info docker         # Show docker module information
+  $0 verify             # Verify all modules
+EOF
+}
+
 create_backup() {
     local specific_module=${1:-}
     local -a modules
@@ -164,9 +177,30 @@ create_backup() {
 # Main execution
 main() {
     if [[ $# -eq 0 ]]; then
-        log "ERROR" "Usage: $0 {install|remove|verify|backup|restore} [module_name]"
+        show_usage
         exit 1
     fi
+    
+    # Parse arguments
+    local action=$1
+    shift
+    local specific_module=""
+    local force="false"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --force)
+                force="true"
+                shift
+                ;;
+            *)
+                if [[ -z "$specific_module" ]]; then
+                    specific_module="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
     
     # Verify environment first
     if ! verify_environment; then
@@ -174,21 +208,10 @@ main() {
         exit 1
     fi
     
-    local action=$1
-    local specific_module=${2:-}
-    
     case "$action" in
         install)
             create_backup "$specific_module"
-            if [[ -n "$specific_module" ]]; then
-                execute_stage "grovel" "$specific_module" &&
-                execute_stage "install" "$specific_module" &&
-                execute_stage "verify" "$specific_module"
-            else
-                execute_stage "grovel" &&
-                execute_stage "install" &&
-                execute_stage "verify"
-            fi
+            execute_stage "install" "$specific_module" "$force"
             ;;
         remove)
             execute_stage "remove" "$specific_module"
@@ -196,16 +219,14 @@ main() {
         verify)
             execute_stage "verify" "$specific_module"
             ;;
+        info)
+            execute_stage "info" "$specific_module"
+            ;;
         backup)
             create_backup "$specific_module"
             ;;
-        restore)
-            shift
-            execute_stage "restore" "$@"
-            ;;
         *)
-            log "ERROR" "Unknown action: $action"
-            log "ERROR" "Usage: $0 {install|remove|verify|backup|restore} [module_name]"
+            show_usage
             exit 1
             ;;
     esac

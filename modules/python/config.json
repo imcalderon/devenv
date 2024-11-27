@@ -1,0 +1,179 @@
+{
+    "enabled": true,
+    "runlevel": 2,
+    "backup": {
+        "paths": [
+            "$HOME/.local/bin",
+            "$HOME/.config/pylintrc",
+            "$HOME/.config/flake8"
+        ]
+    },
+    "shell": {
+        "paths": {
+            "local_bin": "$HOME/.local/bin",
+            "config_dir": "$HOME/.config"
+        },
+        "aliases": {
+            "python": {
+                "py": "python3",
+                "ipy": "ipython",
+                "pylab": "ipython --pylab",
+                "jlab": "jupyter lab"
+            },
+            "tools": {
+                "lint": "pylint",
+                "fmt": "black",
+                "mypy": "mypy",
+                "pytest": "pytest -v"
+            }
+        }
+    },
+    "python": {
+        "version": "3.10",
+        "packages": {
+            "development": [
+                "ipython",
+                "jupyter",
+                "jupyterlab",
+                "notebook"
+            ],
+            "build": [
+                "build",
+                "twine",
+                "setuptools",
+                "wheel",
+                "pip"
+            ],
+            "linting": [
+                "black",
+                "pylint",
+                "flake8",
+                "mypy",
+                "isort",
+                "bandit"
+            ],
+            "testing": [
+                "pytest",
+                "pytest-cov",
+                "pytest-benchmark",
+                "tox"
+            ],
+            "documentation": [
+                "sphinx",
+                "sphinx-rtd-theme",
+                "sphinx-autodoc-typehints",
+                "mkdocs",
+                "mkdocs-material"
+            ],
+            "utils": {
+                "data_processing": {
+                    "description": "Data manipulation and scientific computing libraries",
+                    "packages": [
+                        "pandas",
+                        "numpy",
+                        "scipy",
+                        "anytree",
+                        "networkx",
+                        "tabulate",
+                        "pyarrow"
+                    ]
+                },
+                "io_parsing": {
+                    "description": "Data format parsing and I/O handling",
+                    "packages": [
+                        "requests",
+                        "aiohttp",
+                        "pyyaml",
+                        "toml",
+                        "configparser",
+                        "python-dotenv",
+                        "jmespath",
+                        "jsonschema"
+                    ]
+                },
+                "cli_tools": {
+                    "description": "Command line interface and terminal utilities",
+                    "packages": [
+                        "rich",
+                        "click",
+                        "typer",
+                        "tqdm",
+                        "colorama",
+                        "prompt_toolkit",
+                        "questionary"
+                    ]
+                },
+                "dev_tools": {
+                    "description": "Development utilities and helpers",
+                    "packages": [
+                        "more-itertools",
+                        "toolz",
+                        "cachetools",
+                        "python-dateutil",
+                        "tenacity",
+                        "structlog",
+                        "typing-extensions"
+                    ]
+                },
+                "process_tools": {
+                    "description": "System and process management utilities",
+                    "packages": [
+                        "psutil",
+                        "watchdog",
+                        "schedule",
+                        "appdirs",
+                        "filelock"
+                    ]
+                },
+                "serialization": {
+                    "description": "Data serialization and validation",
+                    "packages": [
+                        "msgpack",
+                        "protobuf",
+                        "marshmallow",
+                        "pydantic"
+                    ]
+                },
+                "performance": {
+                    "description": "Performance optimization and parallel processing",
+                    "packages": [
+                        "joblib",
+                        "numba",
+                        "cython",
+                        "dask"
+                    ]
+                }
+            }
+        },
+        "config": {
+            "pylint": {
+                "disable": [
+                    "C0111",
+                    "C0103"
+                ],
+                "max-line-length": 100,
+                "good-names": [
+                    "i",
+                    "j",
+                    "k",
+                    "ex",
+                    "Run",
+                    "_"
+                ]
+            },
+            "black": {
+                "line-length": 100,
+                "target-version": [
+                    "py310"
+                ]
+            },
+            "flake8": {
+                "max-line-length": 100,
+                "ignore": [
+                    "E203",
+                    "W503"
+                ]
+            }
+        }
+    }
+}

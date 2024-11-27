@@ -9,6 +9,7 @@
     },
     "modules": {
         "order": [
+            "python",
             "zsh",
             "git",
             "vscode",

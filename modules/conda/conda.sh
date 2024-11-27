@@ -65,11 +65,6 @@ install_conda() {
         return 1
     fi
 
-    # Set up local channel repository
-    if ! setup_local_channel; then
-        return 1
-    fi
-
     # Configure shell integration
     if ! configure_shell_integration; then
         return 1
@@ -81,7 +76,7 @@ install_conda() {
     fi
 
     # Configure Docker integration
-    if ! configure_docker_integration; thens
+    if ! configure_docker_integration; then
         return 1
     fi
 

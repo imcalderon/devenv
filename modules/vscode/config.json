@@ -4,7 +4,8 @@
     "backup": {
         "paths": [
             "$HOME/.config/Code/User/settings.json",
-            "$HOME/.config/Code/User/keybindings.json"
+            "$HOME/.config/Code/User/keybindings.json",
+            "$HOME/.config/Code/User/launch.json"
         ]
     },
     "shell": {
@@ -41,7 +42,122 @@
             "workbench.colorTheme": "Default High Contrast",
             "terminal.integrated.defaultProfile.linux": "zsh",
             "terminal.integrated.profiles.linux.zsh.path": "/bin/zsh",
-            "terminal.integrated.profiles.linux.zsh.args": ["-l"]
+            "terminal.integrated.profiles.linux.zsh.args": ["-l"],
+            "python.defaultInterpreterPath": "${HOME}/.local/bin/python3",
+            "python.linting.enabled": true,
+            "python.linting.pylintEnabled": true,
+            "python.linting.pylintPath": "${HOME}/.local/bin/pylint",
+            "python.formatting.provider": "black",
+            "python.formatting.blackPath": "${HOME}/.local/bin/black",
+            "python.formatting.blackArgs": ["--line-length", "100"],
+            "python.condaPath": "${HOME}/miniconda3/bin/conda",
+            "python.terminal.activateEnvironment": true,
+            "editor.formatOnSave": true,
+            "editor.codeActionsOnSave": {
+                "source.organizeImports": true
+            },
+            "python.analysis.typeCheckingMode": "basic",
+            "python.testing.pytestEnabled": true,
+            "python.testing.unittestEnabled": false,
+            "python.testing.nosetestsEnabled": false,
+            "files.associations": {
+                "*.spec": "python",
+                "SConscript": "python",
+                "SConstruct": "python"
+            }
+        },
+        "launch": {
+            "version": "0.2.0",
+            "configurations": [
+                {
+                    "name": "Python: Current File",
+                    "type": "python",
+                    "request": "launch",
+                    "program": "${file}",
+                    "console": "integratedTerminal",
+                    "justMyCode": false
+                },
+                {
+                    "name": "Python: Debug Tests",
+                    "type": "python",
+                    "request": "launch",
+                    "purpose": ["debug-test"],
+                    "console": "integratedTerminal",
+                    "justMyCode": false,
+                    "env": {
+                        "PYTEST_ADDOPTS": "--no-cov"
+                    }
+                },
+                {
+                    "name": "Python: FastAPI",
+                    "type": "python",
+                    "request": "launch",
+                    "module": "uvicorn",
+                    "args": ["main:app", "--reload"],
+                    "console": "integratedTerminal",
+                    "justMyCode": false
+                },
+                {
+                    "name": "Python: Remote Attach",
+                    "type": "python",
+                    "request": "attach",
+                    "connect": {
+                        "host": "localhost",
+                        "port": 5678
+                    },
+                    "pathMappings": [
+                        {
+                            "localRoot": "${workspaceFolder}",
+                            "remoteRoot": "/app"
+                        }
+                    ]
+                },
+                {
+                    "name": "Python: Conda Environment",
+                    "type": "python",
+                    "request": "launch",
+                    "program": "${file}",
+                    "console": "integratedTerminal",
+                    "justMyCode": false,
+                    "python": "${command:python.interpreterPath}"
+                }
+            ],
+            "compounds": [
+                {
+                    "name": "Server/Client",
+                    "configurations": ["Python: FastAPI", "Python: Current File"]
+                }
+            ]
+        },
+        "tasks": {
+            "version": "2.0.0",
+            "tasks": [
+                {
+                    "label": "Python: Run Tests",
+                    "type": "shell",
+                    "command": "pytest",
+                    "group": {
+                        "kind": "test",
+                        "isDefault": true
+                    },
+                    "presentation": {
+                        "reveal": "always",
+                        "panel": "new"
+                    }
+                },
+                {
+                    "label": "Python: Install Requirements",
+                    "type": "shell",
+                    "command": "pip install -r requirements.txt",
+                    "group": "build"
+                },
+                {
+                    "label": "Docker: Build & Debug",
+                    "type": "shell",
+                    "command": "docker-compose -f docker-compose.debug.yml up --build",
+                    "group": "build"
+                }
+            ]
         },
         "extensions": {
             "development": [
@@ -78,22 +194,64 @@
                     "required": true
                 }
             ],
-            "web": [
-                {
-                    "id": "william-voyek.vscode-nginx",
-                    "required": false
-                }
-            ],
             "python": [
+                {
+                    "id": "ms-python.python",
+                    "required": true
+                },
                 {
                     "id": "ms-python.vscode-pylance",
                     "required": true
                 },
                 {
-                    "id": "ms-python.python",
+                    "id": "ms-python.black-formatter",
                     "required": true
+                },
+                {
+                    "id": "ms-python.isort",
+                    "required": true
+                },
+                {
+                    "id": "njpwerner.autodocstring",
+                    "required": false
+                },
+                {
+                    "id": "kevinrose.vsc-python-indent",
+                    "required": false
+                },
+                {
+                    "id": "visualstudioexptteam.vscodeintellicode-python",
+                    "required": false
+                }
+            ],
+            "web": [
+                {
+                    "id": "william-voyek.vscode-nginx",
+                    "required": false
                 }
             ]
+        },
+        "devcontainers": {
+            "python": {
+                "name": "Python Development",
+                "build": {
+                    "dockerfile": "Dockerfile",
+                    "context": ".."
+                },
+                "customizations": {
+                    "vscode": {
+                        "extensions": [
+                            "ms-python.python",
+                            "ms-python.vscode-pylance"
+                        ],
+                        "settings": {
+                            "python.defaultInterpreterPath": "/usr/local/bin/python",
+                            "python.linting.enabled": true
+                        }
+                    }
+                },
+                "remoteUser": "vscode"
+            }
         }
     }
 }
