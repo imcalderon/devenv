@@ -204,7 +204,11 @@ verify_channels() {
 
 verify_shell_integration() {
     local modules_dir=$(get_aliases_dir)
+    local completions_dir=$(get_module_config "zsh" ".shell.paths.completions_dir")
+    completions_dir=$(eval echo "$completions_dir")
+    
     [[ -f "$modules_dir/conda.zsh" ]] && \
+    [[ -f "$completions_dir/_conda" ]] && \
     list_module_aliases "conda" "conda" &>/dev/null && \
     list_module_aliases "conda" "env" &>/dev/null
 }
@@ -362,7 +366,20 @@ else
     fi
 fi
 unset __conda_setup
+
+# Initialize conda completion
+if [ -f "$completions_dir/_conda" ]; then
+    fpath=($completions_dir $fpath)
+    compinit conda
+fi
 EOF
+
+    # Install conda completion
+    if [ ! -f "$completions_dir/_conda" ]; then
+        log "INFO" "Installing conda completion..." "conda"
+        curl -fsSL "https://raw.githubusercontent.com/esc/conda-zsh-completion/master/_conda" \
+            -o "$completions_dir/_conda"
+    fi
 
     # Add aliases
     add_module_aliases "conda" "conda" || return 1

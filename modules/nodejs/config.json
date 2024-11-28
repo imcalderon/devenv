@@ -1,0 +1,50 @@
+{
+    "enabled": true,
+    "runlevel": 3,
+    "backup": {
+        "paths": [
+            "$HOME/.npmrc",
+            "$HOME/.nvmrc",
+            "$HOME/.nvm/nvm.sh"
+        ]
+    },
+    "shell": {
+        "paths": {
+            "nvm_dir": "$HOME/.nvm",
+            "npm_config": "$HOME/.npmrc"
+        },
+        "aliases": {
+            "npm": {
+                "n": "node",
+                "ni": "npm install",
+                "nr": "npm run",
+                "nrd": "npm run dev",
+                "nrb": "npm run build"
+            }
+        }
+    },
+    "nodejs": {
+        "version": "lts/*",
+        "packages": {
+            "build": [
+                "webpack",
+                "webpack-cli",
+                "@babel/core",
+                "@babel/cli"
+            ],
+            "lint": [
+                "eslint",
+                "prettier"
+            ],
+            "tools": [
+                "grunt-cli"
+            ]
+        },
+        "npm": {
+            "config": {
+                "save-exact": true,
+                "package-lock": true
+            }
+        }
+    }
+}

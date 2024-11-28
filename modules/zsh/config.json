@@ -4,7 +4,8 @@
     "backup": {
         "paths": [
             "$HOME/.zshrc",
-            "$HOME/.p10k.zsh"
+            "$HOME/.p10k.zsh",
+            "$HOME/.local/share/fonts"
         ]
     },
     "shell": {
@@ -14,18 +15,39 @@
             "custom_dir": "$HOME/.oh-my-zsh/custom",
             "modules_dir": "$HOME/.oh-my-zsh/custom/modules",
             "plugins_dir": "$HOME/.oh-my-zsh/custom/plugins",
-            "themes_dir": "$HOME/.oh-my-zsh/custom/themes"
+            "themes_dir": "$HOME/.oh-my-zsh/custom/themes",
+            "completions_dir": "$HOME/.oh-my-zsh/custom/completions",
+            "fonts_dir": "$HOME/.local/share/fonts"
         },
         "plugins": [
             "git",
             "docker",
             "kubectl",
+            "conda-zsh-completion",
+            "docker-zsh-completion",
             "zsh-autosuggestions",
-            "zsh-syntax-highlighting"
+            "zsh-syntax-highlighting",
+            "zsh-completions",
+            "python",
+            "pip",
+            "node",
+            "npm"
         ],
         "custom_plugins": {
             "zsh-autosuggestions": "https://github.com/zsh-users/zsh-autosuggestions",
-            "zsh-syntax-highlighting": "https://github.com/zsh-users/zsh-syntax-highlighting"
+            "zsh-syntax-highlighting": "https://github.com/zsh-users/zsh-syntax-highlighting",
+            "zsh-completions": "https://github.com/zsh-users/zsh-completions",
+            "conda-zsh-completion": "https://github.com/esc/conda-zsh-completion",
+            "docker-zsh-completion": "https://github.com/greymd/docker-zsh-completion"
+        },
+        "fonts": {
+            "source": "https://github.com/romkatv/powerlevel10k-media/raw/master",
+            "files": [
+                "MesloLGS NF Regular.ttf",
+                "MesloLGS NF Bold.ttf",
+                "MesloLGS NF Italic.ttf",
+                "MesloLGS NF Bold Italic.ttf"
+            ]
         },
         "aliases": {
             "shell": {
