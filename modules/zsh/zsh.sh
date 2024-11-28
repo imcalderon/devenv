@@ -1,5 +1,5 @@
 #!/bin/bash
-# modules/zsh/zsh.sh - ZSH module implementation with state management
+# modules/zsh/zsh.sh - ZSH module implementation with enhanced features
 
 # Load required utilities
 source "$SCRIPT_DIR/logging.sh"  # Load logging first
@@ -20,6 +20,7 @@ COMPONENTS=(
     "oh-my-zsh"     # Oh My ZSH framework
     "powerlevel10k" # Theme
     "plugins"       # ZSH plugins
+    "completions"   # ZSH completions
     "fonts"         # Required fonts
     "config"        # ZSH configuration
 )
@@ -34,15 +35,15 @@ show_module_info() {
 Description:
 -----------
 Professional ZSH shell environment with Oh My ZSH framework, 
-Powerlevel10k theme, and curated plugins for enhanced productivity.
+Powerlevel10k theme, and extensive plugin/completion support.
 
 Benefits:
 --------
 ✓ Enhanced Productivity - Rich command line features and auto-completion
 ✓ Visual Appeal - Modern, informative Powerlevel10k theme
 ✓ Plugin Power - Git, docker, and development tool integrations
+✓ Smart Completion - Context-aware suggestions for common tools
 ✓ Custom Aliases - Streamlined common operations
-✓ Smart Completion - Context-aware command suggestions
 
 Components:
 ----------
@@ -65,8 +66,15 @@ Components:
 4. Essential Plugins
    - Git integration
    - Docker commands
+   - Conda integration
    - Syntax highlighting
    - Auto-suggestions
+
+5. Completions
+   - Docker completions
+   - Conda completions
+   - Advanced ZSH completions
+   - Custom completions support
 
 Quick Start:
 -----------
@@ -127,6 +135,17 @@ EOF
                         echo "  Location: $omz_path"
                     fi
                     ;;
+                "plugins")
+                    local plugin_count=$(get_module_config "zsh" ".shell.plugins[]" | wc -l)
+                    echo "  Active Plugins: $plugin_count"
+                    ;;
+                "completions")
+                    local completions_dir=$(get_module_config "zsh" ".shell.paths.completions_dir")
+                    completions_dir=$(eval echo "$completions_dir")
+                    if [[ -d "$completions_dir" ]]; then
+                        echo "  Completions: Active"
+                    fi
+                    ;;
             esac
         else
             echo "✗ $component: Not installed"
@@ -152,6 +171,64 @@ check_state() {
     fi
     return 1
 }
+grovel_zsh() {
+    local status=0
+    
+    for component in "${COMPONENTS[@]}"; do
+        if ! check_state "$component" || ! verify_component "$component"; then
+            log "INFO" "Component $component needs installation" "zsh"
+            status=1
+        fi
+    done
+    
+    return $status
+}
+install_zsh() {
+    local force=${1:-false}
+    
+    if [[ "$force" == "true" ]] || ! grovel_zsh &>/dev/null; then
+        create_backup
+    fi
+    
+    for component in "${COMPONENTS[@]}"; do
+        if [[ "$force" == "true" ]] || ! check_state "$component" || ! verify_component "$component"; then
+            log "INFO" "Installing component: $component" "zsh"
+            if ! install_component "$component"; then
+                log "ERROR" "Failed to install component: $component" "zsh"
+                return 1
+            fi
+        else
+            log "INFO" "Skipping already installed and verified component: $component" "zsh"
+        fi
+    done
+    
+    # Add zsh's own aliases
+    add_module_aliases "zsh" "shell" || return 1
+    
+    # Show module information after successful installation
+    show_module_info
+    
+    # Set zsh as default shell if it isn't already
+    if [[ "$SHELL" != "/bin/zsh" ]]; then
+        chsh -s "$(command -v zsh)"
+        log "INFO" "Shell changed to zsh. Please log out and back in for changes to take effect." "zsh"
+    fi
+    
+    return 0
+}
+
+verify_zsh() {
+    local status=0
+    
+    for component in "${COMPONENTS[@]}"; do
+        if ! verify_component "$component"; then
+            log "ERROR" "Verification failed for component: $component" "zsh"
+            status=1
+        fi
+    done
+    
+    return $status
+}
 
 # Verify specific component
 verify_component() {
@@ -173,6 +250,9 @@ verify_component() {
         "plugins")
             verify_plugins
             ;;
+        "completions")
+            verify_completions
+            ;;
         "fonts")
             verify_fonts
             ;;
@@ -190,15 +270,34 @@ verify_component() {
 verify_plugins() {
     local plugins_dir=$(get_module_config "zsh" ".shell.paths.plugins_dir")
     plugins_dir=$(eval echo "$plugins_dir")
-    local plugins=($(get_module_config "zsh" ".shell.plugins[]"))
     
-    for plugin in "${plugins[@]}"; do
+    # First check required plugins
+    local custom_plugins=($(get_module_config "zsh" ".shell.custom_plugins | keys[]"))
+    for plugin in "${custom_plugins[@]}"; do
         if [[ ! -d "$plugins_dir/$plugin" ]]; then
+            log "DEBUG" "Missing plugin directory: $plugin" "zsh"
             return 1
         fi
     done
     return 0
 }
+
+# Verify completions
+verify_completions() {
+    local completions_dir=$(get_module_config "zsh" ".shell.paths.completions_dir")
+    completions_dir=$(eval echo "$completions_dir")
+    
+    # First check if directory exists
+    if [[ ! -d "$completions_dir" ]]; then
+        log "DEBUG" "Completions directory missing: $completions_dir" "zsh"
+        return 1
+    fi
+    
+    # For now, just verify the directory exists since completions 
+    # will be installed by their respective modules
+    return 0
+}
+
 
 # Verify fonts
 verify_fonts() {
@@ -212,6 +311,7 @@ verify_fonts() {
     
     for font in "${font_files[@]}"; do
         if [[ ! -f "$fonts_dir/$font" ]]; then
+            log "DEBUG" "Missing font file: $font" "zsh"
             return 1
         fi
     done
@@ -248,6 +348,12 @@ install_component() {
         "plugins")
             if install_plugins; then
                 save_state "plugins" "installed"
+                return 0
+            fi
+            ;;
+        "completions")
+            if install_completions; then
+                save_state "completions" "installed"
                 return 0
             fi
             ;;
@@ -325,15 +431,34 @@ install_plugins() {
         local plugin_dir="$plugins_dir/$plugin"
 
         if [[ ! -d "$plugin_dir" ]]; then
+            log "INFO" "Installing plugin: $plugin" "zsh"
             git clone --depth 1 "$repo" "$plugin_dir"
         fi
     done
     return 0
 }
 
+# Install completions
+install_completions() {
+    log "INFO" "Installing ZSH completions..." "zsh"
+    
+    local completions_dir=$(get_module_config "zsh" ".shell.paths.completions_dir")
+    completions_dir=$(eval echo "$completions_dir")
+    mkdir -p "$completions_dir"
+    
+    # Ensure completions are loaded in zshrc
+    if ! grep -q "fpath=($completions_dir \$fpath)" "$HOME/.zshrc" 2>/dev/null; then
+        log "DEBUG" "Adding completions directory to fpath" "zsh"
+        echo "fpath=($completions_dir \$fpath)" >> "$HOME/.zshrc"
+    fi
+    
+    # Note: Individual completions will be installed by their respective modules
+    return 0
+}
+
 # Install fonts
 install_fonts() {
-    log "INFO" "Installing Meslo Nerd Font..." "zsh"
+    log "INFO" "Installing required fonts..." "zsh"
     
     local fonts_dir="$HOME/.local/share/fonts"
     mkdir -p "$fonts_dir"
@@ -356,68 +481,25 @@ install_fonts() {
     return 0
 }
 
-# Grovel checks existence and basic functionality
-grovel_zsh() {
-    local status=0
-    
-    for component in "${COMPONENTS[@]}"; do
-        if ! check_state "$component" || ! verify_component "$component"; then
-            log "INFO" "Component $component needs installation" "zsh"
-            status=1
-        fi
-    done
-    
-    return $status
-}
-
-# Install with state awareness
-install_zsh() {
-    local force=${1:-false}
-    
-    if [[ "$force" == "true" ]] || ! grovel_zsh &>/dev/null; then
-        create_backup
-    fi
-    
-    for component in "${COMPONENTS[@]}"; do
-        if [[ "$force" == "true" ]] || ! check_state "$component" || ! verify_component "$component"; then
-            log "INFO" "Installing component: $component" "zsh"
-            if ! install_component "$component"; then
-                log "ERROR" "Failed to install component: $component" "zsh"
-                return 1
-            fi
-        else
-            log "INFO" "Skipping already installed and verified component: $component" "zsh"
-        fi
-    done
-    
-    # Add zsh's own aliases
-    add_module_aliases "zsh" "shell" || return 1
-    
-    # Show module information after successful installation
-    show_module_info
-    
-    # Set zsh as default shell if it isn't already
-    if [[ "$SHELL" != "/bin/zsh" ]]; then
-        chsh -s "$(command -v zsh)"
-        log "INFO" "Shell changed to zsh. Please log out and back in for changes to take effect." "zsh"
-    fi
-    
-    return 0
-}
+# Configure ZSH
 configure_zsh() {
     log "INFO" "Configuring zsh..." "zsh"
-
+    
     # Backup existing config
-    backup_file "$HOME/.zshrc" "zsh"
-
-    # Create custom directories
+    [[ -f "$HOME/.zshrc" ]] && backup_file "$HOME/.zshrc" "zsh"
+    
+    # Get paths from config
     local custom_dir=$(get_module_config "zsh" ".shell.paths.custom_dir")
     local modules_dir=$(get_module_config "zsh" ".shell.paths.modules_dir")
+    local completions_dir=$(get_module_config "zsh" ".shell.paths.completions_dir")
+    
     custom_dir=$(eval echo "$custom_dir")
     modules_dir=$(eval echo "$modules_dir")
-
-    mkdir -p "$custom_dir" "$modules_dir"
-
+    completions_dir=$(eval echo "$completions_dir")
+    
+    # Create required directories
+    mkdir -p "$custom_dir" "$modules_dir" "$completions_dir"
+    
     # Create base zshrc
     cat > "$HOME/.zshrc" << 'EOF'
 # Enable Powerlevel10k instant prompt
@@ -431,8 +513,14 @@ export ZSH="$HOME/.oh-my-zsh"
 # Theme configuration
 ZSH_THEME="powerlevel10k/powerlevel10k"
 
-# Plugin configuration
-plugins=(
+# Completion configuration
+fpath=($HOME/.oh-my-zsh/custom/completions $fpath)
+autoload -Uz compinit
+compinit
+
+# Case-insensitive completion
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+
 EOF
 
     # Add plugins from config
@@ -441,31 +529,55 @@ EOF
         echo "    $plugin" >> "$HOME/.zshrc"
     done
 
-    # Complete zshrc
+    # Complete zshrc configuration
     cat >> "$HOME/.zshrc" << 'EOF'
 )
 
 # Load oh-my-zsh
 source $ZSH/oh-my-zsh.sh
 
-# Load module configurations
+# Load custom module configurations
 for config_file in $ZSH/custom/modules/*.zsh; do
     [ -f "$config_file" ] && source "$config_file"
 done
+
+# Load completions
+for comp_file in $ZSH/custom/completions/_*; do
+    [ -f "$comp_file" ] && source "$comp_file"
+done
+
+# History configuration
+HISTSIZE=100000
+SAVEHIST=100000
+setopt SHARE_HISTORY
+setopt HIST_EXPIRE_DUPS_FIRST
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_SPACE
+setopt HIST_VERIFY
+
+# Directory navigation
+setopt AUTO_CD
+setopt AUTO_PUSHD
+setopt PUSHD_IGNORE_DUPS
+setopt PUSHD_SILENT
+
+# Completion settings
+setopt COMPLETE_IN_WORD
+setopt ALWAYS_TO_END
+setopt PATH_DIRS
+setopt AUTO_MENU
+setopt AUTO_LIST
+setopt AUTO_PARAM_SLASH
+setopt EXTENDED_GLOB
+unsetopt MENU_COMPLETE
+unsetopt FLOW_CONTROL
 
 # Load Powerlevel10k configuration
 [[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
 
 # User configuration
-HISTSIZE=10000
-SAVEHIST=10000
-setopt SHARE_HISTORY
+export PATH=$HOME/.local/bin:$PATH
 EOF
-
-    # Create modules directory for other modules to add their configs
-    mkdir -p "$modules_dir"
-    touch "$modules_dir/aliases.zsh"
-    touch "$modules_dir/functions.zsh"
 
     # Add zsh's own aliases
     log "INFO" "Setting up zsh aliases..." "zsh"
@@ -473,6 +585,7 @@ EOF
 
     return 0
 }
+
 # Remove ZSH configuration
 remove_zsh() {
     log "INFO" "Removing ZSH configuration..." "zsh"
@@ -483,9 +596,6 @@ remove_zsh() {
             backup_file "$file" "zsh"
         fi
     done
-    
-    # Remove state file
-    rm -f "$STATE_FILE"
     
     # Get oh-my-zsh path from config
     local omz_path=$(get_module_config "zsh" ".shell.paths.oh_my_zsh")
@@ -508,22 +618,11 @@ remove_zsh() {
     # Remove aliases
     remove_module_aliases "zsh" "shell"
     
+    # Remove state file
+    rm -f "$STATE_FILE"
+    
     log "INFO" "ZSH configuration removed" "zsh"
     return 0
-}
-
-# Verify entire installation
-verify_zsh() {
-    local status=0
-    
-    for component in "${COMPONENTS[@]}"; do
-        if ! verify_component "$component"; then
-            log "ERROR" "Verification failed for component: $component" "zsh"
-            status=1
-        fi
-    done
-    
-    return $status
 }
 
 # Execute requested action

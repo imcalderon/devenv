@@ -337,7 +337,12 @@ dcex() {
 }
 # End Docker helper functions
 EOF
-
+    # Install docker completion
+    if [ ! -f "$completions_dir/_docker" ]; then
+        log "INFO" "Installing docker completion..." "docker"
+        curl -fsSL "https://raw.githubusercontent.com/greymd/docker-zsh-completion/master/_docker" \
+            -o "$completions_dir/_docker"
+    fi
     return 0
 }
 
@@ -388,7 +393,11 @@ verify_component() {
 # Verify helper functions and aliases
 verify_helpers() {
     local modules_dir=$(get_aliases_dir)
+    local completions_dir=$(get_module_config "zsh" ".shell.paths.completions_dir")
+    completions_dir=$(eval echo "$completions_dir")
+
     [[ -f "$modules_dir/functions.zsh" ]] && \
+    [[ -f "$completions_dir/_docker" ]] && \
     grep -q "Docker helper functions" "$modules_dir/functions.zsh" && \
     list_module_aliases "docker" "basic" &>/dev/null && \
     list_module_aliases "docker" "container" &>/dev/null && \
