@@ -1,0 +1,205 @@
+{
+    "enabled": true,
+    "runlevel": 3,
+    "backup": {
+        "paths": [
+            "$HOME/.tsconfig.base.json",
+            "$HOME/.eslintrc.base.json",
+            "$HOME/.prettierrc.base.json",
+            "$HOME/.npmrc"
+        ]
+    },
+    "shell": {
+        "paths": {
+            "templates_dir": "$HOME/.devenv/templates/react",
+            "cache_dir": "$HOME/.npm-cache",
+            "config_dir": "$HOME/.config/react"
+        },
+        "aliases": {
+            "core": {
+                "cra": "create-react-app --template typescript",
+                "rstart": "npm start",
+                "rbuild": "npm run build",
+                "rserve": "serve -s build",
+                "rdev": "npm run dev",
+                "rclean": "npm run clean"
+            },
+            "testing": {
+                "rtest": "npm test",
+                "rtestc": "npm test -- --coverage",
+                "rtestw": "npm test -- --watch",
+                "re2e": "npm run test:e2e"
+            },
+            "storybook": {
+                "rstory": "npm run storybook",
+                "rbstory": "npm run build-storybook"
+            },
+            "tools": {
+                "rlint": "npm run lint",
+                "rformat": "npm run format",
+                "rtype": "npm run typecheck"
+            }
+        }
+    },
+    "dependencies": {
+        "required": [
+            "node >= 16",
+            "npm >= 7"
+        ],
+        "packages": {
+            "global": [
+                "create-react-app@latest",
+                "typescript@latest",
+                "serve@latest",
+                "@testing-library/react@latest",
+                "@storybook/react@latest",
+                "eslint@latest",
+                "prettier@latest",
+                "@babel/core@latest",
+                "babel-loader@latest"
+            ]
+        }
+    },
+    "typescript": {
+        "config": {
+            "compilerOptions": {
+                "target": "es2022",
+                "lib": ["dom", "dom.iterable", "esnext"],
+                "allowJs": true,
+                "skipLibCheck": true,
+                "esModuleInterop": true,
+                "allowSyntheticDefaultImports": true,
+                "strict": true,
+                "forceConsistentCasingInFileNames": true,
+                "noFallthroughCasesInSwitch": true,
+                "module": "esnext",
+                "moduleResolution": "bundler",
+                "resolveJsonModule": true,
+                "isolatedModules": true,
+                "noEmit": true,
+                "jsx": "react-jsx",
+                "baseUrl": "src",
+                "paths": {
+                    "@/*": ["*"],
+                    "@components/*": ["components/*"],
+                    "@hooks/*": ["hooks/*"],
+                    "@utils/*": ["utils/*"]
+                }
+            },
+            "include": ["src"],
+            "exclude": ["node_modules", "build", "dist"]
+        }
+    },
+    "eslint": {
+        "config": {
+            "root": true,
+            "env": {
+                "browser": true,
+                "es2022": true,
+                "node": true,
+                "jest": true
+            },
+            "extends": [
+                "eslint:recommended",
+                "plugin:@typescript-eslint/recommended",
+                "plugin:react/recommended",
+                "plugin:react-hooks/recommended",
+                "plugin:jsx-a11y/recommended",
+                "plugin:testing-library/react",
+                "plugin:jest/recommended",
+                "prettier"
+            ],
+            "parser": "@typescript-eslint/parser",
+            "parserOptions": {
+                "ecmaVersion": "latest",
+                "sourceType": "module",
+                "ecmaFeatures": {
+                    "jsx": true
+                }
+            },
+            "settings": {
+                "react": {
+                    "version": "detect"
+                }
+            },
+            "rules": {
+                "react/react-in-jsx-scope": "off",
+                "react/prop-types": "off",
+                "@typescript-eslint/explicit-module-boundary-types": "off",
+                "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+                "no-console": ["warn", { "allow": ["warn", "error"] }]
+            }
+        }
+    },
+    "prettier": {
+        "config": {
+            "semi": true,
+            "trailingComma": "es5",
+            "singleQuote": true,
+            "printWidth": 100,
+            "tabWidth": 2,
+            "useTabs": false,
+            "bracketSpacing": true,
+            "bracketSameLine": false,
+            "arrowParens": "always",
+            "endOfLine": "lf"
+        }
+    },
+    "jest": {
+        "config": {
+            "preset": "ts-jest",
+            "testEnvironment": "jsdom",
+            "setupFilesAfterEnv": ["@testing-library/jest-dom"],
+            "moduleNameMapper": {
+                "^@/(.*)$": "<rootDir>/src/$1"
+            },
+            "collectCoverageFrom": [
+                "src/**/*.{ts,tsx}",
+                "!src/**/*.stories.{ts,tsx}",
+                "!src/**/*.test.{ts,tsx}"
+            ]
+        }
+    },
+    "vscode": {
+        "extensions": [
+            "dbaeumer.vscode-eslint",
+            "esbenp.prettier-vscode",
+            "dsznajder.es7-react-js-snippets",
+            "ms-vscode.vscode-typescript-next",
+            "burkeholland.simple-react-snippets",
+            "formulahendry.auto-rename-tag",
+            "bradlc.vscode-tailwindcss",
+            "orta.vscode-jest",
+            "streetsidesoftware.code-spell-checker",
+            "yoavbls.pretty-ts-errors",
+            "styled-components.vscode-styled-components"
+        ],
+        "settings": {
+            "editor.defaultFormatter": "esbenp.prettier-vscode",
+            "editor.formatOnSave": true,
+            "editor.codeActionsOnSave": {
+                "source.fixAll.eslint": true,
+                "source.organizeImports": true
+            },
+            "typescript.tsdk": "node_modules/typescript/lib",
+            "typescript.enablePromptUseWorkspaceTsdk": true,
+            "typescript.preferences.importModuleSpecifier": "non-relative",
+            "[typescript]": {
+                "editor.defaultFormatter": "esbenp.prettier-vscode"
+            },
+            "[typescriptreact]": {
+                "editor.defaultFormatter": "esbenp.prettier-vscode"
+            },
+            "jest.autoRun": "off",
+            "jest.showCoverageOnLoad": true
+        }
+    },
+    "npm": {
+        "config": {
+            "legacy-peer-deps": true,
+            "save-exact": true,
+            "cache": "$HOME/.npm-cache",
+            "registry": "https://registry.npmjs.org/"
+        }
+    }
+}
