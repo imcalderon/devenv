@@ -1,0 +1,117 @@
+{
+    "enabled": true,
+    "runlevel": 4,
+    "backup": {
+        "paths": [
+            "$HOME/.config/tiled",
+            "$HOME/.local/share/tiled",
+            "$HOME/.cache/tiled"
+        ]
+    },
+    "shell": {
+        "paths": {
+            "config_dir": "$HOME/.config/tiled",
+            "templates_dir": "$HOME/.devenv/templates/tiled",
+            "projects_dir": "$HOME/Projects/maps"
+        },
+        "aliases": {
+            "map": {
+                "tiled": "tiled",
+                "tiledc": "docker compose -f $HOME/.devenv/templates/tiled/docker-compose.yml up",
+                "tiledx": "xhost + && docker compose -f $HOME/.devenv/templates/tiled/docker-compose.yml up"
+            }
+        }
+    },
+    "tiled": {
+        "package": {
+            "name": "tiled",
+            "repositories": {
+                "rpm": {
+                    "repo_url": "https://download.opensuse.org/repositories/home:/björnl/Fedora_37/home:björnl.repo",
+                    "repo_key": "https://download.opensuse.org/repositories/home:/björnl/Fedora_37/repodata/repomd.xml.key"
+                },
+                "deb": {
+                    "repo_file": "/etc/apt/sources.list.d/tiled.list",
+                    "repo_config": "deb [signed-by=/usr/share/keyrings/tiled-archive-keyring.gpg] https://download.opensuse.org/repositories/home:/björnl/xUbuntu_22.04/ ./"
+                }
+            }
+        },
+        "config": {
+            "preferences": {
+                "Interface": {
+                    "Language": "en_US",
+                    "ShowGrid": true,
+                    "SnapToGrid": true,
+                    "SnapToFineGrid": false
+                },
+                "Storage": {
+                    "SaveFormat": "json"
+                },
+                "Map": {
+                    "DefaultWidth": 50,
+                    "DefaultHeight": 50,
+                    "DefaultTileWidth": 16,
+                    "DefaultTileHeight": 16
+                },
+                "Export": {
+                    "EmbedTilesets": true,
+                    "DetachTemplateInstances": true,
+                    "MinimizeOutput": true
+                }
+            },
+            "shortcuts": {
+                "File": {
+                    "New": "Ctrl+N",
+                    "Open": "Ctrl+O",
+                    "Save": "Ctrl+S",
+                    "SaveAs": "Ctrl+Shift+S",
+                    "Export": "Ctrl+E"
+                },
+                "Edit": {
+                    "Undo": "Ctrl+Z",
+                    "Redo": "Ctrl+Y",
+                    "Cut": "Ctrl+X",
+                    "Copy": "Ctrl+C",
+                    "Paste": "Ctrl+V",
+                    "Delete": "Del"
+                },
+                "View": {
+                    "ToggleGrid": "Ctrl+G",
+                    "ZoomIn": "Ctrl++",
+                    "ZoomOut": "Ctrl+-",
+                    "ResetZoom": "Ctrl+0"
+                }
+            }
+        },
+        "templates": {
+            "phaser": {
+                "orthogonal": {
+                    "width": 50,
+                    "height": 50,
+                    "tilewidth": 16,
+                    "tileheight": 16,
+                    "orientation": "orthogonal",
+                    "renderorder": "right-down",
+                    "format": "json",
+                    "layers": [
+                        {
+                            "name": "background",
+                            "type": "tilelayer",
+                            "visible": true
+                        },
+                        {
+                            "name": "collision",
+                            "type": "tilelayer",
+                            "visible": true
+                        },
+                        {
+                            "name": "objects",
+                            "type": "objectgroup",
+                            "visible": true
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

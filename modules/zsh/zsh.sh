@@ -529,8 +529,9 @@ EOF
         echo "    $plugin" >> "$HOME/.zshrc"
     done
 
-    # Complete zshrc configuration
-    cat >> "$HOME/.zshrc" << 'EOF'
+
+# Complete zshrc configuration
+cat >> "$HOME/.zshrc" << 'EOF'
 )
 
 # Load oh-my-zsh
