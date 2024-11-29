@@ -1,0 +1,117 @@
+{
+    "enabled": true,
+    "runlevel": 4,
+    "backup": {
+        "paths": [
+            "$HOME/.config/ldtk",
+            "$HOME/.local/share/ldtk"
+        ]
+    },
+    "shell": {
+        "paths": {
+            "bin_dir": "$HOME/.local/bin",
+            "config_dir": "$HOME/.config/ldtk",
+            "projects_dir": "$HOME/Projects/maps"
+        },
+        "aliases": {
+            "ldtk": {
+                "ldtk": "ldtk",
+                "ldtkc": "docker compose -f $HOME/.devenv/templates/ldtk/docker-compose.yml up",
+                "ldtkx": "xhost + && docker compose -f $HOME/.devenv/templates/ldtk/docker-compose.yml up"
+            }
+        }
+    },
+    "ldtk": {
+        "version": "1.5.3",
+        "download_url": "https://github.com/deepnight/ldtk/releases/download/v1.5.3/ubuntu-distribution.zip",
+        "config": {
+            "backups": {
+                "enabled": true,
+                "interval": 5,
+                "path": "$HOME/.config/ldtk/backups"
+            },
+            "defaults": {
+                "grid_size": 16,
+                "tileset_def": {
+                    "tile_size": 16,
+                    "spacing": 0,
+                    "padding": 0
+                },
+                "level": {
+                    "width": 256,
+                    "height": 240,
+                    "bg_color": "#7F8093"
+                }
+            },
+            "export": {
+                "format": "json",
+                "minify": true,
+                "backup_on_save": true
+            }
+        },
+        "templates": {
+            "phaser": {
+                "default": {
+                    "jsonVersion": "1.4.1",
+                    "appBuildId": 1,
+                    "nextUid": 1,
+                    "worldLayout": "Free",
+                    "worldGridWidth": 256,
+                    "worldGridHeight": 240,
+                    "defaultPivotX": 0,
+                    "defaultPivotY": 0,
+                    "defaultGridSize": 16,
+                    "bgColor": "#7F8093",
+                    "defaultLevelWidth": 256,
+                    "defaultLevelHeight": 240,
+                    "defs": {
+                        "layers": [
+                            {
+                                "type": "Tiles",
+                                "identifier": "Background",
+                                "gridSize": 16,
+                                "displayOpacity": 1
+                            },
+                            {
+                                "type": "Tiles",
+                                "identifier": "Collisions",
+                                "gridSize": 16,
+                                "displayOpacity": 0.6
+                            },
+                            {
+                                "type": "Entities",
+                                "identifier": "Entities",
+                                "gridSize": 16,
+                                "displayOpacity": 1
+                            }
+                        ],
+                        "entities": [
+                            {
+                                "identifier": "Player",
+                                "width": 16,
+                                "height": 16,
+                                "color": "#94D9B3",
+                                "renderMode": "Rectangle"
+                            },
+                            {
+                                "identifier": "Enemy",
+                                "width": 16,
+                                "height": 16,
+                                "color": "#E43B44",
+                                "renderMode": "Rectangle"
+                            },
+                            {
+                                "identifier": "Coin",
+                                "width": 16,
+                                "height": 16,
+                                "color": "#FED766",
+                                "renderMode": "Cross"
+                            }
+                        ],
+                        "tilesets": []
+                    }
+                }
+            }
+        }
+    }
+}

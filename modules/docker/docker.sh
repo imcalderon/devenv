@@ -194,7 +194,15 @@ install_docker_package() {
         log "ERROR" "Unsupported package manager" "docker"
         return 1
     fi
-
+    log "INFO" "Installing Docker Compose..." "docker"
+    if ! command -v docker compose &>/dev/null; then
+        if command -v dnf &>/dev/null; then
+            sudo dnf install -y docker-compose-plugin
+        elif command -v apt-get &>/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y docker-compose-plugin
+        fi
+    fi
     return 0
 }
 
@@ -302,6 +310,11 @@ configure_helper_functions() {
     local modules_dir=$(get_aliases_dir)
     mkdir -p "$modules_dir"
     local functions_file="$modules_dir/functions.zsh"
+    local completions_dir="$HOME/.oh-my-zsh/plugins/docker"
+
+    # Set up Docker completions
+    mkdir -p "$completions_dir"
+    curl -fLo "$completions_dir/_docker" https://raw.githubusercontent.com/docker/cli/master/contrib/completion/zsh/_docker
 
     # Add helper functions
     cat >> "$functions_file" << 'EOF'
@@ -337,12 +350,12 @@ dcex() {
 }
 # End Docker helper functions
 EOF
-    # Install docker completion
-    if [ ! -f "$completions_dir/_docker" ]; then
-        log "INFO" "Installing docker completion..." "docker"
-        curl -fsSL "https://raw.githubusercontent.com/greymd/docker-zsh-completion/master/_docker" \
-            -o "$completions_dir/_docker"
+
+    # Add docker to plugins array in zshrc if not already present
+    if ! grep -q "plugins=.*docker" "$HOME/.zshrc"; then
+        sed -i '/^plugins=/ s/)/\ docker)/' "$HOME/.zshrc"
     fi
+
     return 0
 }
 
@@ -393,7 +406,7 @@ verify_component() {
 # Verify helper functions and aliases
 verify_helpers() {
     local modules_dir=$(get_aliases_dir)
-    local completions_dir=$(get_module_config "zsh" ".shell.paths.completions_dir")
+    local completions_dir=$(get_module_config "zsh" ".shell.paths.plugins")
     completions_dir=$(eval echo "$completions_dir")
 
     [[ -f "$modules_dir/functions.zsh" ]] && \

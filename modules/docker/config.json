@@ -35,6 +35,15 @@
         }
     },
     "docker": {
+        "compose": {
+            "package": {
+                "name": "docker-compose-plugin",
+                "components": [
+                    "docker-compose-plugin"
+                ]
+            },
+            "version": "2"
+        },
         "package": {
             "name": "docker-ce",
             "components": [
