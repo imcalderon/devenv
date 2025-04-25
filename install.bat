@@ -21,13 +21,13 @@ set TEMP_DIR=%TEMP%\devenv_installer
 if not exist "%TEMP_DIR%" mkdir "%TEMP_DIR%"
 
 :: Download installer script
-echo Downloading installer script...
-powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://https://github.com/imcalderon/devenv/install.ps1' -OutFile '%TEMP_DIR%\install.ps1'}"
-if %errorLevel% neq 0 (
-    echo Error: Failed to download installer script.
-    pause
-    exit /b 1
-)
+rem echo Downloading installer script...
+rem powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri https://github.com/imcalderon/devenv/blob/main/install.ps1 -OutFile '%TEMP_DIR%\install.ps1'}"
+rem if %errorLevel% neq 0 (
+rem     echo Error: Failed to download installer script.
+rem     pause
+rem     exit /b 1
+rem )
 
 :: Ask user for installation options
 echo.
@@ -62,8 +62,8 @@ echo 1) No (recommended)
 echo 2) Yes
 set /p FORCE_CHOICE="Enter your choice (1-2): "
 
-set FORCE=false
-if "%FORCE_CHOICE%"=="2" set FORCE=true
+set FORCE=0
+if "%FORCE_CHOICE%"=="2" set FORCE=1
 
 :: Run the PowerShell installer script
 echo.
@@ -75,7 +75,7 @@ echo.
 echo This may take several minutes. Please be patient.
 echo.
 
-powershell -ExecutionPolicy Bypass -File "%TEMP_DIR%\install.ps1" -Distribution "%DISTRIBUTION%" -ProjectsDir "%PROJECTS_DIR%" -Force:%FORCE%
+powershell -ExecutionPolicy Bypass -File "install.ps1" -Distribution "%DISTRIBUTION%" -ProjectsDir "%PROJECTS_DIR%" -Force "%FORCE%"
 
 :: Clean up
 rmdir /s /q "%TEMP_DIR%" >nul 2>&1

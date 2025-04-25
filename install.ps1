@@ -2,7 +2,7 @@
 # This script installs and configures WSL 2 and sets up the DevEnv project within it.
 
 param (
-    [switch]$Force = $false,
+    [switch]$Force = $False,
     [string]$Distribution = "Ubuntu-20.04",
     [string]$ProjectsDir = "E:\proj",
     [string]$DevEnvRepo = "https://github.com/imcalderon/devenv.git"
@@ -117,7 +117,7 @@ try {
 }
 
 # Check if distribution is installed
-$distroInstalled = $false
+$distroInstalled = $False
 try {
     $wslList = wsl.exe --list
     $distroInstalled = $wslList -like "*$Distribution*"
@@ -134,7 +134,7 @@ if (-not $distroInstalled) {
         # Wait for distribution to be installed
         $timeout = 300  # 5 minutes
         $elapsed = 0
-        $installed = $false
+        $installed = $False
         
         while (-not $installed -and $elapsed -lt $timeout) {
             Start-Sleep -Seconds 5
@@ -156,7 +156,7 @@ if (-not $distroInstalled) {
             exit 1
         }
     } catch {
-        Write-Log "Failed to install $Distribution: $_" "ERROR"
+        Write-Log "Failed to install $Distribution" "ERROR"
         exit 1
     }
 }
@@ -182,18 +182,3 @@ if (-not (Test-Path $devenvDir)) {
     Write-Log "Creating .devenv directory..."
     New-Item -Path $devenvDir -ItemType Directory -Force | Out-Null
 }
-
-rem # Create icons directory
-rem $iconsDir = "$devenvDir\icons"
-rem if (-not (Test-Path $iconsDir)) {
-rem     New-Item -Path $iconsDir -ItemType Directory -Force | Out-Null
-rem }
-
-rem # Download devenv icon for Windows Terminal
-rem $iconUrl = "https://github.com/imcalderon/devenv/main/resources/devenv-icon.png"
-rem $iconPath = "$iconsDir\devenv.png"
-rem try {
-rem     if (-not (Test-Path $iconPath) -or $Force) {
-rem         Write-Log "Downloading DevEnv icon..."
-rem         Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath
-rem     }
