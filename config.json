@@ -1,5 +1,15 @@
 {
     "version": "1.0.0",
+    "devMode": "windows",
+    "wsl": {
+        "username": "devuser",
+        "password": "Password1",
+        "memory": "8GB",
+        "processors": 4,
+        "swap": "4GB"
+    },
+    "windows": {
+    },
     "paths": {
         "root": "$HOME/.devenv",
         "logs": "$HOME/.devenv/logs",

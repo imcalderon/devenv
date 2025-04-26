@@ -1,6 +1,6 @@
 @echo off
 :: DevEnv Windows Installer
-:: This batch file downloads and runs the DevEnv installer script
+:: This batch file runs the DevEnv installer script
 setlocal
 
 echo DevEnv Windows Installer
@@ -15,19 +15,6 @@ if %errorLevel% neq 0 (
     pause
     exit /b 1
 )
-
-:: Create temp directory
-set TEMP_DIR=%TEMP%\devenv_installer
-if not exist "%TEMP_DIR%" mkdir "%TEMP_DIR%"
-
-:: Download installer script
-rem echo Downloading installer script...
-rem powershell -Command "& {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri https://github.com/imcalderon/devenv/blob/main/install.ps1 -OutFile '%TEMP_DIR%\install.ps1'}"
-rem if %errorLevel% neq 0 (
-rem     echo Error: Failed to download installer script.
-rem     pause
-rem     exit /b 1
-rem )
 
 :: Ask user for installation options
 echo.
@@ -62,8 +49,8 @@ echo 1) No (recommended)
 echo 2) Yes
 set /p FORCE_CHOICE="Enter your choice (1-2): "
 
-set FORCE=0
-if "%FORCE_CHOICE%"=="2" set FORCE=1
+set FORCE=
+if "%FORCE_CHOICE%"=="2" set FORCE=-Force
 
 :: Run the PowerShell installer script
 echo.
@@ -75,10 +62,7 @@ echo.
 echo This may take several minutes. Please be patient.
 echo.
 
-powershell -ExecutionPolicy Bypass -File "install.ps1" -Distribution "%DISTRIBUTION%" -ProjectsDir "%PROJECTS_DIR%" -Force "%FORCE%"
-
-:: Clean up
-rmdir /s /q "%TEMP_DIR%" >nul 2>&1
+powershell -ExecutionPolicy Bypass -File "install.ps1" %FORCE% -Distribution "%DISTRIBUTION%" -ProjectsDir "%PROJECTS_DIR%"
 
 echo.
 echo Installation completed. Press any key to exit...
