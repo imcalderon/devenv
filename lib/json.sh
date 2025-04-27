@@ -16,39 +16,98 @@ ensure_sudo() {
 
 # Ensure jq is installed
 ensure_json_parser() {
-    if ! command -v jq &>/dev/null; then
-        log "INFO" "Installing jq..." "json"
-        
-        # Request sudo access first
-        if ! ensure_sudo "json"; then
-            return 1
-        fi
-        
-        # Try package managers
-        if command -v dnf &>/dev/null; then
-            log "INFO" "Installing jq via dnf..." "json"
-            if ! sudo dnf install -y jq; then
-                log "ERROR" "Failed to install jq via dnf" "json"
-                return 1
-            fi
-        elif command -v apt-get &>/dev/null; then
-            log "INFO" "Installing jq via apt..." "json"
-            if ! sudo apt-get update && sudo apt-get install -y jq; then
-                log "ERROR" "Failed to install jq via apt" "json"
-                return 1
-            fi
-        else
-            log "ERROR" "No supported package manager found" "json"
-            return 1
-        fi
-        
-        # Verify installation
-        if ! command -v jq &>/dev/null; then
-            log "ERROR" "jq installation verification failed" "json"
-            return 1
-        fi
+    # First try the command to see if it's already available
+    if command -v jq &>/dev/null; then
+        return 0
     fi
-    return 0
+    
+    log "INFO" "jq not found, attempting installation..." "json"
+    
+    # Request sudo access first
+    if ! ensure_sudo "json"; then
+        return 1
+    fi
+    
+    # More verbose output for debugging
+    log "INFO" "Current PATH: $PATH" "json"
+    
+    # Try package managers with explicit installation checks
+    if command -v apt-get &>/dev/null; then
+        log "INFO" "Using apt package manager" "json"
+        log "INFO" "Running: sudo apt-get update && sudo apt-get install -y jq" "json"
+        sudo apt-get update && sudo apt-get install -y jq
+        log "INFO" "apt install command completed with status $?" "json"
+        
+        # Use direct path to jq since command -v might not find it immediately
+        if [[ -f "/usr/bin/jq" ]]; then
+            log "INFO" "Found jq at /usr/bin/jq" "json"
+            # Define a function to use the direct path
+            jq() {
+                /usr/bin/jq "$@"
+            }
+            export -f jq
+            return 0
+        fi
+    elif command -v dnf &>/dev/null; then
+        log "INFO" "Using dnf package manager" "json"
+        log "INFO" "Running: sudo dnf install -y jq" "json"
+        sudo dnf install -y jq
+        log "INFO" "dnf install command completed with status $?" "json"
+        
+        # Try direct path for dnf installs
+        if [[ -f "/usr/bin/jq" ]]; then
+            log "INFO" "Found jq at /usr/bin/jq" "json"
+            jq() {
+                /usr/bin/jq "$@"
+            }
+            export -f jq
+            return 0
+        fi
+    else
+        log "ERROR" "No supported package manager found" "json"
+        return 1
+    fi
+    
+    # Final check for jq availability
+    if command -v jq &>/dev/null; then
+        log "INFO" "jq is now available via command" "json"
+        return 0
+    else
+        log "ERROR" "jq installation failed - trying manual installation" "json"
+        
+        # Try manual installation as a last resort
+        local temp_dir=$(mktemp -d)
+        log "INFO" "Attempting manual jq installation to $temp_dir" "json"
+        
+        # Download jq binary directly
+        if command -v wget &>/dev/null; then
+            wget -q https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 -O "$temp_dir/jq"
+        elif command -v curl &>/dev/null; then
+            curl -sL https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 -o "$temp_dir/jq"
+        else
+            log "ERROR" "Neither wget nor curl available for manual installation" "json"
+            rm -rf "$temp_dir"
+            return 1
+        fi
+        
+        # Make executable and move to a usable location
+        chmod +x "$temp_dir/jq"
+        log "INFO" "Downloaded jq to $temp_dir/jq" "json"
+        
+        # Define function to use our manual installation
+        jq() {
+            "$temp_dir/jq" "$@"
+        }
+        export -f jq
+        
+        # Return success - the temp dir will remain for this session
+        log "INFO" "Manual jq installation complete" "json"
+        return 0
+    fi
+    
+    # If we get here, all attempts failed
+    log "ERROR" "All jq installation attempts failed" "json"
+    return 1
 }
 
 # Get value from JSON file with module context

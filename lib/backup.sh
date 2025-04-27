@@ -10,12 +10,25 @@ create_backup() {
     fi
 
     # Get backup paths from module config
-    local backup_paths
+    local backup_paths=()
+    
+    # First try global backup paths
     if [[ -n "$module" && -f "$MODULES_DIR/$module/config.json" ]]; then
-        backup_paths=($(get_json_value "$MODULES_DIR/$module/config.json" '.backup.paths[]' "" "$module"))
+        mapfile -t global_paths < <(get_json_value "$MODULES_DIR/$module/config.json" '.backup.paths[]' "" "$module" 2>/dev/null || echo "")
+        backup_paths+=("${global_paths[@]}")
+    fi
+    
+    # Then try platform-specific backup paths
+    if [[ -n "$module" && -f "$MODULES_DIR/$module/config.json" ]]; then
+        platform="$(detect_platform)"
+        mapfile -t platform_paths < <(get_json_value "$MODULES_DIR/$module/config.json" ".platforms.$platform.backup.paths[]" "" "$module" 2>/dev/null || echo "")
+        backup_paths+=("${platform_paths[@]}")
     fi
 
     for path in "${backup_paths[@]}"; do
+        # Skip empty paths
+        [[ -z "$path" ]] && continue
+        
         path=$(eval echo "$path")  # Expand environment variables
         if [[ -e "$path" ]]; then
             backup_file "$path" "$module"

@@ -10,6 +10,7 @@
       },
       "modules": {
         "order": [
+          "zsh",
           "python",
           "git",
           "vscode",
@@ -118,8 +119,8 @@
               "enabled": true,
               "git": {
                 "config": {
-                  "user.name": "Your Name",
-                  "user.email": "username@users.noreply.github.com"
+                  "user.name": "Ivan Calderon",
+                  "user.email": "imcalderon@users.noreply.github.com"
                 }
               }
             }
@@ -128,8 +129,8 @@
       }
     },
     "user": {
-      "name": "Your Name",
-      "email": "username@users.noreply.github.com",
+      "name": "Ivan Calderon",
+      "email": "imcalderon@users.noreply.github.com",
       "preferences": {
         "theme": "dark",
         "editor": "vscode",

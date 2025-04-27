@@ -210,7 +210,7 @@ create_backup() {
         local paths=($(get_module_config "$module" '.backup.paths[]'))
         
         # Get platform-specific backup paths
-        local platform_paths=($(get_module_config "$module" ".platforms.$PLATFORM.backup.paths[]" || echo ""))
+        #local platform_paths=($(get_module_config "$module" ".platforms.$PLATFORM.backup.paths[]" || echo ""))
         
         # Combine paths
         paths+=("${platform_paths[@]}")

@@ -291,7 +291,25 @@ configure_tools() {
 
     mkdir -p "$config_dir"
     
-    # Configure each tool
+    # Install pylint if not already installed
+    if ! command -v pylint &>/dev/null; then
+        log "INFO" "Installing pylint..." "python"
+        pip install --user pylint black flake8 mypy
+        
+        # Add pip user bin to PATH if not already there
+        local pip_user_bin="$HOME/.local/bin"
+        if [[ ":$PATH:" != *":$pip_user_bin:"* ]]; then
+            export PATH="$pip_user_bin:$PATH"
+            # Add to bashrc/zshrc if it exists
+            for rc_file in "$HOME/.bashrc" "$HOME/.zshrc"; do
+                if [[ -f "$rc_file" ]] && ! grep -q "PATH=.*$pip_user_bin" "$rc_file"; then
+                    echo "export PATH=\"$pip_user_bin:\$PATH\"" >> "$rc_file"
+                fi
+            done
+        fi
+    fi
+    
+    # Configure each tool with fallback default values if config parsing fails
     configure_pylint "$config_dir" || return 1
     configure_black "$config_dir" || return 1
     configure_flake8 "$config_dir" || return 1
@@ -340,16 +358,19 @@ configure_pylint() {
     if [[ ! -f "$pylint_config" ]]; then
         pylint --generate-rcfile > "$pylint_config"
         
-        local disabled_checks=($(get_module_config "python" ".python.config.pylint.disable[]"))
-        local good_names=($(get_module_config "python" ".python.config.pylint.good-names[]"))
-        local max_line_length=$(get_module_config "python" ".python.config.pylint.max-line-length")
+        # Get values with fallbacks
+        local disabled_checks=($(get_module_config "python" ".python.config.pylint.disable[]" "C0111,C0103" || echo "C0111,C0103"))
+        local good_names=($(get_module_config "python" ".python.config.pylint.good-names[]" "i,j,k,ex,Run,_" || echo "i,j,k,ex,Run,_"))
+        local max_line_length=$(get_module_config "python" ".python.config.pylint.max-line-length" "100" || echo "100")
         
+        # Apply configuration
         sed -i "s/^disable=.*/disable=$(IFS=,; echo "${disabled_checks[*]}")/" "$pylint_config"
         sed -i "s/^good-names=.*/good-names=$(IFS=,; echo "${good_names[*]}")/" "$pylint_config"
         sed -i "s/^max-line-length=.*/max-line-length=$max_line_length/" "$pylint_config"
     fi
+    
+    return 0
 }
-
 configure_black() {
     local config_dir=$1
     local black_config="$config_dir/pyproject.toml"
@@ -357,7 +378,7 @@ configure_black() {
     if [[ ! -f "$black_config" ]]; then
         cat > "$black_config" << EOF
 [tool.black]
-line-length = $(get_module_config "python" ".python.config.black.line-length")
+line-length = $(get_module_config "python" ".python.config.black.line-length" "100")
 target-version = ["py310"]
 EOF
     fi
@@ -370,7 +391,7 @@ configure_flake8() {
     if [[ ! -f "$flake8_config" ]]; then
         cat > "$flake8_config" << EOF
 [flake8]
-max-line-length = $(get_module_config "python" ".python.config.flake8.max-line-length")
+max-line-length = $(get_module_config "python" ".python.config.flake8.max-line-length" "100")
 ignore = $(get_module_config "python" ".python.config.flake8.ignore[]" | tr '\n' ',')
 EOF
     fi

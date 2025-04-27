@@ -2,95 +2,54 @@
     "enabled": true,
     "runlevel": 2,
     "backup": {
-        "paths": [
-            "$HOME/.vscode-server/data/Machine/settings.json",
-            "$HOME/.bashrc.d/vscode.sh"
-        ]
+      "paths": [
+        "${DEVENV_DATA_DIR}/vscode/config/settings.json",
+        "${DEVENV_DATA_DIR}/vscode/config/keybindings.json"
+      ]
     },
     "shell": {
-        "paths": {
-            "config_dir": "$HOME/.vscode-server/data/Machine",
-            "extensions_dir": "$HOME/.vscode-server/extensions",
-            "windows_vscode": "/mnt/c/Program Files/Microsoft VS Code/bin/code.cmd",
-            "windows_scripts_dir": "$HOME/.devenv/windows_scripts"
-        },
-        "aliases": {
-            "editor": {
-                "code.": "code .",
-                "code-win": "powershell.exe code",
-                "code-wsl": "code",
-                "code-proj": "code ~/Projects"
-            }
+      "paths": {
+        "config_dir": "${DEVENV_DATA_DIR}/vscode/config",
+        "extensions_dir": "${DEVENV_DATA_DIR}/vscode/extensions"
+      },
+      "aliases": {
+        "editor": {
+          "code.": "code .",
+          "codei": "code --install-extension",
+          "coder": "code --remote"
         }
+      }
     },
     "vscode": {
-        "windows": {
-            "wsl_integration": true,
-            "polling_interval": 5000,
-            "remote_user": "wsl-user"
-        },
-        "extensions": [
-            "ms-vscode-remote.remote-wsl",
-            "ms-python.python",
-            "ms-python.vscode-pylance",
-            "ms-toolsai.jupyter",
-            "eamodio.gitlens",
-            "esbenp.prettier-vscode",
-            "editorconfig.editorconfig",
-            "ms-azuretools.vscode-docker",
-            "dbaeumer.vscode-eslint",
-            "bradlc.vscode-tailwindcss"
-        ],
-        "settings": {
-            "workbench.colorTheme": "Default Dark Modern",
-            "terminal.integrated.defaultProfile.linux": "bash",
-            "terminal.integrated.profiles.linux": {
-                "bash": {
-                    "path": "/bin/bash",
-                    "args": [
-                        "-l"
-                    ],
-                    "icon": "terminal-bash"
-                }
-            },
-            "terminal.integrated.fontFamily": "'MesloLGM Nerd Font'",
-            "terminal.integrated.fontSize": 14,
-            "terminal.integrated.enableBell": false,
-            "terminal.integrated.copyOnSelection": true,
-            "terminal.integrated.cursorBlinking": true,
-            "terminal.integrated.cursorStyle": "line",
-            "terminal.integrated.persistentSessionReviveProcess": "never",
-            "terminal.integrated.tabs.enabled": true,
-            "terminal.integrated.gpuAcceleration": "on",
-            "remote.WSL.fileWatcher.polling": true,
-            "remote.WSL.fileWatcher.pollingInterval": 5000,
-            "python.defaultInterpreterPath": "/usr/bin/python3",
-            "python.linting.enabled": true,
-            "python.linting.pylintEnabled": true,
-            "python.linting.pylintPath": "/home/wsl-user/.local/bin/pylint",
-            "python.formatting.provider": "black",
-            "python.formatting.blackPath": "/home/wsl-user/.local/bin/black",
-            "python.formatting.blackArgs": [
-                "--line-length",
-                "100"
-            ],
-            "python.condaPath": "/home/wsl-user/miniconda3/bin/conda",
-            "python.terminal.activateEnvironment": true,
-            "editor.formatOnSave": true,
-            "editor.codeActionsOnSave": {
-                "source.organizeImports": true
-            },
-            "python.analysis.typeCheckingMode": "basic",
-            "python.testing.pytestEnabled": true,
-            "python.testing.unittestEnabled": false,
-            "python.testing.nosetestsEnabled": false,
-            "telemetry.telemetryLevel": "off",
-            "update.mode": "none",
-            "files.associations": {
-                "*.spec": "python",
-                "SConscript": "python",
-                "SConstruct": "python"
+      "extensions": [
+        "ms-python.python",
+        "ms-vscode-remote.remote-wsl",
+        "ms-azuretools.vscode-docker",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "workbench.colorTheme": "Default Dark Modern",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": true,
+        "terminal.integrated.fontFamily": "MesloLGM Nerd Font",
+        "terminal.integrated.fontSize": 14
+      }
+    },
+    "platforms": {
+      "linux": {
+        "enabled": true,
+        "package": {
+          "repositories": {
+            "deb": {
+              "key_url": "https://packages.microsoft.com/keys/microsoft.asc",
+              "key_path": "/etc/apt/keyrings/packages.microsoft.gpg",
+              "repo_file": "/etc/apt/sources.list.d/vscode.list",
+              "repo_config": "deb [arch=amd64 signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main"
             }
+          }
         }
+      }
     }
-}
+  }

@@ -1,70 +1,28 @@
 {
   "enabled": true,
-  "runlevel": 2,
+  "runlevel": 3,
   "backup": {
     "paths": [
-      "${DEVENV_DATA_DIR}/python/config",
-      "${DEVENV_DATA_DIR}/python/venv"
-    ]
+      "$HOME/.config/{{module}}",
+      "/etc/{{module}}"
+    ],
+    "dir": "${DEVENV_DATA_DIR}/backups"
   },
-  "global": {
-    "shell": {
-      "paths": {
-        "config_dir": "${DEVENV_DATA_DIR}/python/config",
-        "binary_dir": "${DEVENV_DATA_DIR}/python/bin",
-        "venv_dir": "${DEVENV_DATA_DIR}/python/venv"
-      },
-      "aliases": {
-        "common": {
-          "py": "python3",
-          "ipy": "ipython",
-          "pylab": "ipython --pylab",
-          "jlab": "jupyter lab"
-        }
-      }
+  "devenv": {
+    "paths": {
+      "state_dir": "${DEVENV_DATA_DIR}/state",
+      "logs_dir": "${DEVENV_DATA_DIR}/logs",
+      "templates_dir": "${DEVENV_DATA_DIR}/templates/{{module}}"
+    }
+  },
+  "shell": {
+    "paths": {
+      "config_dir": "$HOME/.config/{{module}}",
+      "data_dir": "$HOME/.local/share/{{module}}",
+      "bin_dir": "$HOME/.local/bin"
     },
-    "python": {
-      "version": "3.10",
-      "packages": {
-        "development": [
-          "ipython",
-          "jupyter",
-          "jupyterlab",
-          "notebook"
-        ],
-        "build": [
-          "build",
-          "twine",
-          "setuptools",
-          "wheel",
-          "pip"
-        ],
-        "linting": [
-          "black",
-          "pylint",
-          "flake8",
-          "mypy",
-          "isort",
-          "bandit"
-        ],
-        "testing": [
-          "pytest",
-          "pytest-cov",
-          "pytest-benchmark",
-          "tox"
-        ],
-        "documentation": [
-          "sphinx",
-          "sphinx-rtd-theme",
-          "sphinx-autodoc-typehints",
-          "mkdocs",
-          "mkdocs-material"
-        ]
-      },
-      "config": {
-        "use_virtualenv": true,
-        "virtualenv_name": "devenv-python"
-      }
+    "aliases": {
+      "{{module}}": {}
     }
   },
   "platforms": {
@@ -72,153 +30,41 @@
       "enabled": true,
       "shell": {
         "paths": {
-          "config_dir": "${DEVENV_DATA_DIR}/python/config/linux",
-          "binary_dir": "${DEVENV_DATA_DIR}/python/bin/linux"
-        },
-        "aliases": {
-          "linux": {
-            "py.linux": "python3.10"
-          }
+          "system_config_dir": "/etc/{{module}}",
+          "system_bin_dir": "/usr/bin"
         }
       },
       "package": {
         "manager": "apt",
-        "name": "python3.10",
-        "packages": [
-          "python3.10",
-          "python3.10-dev",
-          "python3.10-venv",
-          "python3-pip"
-        ]
-      },
-      "python": {
-        "config": {
-          "linting": {
-            "black": {
-              "line-length": 100
-            },
-            "pylint": {
-              "max-line-length": 100
-            }
-          }
-        }
+        "name": "{{module}}",
+        "repositories": {}
       }
     },
     "darwin": {
       "enabled": true,
       "shell": {
         "paths": {
-          "config_dir": "${DEVENV_DATA_DIR}/python/config/darwin",
-          "binary_dir": "${DEVENV_DATA_DIR}/python/bin/darwin"
-        },
-        "aliases": {
-          "darwin": {
-            "py.mac": "python3.10"
-          }
+          "system_config_dir": "/etc/{{module}}",
+          "system_bin_dir": "/usr/local/bin"
         }
       },
       "package": {
         "manager": "brew",
-        "name": "python@3.10",
-        "packages": [
-          "python@3.10"
-        ]
-      },
-      "python": {
-        "config": {
-          "linting": {
-            "black": {
-              "line-length": 100
-            },
-            "pylint": {
-              "max-line-length": 100
-            }
-          }
-        }
+        "name": "{{module}}"
       }
     },
     "windows": {
       "enabled": true,
       "shell": {
         "paths": {
-          "config_dir": "${DEVENV_DATA_DIR}/python/config/windows",
-          "binary_dir": "${DEVENV_DATA_DIR}/python/bin/windows"
-        },
-        "aliases": {
-          "windows": {
-            "py.win": "python"
-          }
+          "system_config_dir": "C:\\Program Files\\{{module}}",
+          "system_bin_dir": "C:\\Program Files\\{{module}}\\bin"
         }
       },
       "package": {
         "manager": "choco",
-        "name": "python",
-        "version": "3.10.0",
-        "parameters": "--install-arguments=\"/quiet PrependPath=1\""
-      },
-      "python": {
-        "config": {
-          "linting": {
-            "black": {
-              "line-length": 100
-            },
-            "pylint": {
-              "max-line-length": 100
-            }
-          }
-        }
-      },
-      "wsl": {
-        "enabled": true,
-        "integration": {
-          "paths": {
-            "windows_dir": "${DEVENV_DATA_DIR}/python/windows",
-            "wsl_dir": "${DEVENV_DATA_DIR}/python/wsl"
-          },
-          "shared_venv": true
-        }
+        "name": "{{module}}"
       }
     }
-  },
-  "dependencies": {
-    "modules": [
-      "git"
-    ],
-    "system": {
-      "linux": [
-        "build-essential",
-        "libssl-dev",
-        "zlib1g-dev",
-        "libbz2-dev",
-        "libreadline-dev",
-        "libsqlite3-dev",
-        "libncursesw5-dev",
-        "xz-utils",
-        "tk-dev",
-        "libxml2-dev",
-        "libxmlsec1-dev",
-        "libffi-dev",
-        "liblzma-dev"
-      ],
-      "darwin": [
-        "openssl",
-        "readline",
-        "sqlite3",
-        "xz",
-        "zlib"
-      ],
-      "windows": []
-    }
-  },
-  "templates": {
-    "paths": {
-      "config": "${DEVENV_ROOT}/templates/python/config",
-      "scripts": "${DEVENV_ROOT}/templates/python/scripts"
-    },
-    "files": [
-      "pyproject.toml",
-      "setup.py",
-      "requirements.txt"
-    ]
   }
 }

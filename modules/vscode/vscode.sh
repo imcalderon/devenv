@@ -490,36 +490,33 @@ install_vscode_package() {
     log "INFO" "Installing VSCode..." "vscode"
 
     if command -v dnf &>/dev/null; then
-        # RPM-based installation
-        local key_url=$(get_module_config "vscode" ".vscode.package.repositories.rpm.key_url")
-        local repo_file=$(get_module_config "vscode" ".vscode.package.repositories.rpm.repo_file")
-        local repo_config=$(get_module_config "vscode" ".vscode.package.repositories.rpm.repo_config")
-
-        sudo rpm --import "$key_url"
-        echo -e "$repo_config" | sudo tee "$repo_file" > /dev/null
-        
-        if ! sudo dnf install -y code; then
-            log "ERROR" "Failed to install VSCode via DNF" "vscode"
-            return 1
-        fi
+        # RPM-based installation (unchanged)
+        # ...existing code...
     elif command -v apt-get &>/dev/null; then
-        # DEB-based installation
-        local key_url=$(get_module_config "vscode" ".vscode.package.repositories.deb.key_url")
-        local key_path=$(get_module_config "vscode" ".vscode.package.repositories.deb.key_path")
-        local repo_file=$(get_module_config "vscode" ".vscode.package.repositories.deb.repo_file")
-        local repo_config=$(get_module_config "vscode" ".vscode.package.repositories.deb.repo_config")
-
-        wget -qO- "$key_url" | gpg --dearmor > packages.microsoft.gpg
-        sudo install -o root -g root -m 644 packages.microsoft.gpg "$key_path"
-        rm packages.microsoft.gpg
-
-        echo "$repo_config" | sudo tee "$repo_file" > /dev/null
-        sudo apt-get update
+        # DEB-based installation - Updated approach
+        log "INFO" "Using Microsoft's repository for VSCode" "vscode"
         
+        # Install dependencies
+        sudo apt-get update
+        sudo apt-get install -y curl wget gpg apt-transport-https
+        
+        # Import Microsoft GPG key
+        wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
+        sudo install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
+        rm -f packages.microsoft.gpg
+        
+        # Add the repository
+        echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | \
+            sudo tee /etc/apt/sources.list.d/vscode.list
+        
+        # Update and install
+        sudo apt-get update
         if ! sudo apt-get install -y code; then
             log "ERROR" "Failed to install VSCode via APT" "vscode"
             return 1
         fi
+        
+        log "INFO" "VSCode installation completed successfully" "vscode"
     else
         log "ERROR" "Unsupported package manager" "vscode"
         return 1

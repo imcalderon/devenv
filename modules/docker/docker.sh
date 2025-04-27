@@ -253,7 +253,34 @@ configure_docker_daemon() {
 configure_docker_service() {
     log "INFO" "Configuring Docker service..." "docker"
 
-    # Enable and start Docker service
+    # Check if we're in WSL
+    if grep -q "microsoft" /proc/version 2>/dev/null; then
+        log "INFO" "WSL environment detected, using Docker Desktop integration instead..." "docker"
+        
+        # For WSL, we'll use Docker Desktop for Windows instead of systemd service
+        # Create a placeholder script to check Docker Desktop connectivity
+        local script_dir="$HOME/.local/bin"
+        mkdir -p "$script_dir"
+        
+        cat > "$script_dir/docker-check.sh" << 'EOF'
+#!/bin/bash
+# Check Docker Desktop connectivity from WSL
+if docker info &>/dev/null; then
+    echo "Docker Desktop is connected"
+    exit 0
+else
+    echo "Docker Desktop is not running or not connected"
+    echo "Please ensure Docker Desktop is running on Windows"
+    exit 1
+fi
+EOF
+        chmod +x "$script_dir/docker-check.sh"
+        
+        log "INFO" "Docker service configured for WSL" "docker"
+        return 0
+    fi
+
+    # Standard systemd approach for native Linux
     sudo systemctl enable docker
     
     if ! restart_docker_service; then
@@ -388,7 +415,14 @@ verify_component() {
             [[ -f "/etc/docker/daemon.json" ]] && validate_json "/etc/docker/daemon.json"
             ;;
         "service")
-            systemctl is-active --quiet docker
+            # Check if we're in WSL
+            if grep -q "microsoft" /proc/version 2>/dev/null; then
+                # For WSL, we just need Docker command to be available
+                command -v docker &>/dev/null
+            else
+                # For native Linux, check systemd service
+                systemctl is-active --quiet docker
+            fi
             ;;
         "groups")
             groups | grep -q "docker"
