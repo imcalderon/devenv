@@ -1,13 +1,34 @@
 #!/bin/bash
-# devenv.sh - Development environment setup with JSON configuration
+# devenv.sh - Development environment setup with cross-platform support
 
 set -euo pipefail
 
 # Get absolute paths
-export ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -z "${ROOT_DIR:-}" ]]; then
+    export ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
+
+if [[ -z "${CONFIG_FILE:-}" ]]; then
+    export CONFIG_FILE="$ROOT_DIR/config.json"
+fi
+
+# Detect platform
+detect_platform() {
+    local platform="unknown"
+    case "$(uname -s)" in
+        Linux*)     platform="linux";;
+        Darwin*)    platform="darwin";;
+        *)          platform="unknown";;
+    esac
+    
+    echo "$platform"
+}
+
+PLATFORM=$(detect_platform)
+
+# Set platform-specific script directory
 export SCRIPT_DIR="$ROOT_DIR/lib"
 export MODULES_DIR="$ROOT_DIR/modules"
-export CONFIG_FILE="$ROOT_DIR/config.json"
 export STATE_DIR="$HOME/.devenv/state"
 
 # Load utilities
@@ -52,7 +73,7 @@ verify_environment() {
 
 # Get ordered list of enabled modules
 get_ordered_modules() {
-    local modules=($(get_json_value "$CONFIG_FILE" '.modules.order[]'))
+    local modules=($(get_json_value "$CONFIG_FILE" '.global.modules.order[]'))
     local enabled_modules=()
     
     for module in "${modules[@]}"; do
@@ -95,7 +116,14 @@ execute_stage() {
             continue
         fi
         
-        local module_script="$MODULES_DIR/$module/$module.sh"
+        # Check if there's a platform-specific implementation
+        local module_script="$MODULES_DIR/$module/$PLATFORM/$module.sh"
+        
+        # Fall back to common implementation if platform-specific one doesn't exist
+        if [[ ! -f "$module_script" ]]; then
+            module_script="$MODULES_DIR/$module/$module.sh"
+        fi
+        
         if [[ -f "$module_script" ]]; then
             log "INFO" "Running $stage for module: $module" "$module"
             
@@ -162,15 +190,21 @@ create_backup() {
         
         log "INFO" "Creating backup for module: $module" "$module"
         
-        # Get module-specific backup paths
+        # Get module-specific backup paths from global config
         local paths=($(get_module_config "$module" '.backup.paths[]'))
+        
+        # Get platform-specific backup paths
+        local platform_paths=($(get_module_config "$module" ".platforms.$PLATFORM.backup.paths[]" || echo ""))
+        
+        # Combine paths
+        paths+=("${platform_paths[@]}")
         
         for path in "${paths[@]}"; do
             path=$(eval echo "$path")  # Expand environment variables
             if [[ -e "$path" ]]; then
                 backup_file "$path" "$module"
             fi
-        done
+        }
     done
 }
 
