@@ -1,237 +1,264 @@
 #!/bin/bash
-# Template for new modules
-# Replace "example" with your module name throughout this template
+# lib/utils/module.sh - Module utilities with containerization support
 
-# Load required utilities
-source "$SCRIPT_DIR/logging.sh"
-source "$SCRIPT_DIR/json.sh"
-source "$SCRIPT_DIR/module.sh"
-source "$SCRIPT_DIR/backup.sh"
-source "$SCRIPT_DIR/alias.sh"
-
-# Initialize module
-init_module "example" || exit 1
-
-# State file for tracking installation status
-STATE_FILE="$HOME/.devenv/state/example.state"
-
-# Display module information
-show_module_info() {
-    cat << 'EOF'
-
-📦 Module: Example
-================
-
-Description:
------------
-Detailed description of what this module does and its primary purpose.
-
-Benefits:
---------
-✓ Benefit 1 - Detail about the first benefit
-✓ Benefit 2 - Detail about the second benefit
-✓ Benefit 3 - Detail about the third benefit
-
-Components:
-----------
-1. Core System
-   - What the core system provides
-   - Dependencies and requirements
-
-2. Configuration
-   - What configurations are managed
-   - Where configs are stored
-
-Integrations:
------------
-• Integration 1 - How it works with other system X
-• Integration 2 - How it works with other system Y
-
-Quick Start:
------------
-1. Initial setup:
-   $ devenv install example
-
-2. Common operations:
-   $ command1 arg    - What this does
-   $ command2 arg    - What this does
-
-Aliases:
--------
-alias1  : Description of alias1
-alias2  : Description of alias2
-
-Configuration:
--------------
-Location: ~/.config/example
-Key files:
-- config.json   : Main configuration
-- settings.yml  : Additional settings
-
-Tips:
-----
-• Tip 1 - Helpful usage tip
-• Tip 2 - Another helpful tip
-
-For more information:
--------------------
-Documentation: https://docs.example.com
-Support: https://support.example.com
-
-EOF
-
-    # Show current installation status
-    echo "Current Status:"
-    echo "-------------"
-    for component in "core" "config"; do
-        if check_state "$component"; then
-            echo "✓ $component: Installed"
-            # Show version if applicable
-            case "$component" in
-                "core")
-                    if command -v example &>/dev/null; then
-                        echo "  Version: $(example --version 2>/dev/null || echo 'unknown')"
-                    fi
-                    ;;
-            esac
-        else
-            echo "✗ $component: Not installed"
-        fi
-    done
-    echo
+# Get module configuration
+get_module_config() {
+    local module=$1
+    local key=$2
+    local default=${3:-}
+    
+    local config_file="$MODULES_DIR/$module/config.json"
+    get_json_value "$config_file" "$key" "$default" "$module"
 }
 
-# Save component state
-save_state() {
-    local component=$1
-    local status=$2
-    mkdir -p "$(dirname "$STATE_FILE")"
-    echo "$component:$status:$(date +%s)" >> "$STATE_FILE"
+# Check if module is enabled
+is_module_enabled() {
+    local module=$1
+    local enabled=$(get_module_config "$module" ".enabled" "false")
+    [[ "$enabled" == "true" ]]
 }
 
-# Check component state
-check_state() {
-    local component=$1
-    if [[ -f "$STATE_FILE" ]]; then
-        grep -q "^$component:installed:" "$STATE_FILE"
-        return $?
+# Get module runlevel
+get_module_runlevel() {
+    local module=$1
+    get_module_config "$module" ".runlevel" "999"
+}
+
+# Get module dependencies
+get_module_dependencies() {
+    local module=$1
+    get_module_config "$module" ".dependencies[]" "" | sort -u
+}
+
+# Check if a module should be containerized
+should_containerize() {
+    local module=$1
+    
+    # First check global container enablement
+    local container_enabled=$(get_json_value "$CONFIG_FILE" ".global.container.enabled" "false")
+    if [[ "$container_enabled" != "true" ]]; then
+        return 1
     fi
-    return 1
+    
+    # Then check module-specific containerization
+    local containerize=$(get_json_value "$CONFIG_FILE" ".global.container.modules.$module.containerize" "false")
+    [[ "$containerize" == "true" ]]
 }
 
-# Verify specific component
-verify_component() {
-    local component=$1
-    case "$component" in
-        "core")
-            command -v example &>/dev/null
-            ;;
-        "config")
-            [[ -f "$CONFIG_FILE" ]] && validate_json "$CONFIG_FILE"
-            ;;
-        *)
-            return 1
-            ;;
-    esac
+# Get module container image
+get_module_container_image() {
+    local module=$1
+    get_json_value "$CONFIG_FILE" ".global.container.modules.$module.image" ""
+}
+
+# Get extra container mount options
+get_module_container_mounts() {
+    local module=$1
+    
+    # Get global mount paths
+    local mounts=""
+    local mount_paths=$(get_json_value "$CONFIG_FILE" ".global.container.mount_paths | keys[]")
+    
+    for mount_key in $mount_paths; do
+        local mount_value=$(get_json_value "$CONFIG_FILE" ".global.container.mount_paths[\"$mount_key\"]")
+        
+        # Expand environment variables
+        mount_value=$(eval echo "$mount_value")
+        
+        # Add to mounts string
+        mounts="$mounts -v $mount_value"
+    done
+    
+    # Get module-specific extra mounts
+    local extra_mounts=$(get_json_value "$CONFIG_FILE" ".global.container.modules.$module.extra_mounts[]" "")
+    
+    for mount in $extra_mounts; do
+        # Expand environment variables
+        mount=$(eval echo "$mount")
+        
+        # Add to mounts string
+        mounts="$mounts -v $mount"
+    done
+    
+    echo "$mounts"
+}
+
+# Get extra container arguments
+get_module_container_args() {
+    local module=$1
+    get_json_value "$CONFIG_FILE" ".global.container.modules.$module.extra_args" ""
+}
+
+# Get container network
+get_container_network() {
+    get_json_value "$CONFIG_FILE" ".global.container.network" "bridge"
+}
+
+# Check if running in WSL
+is_wsl() {
+    grep -q "microsoft" /proc/version 2>/dev/null
     return $?
 }
 
-# Install specific component
-install_component() {
-    local component=$1
-    if check_state "$component" && verify_component "$component"; then
-        log "INFO" "Component $component already installed and verified" "example"
-        return 0
-    fi
-    
-    case "$component" in
-        "core")
-            if install_core; then
-                save_state "core" "installed"
-                return 0
-            fi
-            ;;
-        "config")
-            if install_config; then
-                save_state "config" "installed"
-                return 0
-            fi
-            ;;
-    esac
-    return 1
-}
-
-# Grovel checks existence and basic functionality
-grovel_example() {
-    local status=0
-    
-    for component in "core" "config"; do
-        if ! check_state "$component" || ! verify_component "$component"; then
-            log "INFO" "Component $component needs installation" "example"
-            status=1
-        fi
-    done
-    
-    return $status
-}
-
-# Install with state awareness
-install_example() {
-    local force=${1:-false}
-    
-    if [[ "$force" == "true" ]] || ! grovel_example &>/dev/null; then
-        create_backup
-    fi
-    
-    for component in "core" "config"; do
-        if [[ "$force" == "true" ]] || ! check_state "$component" || ! verify_component "$component"; then
-            log "INFO" "Installing component: $component" "example"
-            if ! install_component "$component"; then
-                log "ERROR" "Failed to install component: $component" "example"
-                return 1
-            fi
+# Get Docker socket path
+get_docker_socket() {
+    if is_wsl; then
+        # Check configuration first
+        local socket_path
+        if [[ "$PLATFORM" == "windows" ]]; then
+            socket_path=$(get_json_value "$CONFIG_FILE" ".platforms.windows.wsl.docker_socket" "")
         else
-            log "INFO" "Skipping already installed and verified component: $component" "example"
+            socket_path=$(get_json_value "$CONFIG_FILE" ".platforms.linux.wsl.docker_socket" "")
         fi
-    done
+        
+        # Fall back to default sockets
+        if [[ -z "$socket_path" ]]; then
+            if [[ -e "/var/run/docker-desktop.sock" ]]; then
+                socket_path="/var/run/docker-desktop.sock"
+            else
+                socket_path="/var/run/docker.sock"
+            fi
+        fi
+        
+        echo "$socket_path"
+    else
+        # Standard docker socket
+        echo "/var/run/docker.sock"
+    fi
+}
+
+# Run a module command in container
+run_module_in_container() {
+    local module=$1
+    local action=$2
+    shift 2  # Remove first two arguments
     
-    # Show module information after successful installation
-    show_module_info
+    local image=$(get_module_container_image "$module")
+    if [[ -z "$image" ]]; then
+        log "ERROR" "No container image specified for module $module" "$module"
+        return 1
+    fi
+    
+    # Get container mount options
+    local mounts=$(get_module_container_mounts "$module")
+    
+    # Get extra container arguments
+    local extra_args=$(get_module_container_args "$module")
+    
+    # Get container network
+    local network=$(get_container_network)
+    
+    # Get Docker socket path for volume mounting
+    local docker_socket=$(get_docker_socket)
+    
+    # Mount the module directory and scripts
+    local module_mount="-v $MODULES_DIR/$module:/devenv/modules/$module"
+    local lib_mount="-v $SCRIPT_DIR:/devenv/lib"
+    
+    # Create a temporary script to execute inside the container
+    local temp_script=$(mktemp)
+    
+    cat > "$temp_script" << EOF
+#!/bin/bash
+export SCRIPT_DIR="/devenv/lib"
+export MODULE_NAME="$module"
+export MODULE_DIR="/devenv/modules/$module"
+export MODULE_CONFIG="/devenv/modules/$module/config.json"
+export CONFIG_FILE="/devenv/config.json"
+export DEVENV_ROOT="/devenv"
+export DEVENV_DATA_DIR="/devenv/data"
+export PATH="/devenv/bin:\$PATH"
+cd /devenv
+/devenv/modules/$module/$module.sh $action "\$@"
+EOF
+    
+    chmod +x "$temp_script"
+    
+    # Define the docker run command
+    local docker_run="docker run --rm -it \
+        $mounts \
+        $module_mount \
+        $lib_mount \
+        -v $CONFIG_FILE:/devenv/config.json \
+        -v $temp_script:/tmp/run_module.sh \
+        -v $docker_socket:/var/run/docker.sock \
+        --network=$network \
+        $extra_args \
+        $image \
+        /tmp/run_module.sh $@"
+    
+    # Log the docker command
+    log "DEBUG" "Running docker command: $docker_run" "$module"
+    
+    # Execute the docker command
+    eval "$docker_run"
+    local exit_code=$?
+    
+    # Clean up
+    rm -f "$temp_script"
+    
+    return $exit_code
+}
+
+# Verify module configuration
+verify_module() {
+    local module=$1
+    local config_file="$MODULES_DIR/$module/config.json"
+    
+    # Check for required files
+    if [[ ! -f "$config_file" ]]; then
+        log "ERROR" "Module configuration not found" "$module"
+        return 1
+    fi
+    
+    if [[ ! -f "$MODULES_DIR/$module/$module.sh" ]]; then
+        log "ERROR" "Module script not found" "$module"
+        return 1
+    fi
+    
+    # Validate JSON configuration
+    if ! validate_json "$config_file" "" "$module"; then
+        return 1
+    fi
     
     return 0
 }
 
-# Verify entire installation
-verify_example() {
-    local status=0
+# Execute a module script
+execute_module() {
+    local module=$1
+    local action=$2
+    shift 2  # Remove first two arguments
     
-    for component in "core" "config"; do
-        if ! verify_component "$component"; then
-            log "ERROR" "Verification failed for component: $component" "example"
-            status=1
-        fi
-    done
-    
-    return $status
+    # Check if module should be containerized
+    if should_containerize "$module"; then
+        log "INFO" "Running module $module in container" "$module"
+        run_module_in_container "$module" "$action" "$@"
+    else
+        log "INFO" "Running module $module natively" "$module"
+        "$MODULES_DIR/$module/$module.sh" "$action" "$@"
+    fi
 }
 
-# Execute requested action
-case "${1:-}" in
-    grovel)
-        grovel_example
-        ;;
-    install)
-        install_example "${2:-false}"  # Optional force parameter
-        ;;
-    verify)
-        verify_example
-        ;;
-    info)
-        show_module_info
-        ;;
-    *)
-        log "ERROR" "Unknown action: ${1:-}" "example"
-        log "ERROR" "Usage: $0 {install|remove|verify|info} [--force]"
-        exit 1
-        ;;
-esac
+# Initialize module
+init_module() {
+    local module=$1
+    
+    # Save current LOG_LEVEL
+    local current_log_level="${LOG_LEVEL:-INFO}"
+    
+    # Verify module first
+    if ! verify_module "$module"; then
+        return 1
+    fi
+    
+    # Initialize module-specific logging with preserved log level
+    LOG_LEVEL="$current_log_level" init_logging "$module"
+    
+    # Export module context variables
+    export MODULE_NAME="$module"
+    export MODULE_DIR="$MODULES_DIR/$module"
+    export MODULE_CONFIG="$MODULE_DIR/config.json"
+    
+    return 0
+}

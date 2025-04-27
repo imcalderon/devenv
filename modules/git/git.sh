@@ -1,5 +1,5 @@
 #!/bin/bash
-# modules/git/git.sh - Git module implementation
+# modules/git/git.sh - Git module implementation with ZSH integration
 
 # Load required utilities
 source "$SCRIPT_DIR/logging.sh"
@@ -20,6 +20,7 @@ COMPONENTS=(
     "ssh"           # SSH key configuration
     "config"        # Git configuration
     "aliases"       # Git aliases
+    "zsh_integration" # ZSH completion and prompt integration
 )
 
 # Display module information
@@ -32,15 +33,15 @@ show_module_info() {
 Description:
 -----------
 Professional Git environment with SSH key management, 
-optimized configurations, and productivity-enhancing aliases.
+optimized configurations, ZSH integration, and productivity-enhancing aliases.
 
 Benefits:
 --------
 ✓ Secure Setup - Automated SSH key generation and management
 ✓ Best Practices - Pre-configured Git settings for optimal workflow
+✓ ZSH Integration - Enhanced completion, prompts and aliases
 ✓ Enhanced Productivity - Curated aliases for common operations
 ✓ GitHub Ready - Automated GitHub SSH configuration
-✓ Backup Support - Automated backup of all configurations
 
 Components:
 ----------
@@ -60,18 +61,27 @@ Components:
    - Push/pull behaviors
    - Editor preferences
 
+4. ZSH Integration
+   - Advanced completion
+   - VCS info in prompt
+   - Git status indicators
+   - Git keyboard shortcuts
+
 Quick Start:
 -----------
 1. Check status:
-   $ gst
+   $ g st
 
 2. Stage and commit:
-   $ ga file.txt
-   $ gc -m "commit message"
+   $ g a file.txt
+   $ g c -m "commit message"
 
 3. Push/pull changes:
-   $ gp   # push
-   $ gpl  # pull
+   $ g p   # push
+   $ g pl  # pull
+
+4. Use ZSH autocompletion:
+   $ git che<TAB>   # expands to checkout
 
 Aliases:
 -------
@@ -91,13 +101,15 @@ Key files:
 - ~/.gitconfig    : Git configuration
 - ~/.ssh/config   : SSH configuration
 - ~/.ssh/id_ed25519* : SSH keys
+- ~/.config/zsh/git.zsh : ZSH git integration
 
 Tips:
 ----
 • Use gaa to stage all changes
 • gc! to amend last commit
 • gst for quick status check
-• Always pull before pushing
+• In ZSH, use tab completion for branches
+• View status in prompt with ZSH integration
 
 Security Note:
 ------------
@@ -105,11 +117,6 @@ SSH keys are generated with best practices:
 • ED25519 algorithm
 • Proper permissions
 • Passphrase protection (optional)
-
-For more information:
--------------------
-Documentation: https://git-scm.com/doc
-GitHub Guide: https://docs.github.com/authentication
 
 EOF
 
@@ -130,6 +137,11 @@ EOF
                     ssh_dir=$(eval echo "$ssh_dir")
                     if [[ -f "${ssh_dir}/id_ed25519" ]]; then
                         echo "  SSH Key: Present"
+                    fi
+                    ;;
+                "zsh_integration")
+                    if [[ -f "$HOME/.config/zsh/git.zsh" ]]; then
+                        echo "  ZSH Integration: Active"
                     fi
                     ;;
             esac
@@ -177,6 +189,9 @@ verify_component() {
         "aliases")
             list_module_aliases "git" "git" &>/dev/null
             ;;
+        "zsh_integration")
+            [[ -f "$HOME/.config/zsh/git.zsh" ]]
+            ;;
         *)
             return 1
             ;;
@@ -217,6 +232,12 @@ install_component() {
                 return 0
             fi
             ;;
+        "zsh_integration")
+            if configure_zsh_integration; then
+                save_state "zsh_integration" "installed"
+                return 0
+            fi
+            ;;
     esac
     return 1
 }
@@ -235,6 +256,172 @@ install_git_core() {
             return 1
         fi
     fi
+    return 0
+}
+
+# Configure ZSH integration for Git
+configure_zsh_integration() {
+    log "INFO" "Configuring ZSH integration for Git..." "git"
+    
+    # Check if ZSH is installed
+    if ! command -v zsh &>/dev/null; then
+        log "WARN" "ZSH not installed, skipping ZSH integration" "git"
+        return 0
+    fi
+    
+    # Create ZSH config directory if it doesn't exist
+    local zsh_config_dir="$HOME/.config/zsh"
+    mkdir -p "$zsh_config_dir"
+    
+    # Create Git ZSH integration file
+    cat > "$zsh_config_dir/git.zsh" << 'EOF'
+# Git integration for ZSH
+
+# Load the git plugin if using zsh
+# Make sure the fpath includes git's completion functions
+fpath=(${fpath[@]} /usr/share/zsh/functions/Completion/Unix)
+
+# Enable and configure vcs_info for git prompt
+autoload -Uz vcs_info
+zstyle ':vcs_info:*' enable git
+zstyle ':vcs_info:*' check-for-changes true
+zstyle ':vcs_info:*' stagedstr '%F{green}●%f'
+zstyle ':vcs_info:*' unstagedstr '%F{red}●%f'
+zstyle ':vcs_info:*' formats ' %F{blue}[%F{cyan}%b%F{blue}]%f %c%u'
+zstyle ':vcs_info:*' actionformats ' %F{blue}[%F{cyan}%b%F{blue}|%F{red}%a%F{blue}]%f %c%u'
+zstyle ':vcs_info:git*+set-message:*' hooks git-untracked
+
+# Check for untracked files
++vi-git-untracked() {
+  if [[ $(git rev-parse --is-inside-work-tree 2> /dev/null) == 'true' ]] && \
+     git status --porcelain | grep -q '^?? ' 2> /dev/null ; then
+    hook_com[staged]+='%F{yellow}●%f'
+  fi
+}
+
+# Update vcs_info before each prompt
+precmd() { vcs_info }
+
+# Enable prompt substitution to show vcs_info
+setopt prompt_subst
+
+# Git keyboard shortcuts and improvements
+function _git_current_branch() {
+  local ref
+  ref=$(git symbolic-ref --quiet HEAD 2> /dev/null)
+  local ret=$?
+  if [[ $ret != 0 ]]; then
+    [[ $ret == 128 ]] && return  # not a git repo
+    ref=$(git rev-parse --short HEAD 2> /dev/null) || return
+    echo "$ref"
+  else
+    echo "${ref#refs/heads/}"
+  fi
+}
+
+# Enhanced git status - shows branch and status in a compact format
+alias gst='git status -sb'
+
+# Push the current branch
+function gpsh() {
+  if [[ "${1}" == "-h" || "${1}" == "--help" ]]; then
+    echo "Usage: gpsh [remote] [options]"
+    echo "Push the current branch to a remote."
+    echo "If no remote is specified, 'origin' is used."
+    return 0
+  fi
+  
+  local remote="${1:-origin}"
+  local branch="$(_git_current_branch)"
+  
+  if [[ -z "$branch" ]]; then
+    echo "Error: Not in a git repository or no current branch."
+    return 1
+  fi
+  
+  if [[ "$#" -gt 1 ]]; then
+    shift
+    git push "$remote" "$branch" "$@"
+  else
+    git push "$remote" "$branch"
+  fi
+}
+
+# Pull the current branch
+function gpl() {
+  if [[ "${1}" == "-h" || "${1}" == "--help" ]]; then
+    echo "Usage: gpl [remote] [options]"
+    echo "Pull the current branch from a remote."
+    echo "If no remote is specified, 'origin' is used."
+    return 0
+  fi
+  
+  local remote="${1:-origin}"
+  local branch="$(_git_current_branch)"
+  
+  if [[ -z "$branch" ]]; then
+    echo "Error: Not in a git repository or no current branch."
+    return 1
+  fi
+  
+  if [[ "$#" -gt 1 ]]; then
+    shift
+    git pull "$remote" "$branch" "$@"
+  else
+    git pull "$remote" "$branch"
+  fi
+}
+
+# Git log with branch graph
+alias glg='git log --graph --decorate --oneline'
+
+# Open GitHub repository in browser
+if command -v xdg-open &>/dev/null; then
+  function ghb() {
+    local remote_url=$(git config --get remote.origin.url)
+    if [[ -z "$remote_url" ]]; then
+      echo "Error: No remote 'origin' found"
+      return 1
+    fi
+    
+    # Convert SSH URL to HTTPS URL if needed
+    if [[ "$remote_url" =~ ^git@ ]]; then
+      remote_url=${remote_url/git@github.com:/https:\/\/github.com\/}
+    fi
+    
+    # Remove .git suffix if present
+    remote_url=${remote_url%.git}
+    
+    xdg-open "$remote_url"
+  }
+elif command -v open &>/dev/null; then
+  # For macOS
+  function ghb() {
+    local remote_url=$(git config --get remote.origin.url)
+    if [[ -z "$remote_url" ]]; then
+      echo "Error: No remote 'origin' found"
+      return 1
+    fi
+    
+    # Convert SSH URL to HTTPS URL if needed
+    if [[ "$remote_url" =~ ^git@ ]]; then
+      remote_url=${remote_url/git@github.com:/https:\/\/github.com\/}
+    fi
+    
+    # Remove .git suffix if present
+    remote_url=${remote_url%.git}
+    
+    open "$remote_url"
+  }
+fi
+EOF
+    
+    # Check if git.zsh is already sourced in .zshrc
+    if ! grep -q "source.*git.zsh" "$zsh_config_dir/.zshrc" 2>/dev/null; then
+        # Add sourcing directive to .zshrc if it's not already there
+        echo -e "\n# Load Git integration\n[[ -f \"\$ZDOTDIR/git.zsh\" ]] && source \"\$ZDOTDIR/git.zsh\"" >> "$zsh_config_dir/.zshrc"
+    fi
+    
     return 0
 }
 
@@ -393,6 +580,15 @@ remove_git() {
     # Remove SSH config but preserve keys
     rm -f "${ssh_dir}/config"
 
+    # Remove ZSH integration
+    rm -f "$HOME/.config/zsh/git.zsh"
+    
+    # Edit .zshrc to remove git.zsh source line
+    if [[ -f "$HOME/.config/zsh/.zshrc" ]]; then
+        sed -i '/# Load Git integration/d' "$HOME/.config/zsh/.zshrc"
+        sed -i '/source.*git.zsh/d' "$HOME/.config/zsh/.zshrc"
+    fi
+
     # Remove git aliases
     remove_module_aliases "git" "git"
 
@@ -421,7 +617,7 @@ verify_git() {
     if [ $status -eq 0 ]; then
         log "INFO" "Testing GitHub SSH connection..." "git"
         if ! ssh -T git@github.com -o BatchMode=yes -o StrictHostKeyChecking=no 2>&1 | grep -q "successfully authenticated"; then
-            log "ERROR" "GitHub SSH authentication failed" "git"
+            log "WARN" "GitHub SSH authentication failed" "git"
             status=1
         else
             log "INFO" "GitHub SSH connection successful" "git"

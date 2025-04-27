@@ -3,57 +3,68 @@
     "runlevel": 1,
     "backup": {
         "paths": [
-            "$HOME/.zshrc",
-            "$HOME/.p10k.zsh",
-            "$HOME/.local/share/fonts"
+            "$HOME/.zshenv",
+            "$HOME/.config/zsh",
+            "$HOME/.cache/zsh",
+            "$HOME/.local/share/zsh"
         ]
     },
     "shell": {
-        "theme": "powerlevel10k/powerlevel10k",
         "paths": {
-            "oh_my_zsh": "$HOME/.oh-my-zsh",
-            "custom_dir": "$HOME/.oh-my-zsh/custom",
-            "modules_dir": "$HOME/.oh-my-zsh/custom/modules",
-            "plugins_dir": "$HOME/.oh-my-zsh/custom/plugins",
-            "themes_dir": "$HOME/.oh-my-zsh/custom/themes",
-            "completions_dir": "$HOME/.oh-my-zsh/custom/completions",
-            "fonts_dir": "$HOME/.local/share/fonts"
-        },
-        "plugins": [
-            "git",
-            "docker",
-            "kubectl",
-            "conda-zsh-completion",
-            "docker-zsh-completion",
-            "zsh-autosuggestions",
-            "zsh-syntax-highlighting",
-            "zsh-completions",
-            "python",
-            "pip",
-            "node",
-            "npm"
-        ],
-        "custom_plugins": {
-            "zsh-autosuggestions": "https://github.com/zsh-users/zsh-autosuggestions",
-            "zsh-syntax-highlighting": "https://github.com/zsh-users/zsh-syntax-highlighting",
-            "zsh-completions": "https://github.com/zsh-users/zsh-completions",
-            "conda-zsh-completion": "https://github.com/esc/conda-zsh-completion",
-            "docker-zsh-completion": "https://github.com/greymd/docker-zsh-completion"
-        },
-        "fonts": {
-            "source": "https://github.com/romkatv/powerlevel10k-media/raw/master",
-            "files": [
-                "MesloLGS NF Regular.ttf",
-                "MesloLGS NF Bold.ttf",
-                "MesloLGS NF Italic.ttf",
-                "MesloLGS NF Bold Italic.ttf"
-            ]
+            "config_dir": "$HOME/.config/zsh",
+            "cache_dir": "$HOME/.cache/zsh",
+            "data_dir": "$HOME/.local/share/zsh"
         },
         "aliases": {
             "shell": {
-                "zshconfig": "code ~/.zshrc",
-                "ohmyzsh": "code ~/.oh-my-zsh",
-                "reload": "source ~/.zshrc"
+                "zshconfig": "$EDITOR $HOME/.config/zsh/.zshrc",
+                "reload": "source $HOME/.config/zsh/.zshrc",
+                "d": "dirs -v"
+            }
+        }
+    },
+    "zsh": {
+        "options": {
+            "history": [
+                "SHARE_HISTORY",
+                "HIST_FIND_NO_DUPS",
+                "HIST_IGNORE_DUPS", 
+                "HIST_IGNORE_ALL_DUPS",
+                "HIST_SAVE_NO_DUPS", 
+                "HIST_VERIFY",
+                "EXTENDED_HISTORY"
+            ],
+            "directory": [
+                "AUTO_CD",
+                "AUTO_PUSHD", 
+                "PUSHD_IGNORE_DUPS", 
+                "PUSHD_SILENT"
+            ],
+            "completion": [
+                "COMPLETE_IN_WORD",
+                "ALWAYS_TO_END",
+                "PATH_DIRS",
+                "AUTO_MENU",
+                "COMPLETE_ALIASES"
+            ]
+        },
+        "plugins": [
+            "zsh-syntax-highlighting",
+            "zsh-history-substring-search"
+        ],
+        "prompt": {
+            "theme": "minimal",
+            "show_git_info": true,
+            "show_vi_mode": true
+        },
+        "keybindings": {
+            "mode": "vi",
+            "mappings": {
+                "edit_line": "v",
+                "search_back": "^R",
+                "search_forward": "^S",
+                "beginning_of_line": "^A",
+                "end_of_line": "^E"
             }
         }
     }

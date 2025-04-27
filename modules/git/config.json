@@ -6,24 +6,36 @@
             "$HOME/.gitconfig",
             "$HOME/.ssh/config",
             "$HOME/.ssh/id_ed25519",
-            "$HOME/.ssh/id_ed25519.pub"
+            "$HOME/.ssh/id_ed25519.pub",
+            "$HOME/.config/zsh/git.zsh"
         ]
     },
     "shell": {
         "paths": {
             "ssh_dir": "$HOME/.ssh",
-            "git_config": "$HOME/.gitconfig"
+            "git_config": "$HOME/.gitconfig",
+            "zsh_config_dir": "$HOME/.config/zsh"
         },
         "aliases": {
             "git": {
                 "g": "git",
                 "ga": "git add",
                 "gaa": "git add --all",
-                "gst": "git status",
+                "gst": "git status -sb",
                 "gc": "git commit -v",
                 "gc!": "git commit -v --amend",
                 "gp": "git push",
-                "gpl": "git pull"
+                "gb": "git branch",
+                "gco": "git checkout",
+                "gd": "git diff",
+                "gl": "git log",
+                "glg": "git log --graph --decorate --oneline",
+                "gf": "git fetch",
+                "grb": "git rebase",
+                "gm": "git merge",
+                "gr": "git remote",
+                "grs": "git reset",
+                "gcl": "git clone"
             }
         }
     },
@@ -34,7 +46,12 @@
             "core.editor": "vim",
             "init.defaultBranch": "main",
             "pull.rebase": "false",
-            "push.autoSetupRemote": "true"
+            "push.autoSetupRemote": "true",
+            "help.autocorrect": "1",
+            "color.ui": "auto",
+            "core.autocrlf": "input",
+            "core.pager": "less -FRX",
+            "credential.helper": "cache --timeout=3600"
         },
         "ssh": {
             "key_type": "ed25519",
@@ -45,6 +62,13 @@
                     "identity_file": "$HOME/.ssh/id_ed25519"
                 }
             ]
+        },
+        "zsh_integration": {
+            "enabled": true,
+            "completion": true,
+            "prompt": true,
+            "aliases": true,
+            "keyboard_shortcuts": true
         }
     }
 }

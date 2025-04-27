@@ -1,37 +1,40 @@
 {
     "enabled": true,
-    "runlevel": 3,
+    "runlevel": 2,
     "backup": {
       "paths": [
-        "${DEVENV_DATA_DIR}/docker/config/daemon.json",
-        "${DEVENV_DATA_DIR}/docker/config/config.json"
+        "/etc/docker/daemon.json",
+        "${DEVENV_ROOT}/data/docker",
+        "${DEVENV_ROOT}/bin/devenv-container"
       ]
     },
     "shell": {
       "paths": {
-        "config_dir": "${DEVENV_DATA_DIR}/docker/config",
-        "data_dir": "${DEVENV_DATA_DIR}/docker/data"
+        "data_dir": "${DEVENV_ROOT}/data/docker",
+        "container_dir": "${DEVENV_ROOT}/data/docker/containers",
+        "bin_dir": "${DEVENV_ROOT}/bin"
       },
       "aliases": {
         "basic": {
           "d": "docker",
           "dc": "docker compose",
-          "dcu": "docker compose up",
-          "dcub": "docker compose up --build",
+          "dcu": "docker compose up -d",
           "dcd": "docker compose down",
           "dcl": "docker compose logs -f"
         },
         "container": {
+          "di": "docker images",
           "dps": "docker ps",
           "dpsa": "docker ps -a",
           "dex": "docker exec -it",
-          "dtop": "docker top",
-          "dstats": "docker stats"
+          "dlog": "docker logs -f",
+          "dst": "docker stats"
         },
         "cleanup": {
           "dprune": "docker system prune -f",
           "dvprune": "docker volume prune -f",
-          "dclean": "docker system prune -af --volumes"
+          "dclean": "docker system prune -af --volumes",
+          "diprune": "docker image prune -f"
         }
       }
     },
@@ -42,37 +45,27 @@
           "max-size": "10m",
           "max-file": "3"
         }
-      }
-    },
-    "platforms": {
-      "linux": {
+      },
+      "wsl": {
         "enabled": true,
-        "shell": {
-          "paths": {
-            "system_config_dir": "/etc/docker",
-            "daemon_config": "/etc/docker/daemon.json"
-          }
-        },
-        "package": {
-          "repositories": {
-            "deb": {
-              "key_url": "https://download.docker.com/linux/ubuntu/gpg",
-              "key_path": "/usr/share/keyrings/docker-archive-keyring.gpg",
-              "repo_file": "/etc/apt/sources.list.d/docker.list",
-              "repo_config": "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu {release} stable"
-            }
-          },
-          "components": [
-            "docker-ce",
-            "docker-ce-cli",
-            "containerd.io",
-            "docker-compose-plugin"
+        "docker_desktop_socket": "/var/run/docker-desktop.sock",
+        "daemon_config": {
+          "hosts": [
+            "unix:///var/run/docker.sock",
+            "unix:///var/run/docker-desktop.sock"
           ]
-        },
-        "wsl": {
-          "enabled": true,
-          "integration": "docker-desktop"
         }
       }
+    },
+    "container": {
+      "enabled": true,
+      "strategy": "selective",
+      "default_mounts": {
+        "home": "${HOME}:/home/user",
+        "devenv": "${DEVENV_ROOT}:/devenv",
+        "docker": "/var/run/docker.sock:/var/run/docker.sock"
+      },
+      "default_network": "bridge",
+      "default_user": "user"
     }
   }

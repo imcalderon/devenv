@@ -1,12 +1,12 @@
 #!/bin/bash
-# modules/zsh/zsh.sh - ZSH module implementation with enhanced features
+# modules/zsh/zsh.sh - Minimal ZSH module implementation
 
 # Load required utilities
-source "$SCRIPT_DIR/logging.sh"  # Load logging first
-source "$SCRIPT_DIR/json.sh"     # Then JSON handling
-source "$SCRIPT_DIR/module.sh"   # Then module utilities
-source "$SCRIPT_DIR/backup.sh"   # Finally backup utilities
-source "$SCRIPT_DIR/alias.sh"    # For shell alias support
+source "$SCRIPT_DIR/logging.sh"
+source "$SCRIPT_DIR/json.sh"
+source "$SCRIPT_DIR/module.sh"
+source "$SCRIPT_DIR/backup.sh"
+source "$SCRIPT_DIR/alias.sh"
 
 # Initialize module
 init_module "zsh" || exit 1
@@ -17,33 +17,32 @@ STATE_FILE="$HOME/.devenv/state/zsh.state"
 # Components list for module
 COMPONENTS=(
     "core"          # Base ZSH installation
-    "oh-my-zsh"     # Oh My ZSH framework
-    "powerlevel10k" # Theme
-    "plugins"       # ZSH plugins
-    "completions"   # ZSH completions
-    "fonts"         # Required fonts
-    "config"        # ZSH configuration
+    "config"        # ZSH configuration files (.zshenv, .zshrc, etc)
+    "prompt"        # Custom prompt
+    "keybindings"   # Vi mode and keybindings
+    "completion"    # ZSH completion system
+    "plugins"       # Minimal essential plugins
 )
 
 # Display module information
 show_module_info() {
     cat << 'EOF'
 
-🛠️ ZSH Development Environment
-===========================
+🛠️ ZSH Shell Environment
+=======================
 
 Description:
 -----------
-Professional ZSH shell environment with Oh My ZSH framework, 
-Powerlevel10k theme, and extensive plugin/completion support.
+Minimal, efficient ZSH shell environment focused on productivity 
+with sane defaults and essential features.
 
 Benefits:
 --------
-✓ Enhanced Productivity - Rich command line features and auto-completion
-✓ Visual Appeal - Modern, informative Powerlevel10k theme
-✓ Plugin Power - Git, docker, and development tool integrations
-✓ Smart Completion - Context-aware suggestions for common tools
-✓ Custom Aliases - Streamlined common operations
+✓ Fast Startup - Minimal dependencies for quick shell startup
+✓ Powerful Completion - Context-aware tab completion
+✓ Vi Mode - Vim-like editing capabilities
+✓ Directory Navigation - Enhanced directory stack and navigation
+✓ Custom Prompt - Clean, informative prompt with git information
 
 Components:
 ----------
@@ -52,29 +51,25 @@ Components:
    - Advanced command line editing
    - Improved tab completion
 
-2. Oh My ZSH Framework
-   - Plugin management
-   - Theme support
-   - Configuration organization
+2. Configuration
+   - Organized XDG-compliant config
+   - History management
+   - Directory navigation
 
-3. Powerlevel10k Theme
+3. Custom Prompt
    - Git status integration
-   - Command execution time
-   - Directory context
-   - Server status indicators
+   - Clean, minimal design
+   - Command execution status
 
-4. Essential Plugins
-   - Git integration
-   - Docker commands
-   - Conda integration
+4. Keybindings
+   - Vi mode with visual indicators
+   - Familiar vim motions and text objects
+   - Command-line editing with $EDITOR
+
+5. Essential Plugins
    - Syntax highlighting
-   - Auto-suggestions
-
-5. Completions
-   - Docker completions
-   - Conda completions
-   - Advanced ZSH completions
-   - Custom completions support
+   - History substring search
+   - Directory jumping
 
 Quick Start:
 -----------
@@ -84,35 +79,31 @@ Quick Start:
 2. Edit configuration:
    $ zshconfig
 
-3. Update Oh My ZSH:
-   $ omz update
+3. Navigate with directory stack:
+   $ d        (show directory stack)
+   $ 1-9      (jump to stack position)
 
 Aliases:
 -------
-zshconfig : Edit ZSH configuration
-ohmyzsh  : Open Oh My ZSH directory
-reload   : Reload ZSH configuration
+zshconfig  : Edit ZSH configuration
+reload     : Reload ZSH configuration
 
 Configuration:
 -------------
-Location: ~/.zshrc
+Location: ~/.config/zsh
 Key files:
-- ~/.zshrc          : Main configuration
-- ~/.p10k.zsh       : Theme configuration
-- ~/.oh-my-zsh/     : Framework directory
+- ~/.zshenv         : Environment variables
+- ~/.config/zsh/.zshrc    : Main configuration
+- ~/.config/zsh/aliases   : All aliases
+- ~/.config/zsh/prompt    : Prompt configuration
+- ~/.config/zsh/completion : Completion settings
 
 Tips:
 ----
 • Use 'Tab' for smart completion
-• Press Up/Down for history search
-• Use 'Alt+L' for ls after cd
-• Right arrow accepts suggestions
-
-Requirements:
-------------
-• MesloLGS NF Font - Required for icons
-• Git - For repository features
-• Terminal with Unicode support
+• Press 'v' in normal mode to edit command in $EDITOR
+• Press 'Esc' to enter vi command mode
+• Use 'Alt+.' to insert last argument
 
 EOF
 
@@ -128,23 +119,11 @@ EOF
                         echo "  Version: $(zsh --version | cut -d' ' -f2)"
                     fi
                     ;;
-                "oh-my-zsh")
-                    local omz_path=$(get_module_config "zsh" ".shell.paths.oh_my_zsh")
-                    omz_path=$(eval echo "$omz_path")
-                    if [[ -d "$omz_path" ]]; then
-                        echo "  Location: $omz_path"
-                    fi
+                "completion")
+                    echo "  Completion system: Active"
                     ;;
                 "plugins")
-                    local plugin_count=$(get_module_config "zsh" ".shell.plugins[]" | wc -l)
-                    echo "  Active Plugins: $plugin_count"
-                    ;;
-                "completions")
-                    local completions_dir=$(get_module_config "zsh" ".shell.paths.completions_dir")
-                    completions_dir=$(eval echo "$completions_dir")
-                    if [[ -d "$completions_dir" ]]; then
-                        echo "  Completions: Active"
-                    fi
+                    echo "  Essential plugins: Active"
                     ;;
             esac
         else
@@ -171,6 +150,472 @@ check_state() {
     fi
     return 1
 }
+
+# Verify specific component
+verify_component() {
+    local component=$1
+    case "$component" in
+        "core")
+            command -v zsh &>/dev/null
+            ;;
+        "config")
+            [[ -f "$HOME/.zshenv" ]] && [[ -f "$HOME/.config/zsh/.zshrc" ]]
+            ;;
+        "prompt")
+            [[ -f "$HOME/.config/zsh/prompt.zsh" ]]
+            ;;
+        "keybindings")
+            [[ -f "$HOME/.config/zsh/keybindings.zsh" ]]
+            ;;
+        "completion")
+            [[ -f "$HOME/.config/zsh/completion.zsh" ]]
+            ;;
+        "plugins")
+            verify_plugins
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+    return $?
+}
+
+# Verify plugins
+verify_plugins() {
+    local plugins_dir="$HOME/.config/zsh/plugins"
+    
+    # Check essential plugins
+    [[ -d "$plugins_dir/zsh-syntax-highlighting" ]] && \
+    [[ -d "$plugins_dir/zsh-history-substring-search" ]]
+}
+
+# Install core ZSH
+install_zsh_core() {
+    if ! command -v zsh &>/dev/null; then
+        log "INFO" "Installing zsh..." "zsh"
+        if command -v apt-get &>/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y zsh curl git
+        elif command -v dnf &>/dev/null; then
+            sudo dnf install -y zsh curl git
+        else
+            log "ERROR" "Unsupported package manager" "zsh"
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# Create XDG-compliant directory structure
+create_zsh_dirs() {
+    log "INFO" "Creating ZSH directories..." "zsh"
+    
+    local config_dir="$HOME/.config/zsh"
+    local cache_dir="$HOME/.cache/zsh"
+    local data_dir="$HOME/.local/share/zsh"
+    local plugins_dir="$config_dir/plugins"
+    
+    mkdir -p "$config_dir" "$cache_dir" "$data_dir" "$plugins_dir"
+    
+    return 0
+}
+
+# Configure zsh with .zshenv
+configure_zshenv() {
+    log "INFO" "Configuring .zshenv..." "zsh"
+    
+    # Backup existing config
+    [[ -f "$HOME/.zshenv" ]] && backup_file "$HOME/.zshenv" "zsh"
+    
+    # Create .zshenv in $HOME
+    cat > "$HOME/.zshenv" << 'EOF'
+# ZSH Environment Variables
+# This file should only contain environment variables
+
+# XDG Base Directory
+export XDG_CONFIG_HOME="$HOME/.config"
+export XDG_CACHE_HOME="$HOME/.cache"
+export XDG_DATA_HOME="$HOME/.local/share"
+
+# Set ZSH config location
+export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
+
+# History configuration
+export HISTFILE="$ZDOTDIR/.zhistory"
+export HISTSIZE=10000
+export SAVEHIST=10000
+
+# Default programs
+export EDITOR="vim"
+export VISUAL="vim"
+export PAGER="less"
+
+# Ensure path arrays don't contain duplicates
+typeset -U path PATH
+path=(
+  $HOME/.local/bin
+  $path
+)
+export PATH
+EOF
+
+    return 0
+}
+
+# Configure .zshrc
+configure_zshrc() {
+    log "INFO" "Configuring .zshrc..." "zsh"
+    
+    local config_dir="$HOME/.config/zsh"
+    
+    # Ensure directory exists
+    mkdir -p "$config_dir"
+    
+    # Backup existing config
+    [[ -f "$config_dir/.zshrc" ]] && backup_file "$config_dir/.zshrc" "zsh"
+    
+    # Create base zshrc
+    cat > "$config_dir/.zshrc" << 'EOF'
+# ZSH Main Configuration
+
+# Options
+setopt AUTO_CD              # Change directory without typing cd
+setopt AUTO_PUSHD           # Push the current directory onto the dirstack
+setopt PUSHD_IGNORE_DUPS    # Do not store duplicates in the stack
+setopt PUSHD_SILENT         # Do not print the directory stack after pushd or popd
+setopt HIST_VERIFY          # Show command with history expansion before running it
+setopt HIST_IGNORE_DUPS     # Do not record a command that just run
+setopt HIST_IGNORE_ALL_DUPS # Delete old entry if new entry is a duplicate
+setopt HIST_FIND_NO_DUPS    # Do not display a line previously found
+setopt HIST_SAVE_NO_DUPS    # Don't write duplicate entries in the history file
+setopt SHARE_HISTORY        # Share history between all sessions
+setopt EXTENDED_HISTORY     # Record timestamp of command in HISTFILE
+
+# Load completion system
+source "$ZDOTDIR/completion.zsh"
+
+# Load custom prompt
+source "$ZDOTDIR/prompt.zsh"
+
+# Load keybindings (vi-mode)
+source "$ZDOTDIR/keybindings.zsh"
+
+# Directory stack aliases
+alias d='dirs -v'
+for index ({1..9}) alias "$index"="cd +${index}"; unset index
+
+# Load essential plugins
+source "$ZDOTDIR/plugins.zsh"
+
+# Load aliases
+[[ -f "$ZDOTDIR/aliases" ]] && source "$ZDOTDIR/aliases"
+
+# Load any local customizations
+[[ -f "$ZDOTDIR/local.zsh" ]] && source "$ZDOTDIR/local.zsh"
+EOF
+
+    # Create aliases file
+    cat > "$config_dir/aliases" << 'EOF'
+# ZSH Aliases
+
+# General aliases
+alias zshconfig="$EDITOR $ZDOTDIR/.zshrc"
+alias reload="source $ZDOTDIR/.zshrc"
+
+# Directory navigation
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias .....='cd ../../../..'
+
+# List files
+alias ls='ls --color=auto'
+alias ll='ls -la'
+alias la='ls -A'
+alias l='ls -CF'
+
+# Grep with color
+alias grep='grep --color=auto'
+alias fgrep='fgrep --color=auto'
+alias egrep='egrep --color=auto'
+
+# Filesystem operations
+alias cp='cp -i'
+alias mv='mv -i'
+alias rm='rm -i'
+
+# System information
+alias df='df -h'
+alias du='du -h'
+alias free='free -m'
+EOF
+
+    return 0
+}
+
+# Configure completion system
+configure_completion() {
+    log "INFO" "Configuring ZSH completion system..." "zsh"
+    
+    local config_dir="$HOME/.config/zsh"
+    local completions_dir="$config_dir/completions"
+    
+    # Create completions directory
+    mkdir -p "$completions_dir"
+    
+    # Create completion config
+    cat > "$config_dir/completion.zsh" << 'EOF'
+# ZSH Completion Configuration
+
+# Initialize completion system
+autoload -Uz compinit
+compinit -d "$XDG_CACHE_HOME/zsh/zcompdump-$ZSH_VERSION"
+
+# Add completions directory to fpath
+fpath=("$ZDOTDIR/completions" $fpath)
+
+# Basic completion options
+setopt COMPLETE_IN_WORD    # Complete from both ends of a word
+setopt ALWAYS_TO_END       # Move cursor to the end of a completed word
+setopt PATH_DIRS           # Perform path search even on command names with slashes
+setopt AUTO_MENU           # Show completion menu on a successive tab press
+setopt COMPLETE_ALIASES    # Complete aliases
+
+# Completion styling
+zstyle ':completion:*' menu select                  # Select completions with arrow keys
+zstyle ':completion:*' group-name ''                # Group results by category
+zstyle ':completion:*:default' list-colors ${(s.:.)LS_COLORS}
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' # Case insensitive completion
+zstyle ':completion:*' verbose true
+zstyle ':completion:*:*:*:*:descriptions' format '%F{green}-- %d --%f'
+zstyle ':completion:*:*:*:*:corrections' format '%F{yellow}!- %d (errors: %e) -!%f'
+zstyle ':completion:*:warnings' format '%F{red}-- no matches found --%f'
+
+# Speed up completions
+zstyle ':completion:*' accept-exact '*(N)'
+zstyle ':completion:*' use-cache on
+zstyle ':completion:*' cache-path "$XDG_CACHE_HOME/zsh/zcompcache"
+
+# Don't complete uninteresting users
+zstyle ':completion:*:*:*:users' ignored-patterns \
+        adm amanda apache at avahi avahi-autoipd beaglidx bin colord \
+        daemon dbus distcache dnsmasq dovecot fax ftp games gdm \
+        gkrellmd gopher hacluster haldaemon halt hsqldb ident junkbust \
+        ldap lp mail mailman mailnull man messagebus mldonkey mysql \
+        nagios named netdump news nfsnobody nobody nscd ntp nut nx \
+        openldap operator pcap polkitd postfix postgres privoxy pulse \
+        pvm quagga radvd rpc rpcuser rpm rtkit scard shutdown squid \
+        sshd statd svn sync tftp usbmux uucp vcsa wwwrun xfs '_*'
+
+# Complete hidden files
+_comp_options+=(globdots)
+EOF
+
+    return 0
+}
+
+# Configure custom prompt
+configure_prompt() {
+    log "INFO" "Configuring ZSH prompt..." "zsh"
+    
+    local config_dir="$HOME/.config/zsh"
+    
+    # Create prompt config
+    cat > "$config_dir/prompt.zsh" << 'EOF'
+# ZSH Custom Prompt Configuration
+
+# Load version control information
+autoload -Uz vcs_info
+precmd() { vcs_info }
+
+# Format the vcs_info_msg_0_ variable
+zstyle ':vcs_info:git:*' formats ' on %F{magenta}%b%f%c%u'
+zstyle ':vcs_info:*' enable git
+
+# Set up the prompt
+setopt prompt_subst
+
+# Define prompt styling
+PROMPT='%F{cyan}%~%f${vcs_info_msg_0_} %F{yellow}❯%f '
+RPROMPT='%(?..%F{red}✗%f)'
+
+# Show if in vi mode (NORMAL/INSERT)
+function zle-line-init zle-keymap-select {
+    case $KEYMAP in
+        vicmd) echo -ne '\e[2 q';; # Block cursor for NORMAL mode
+        viins|main) echo -ne '\e[6 q';; # Beam cursor for INSERT mode
+    esac
+    zle reset-prompt
+}
+
+zle -N zle-line-init
+zle -N zle-keymap-select
+EOF
+
+    return 0
+}
+
+# Configure vi mode and keybindings
+configure_keybindings() {
+    log "INFO" "Configuring ZSH keybindings..." "zsh"
+    
+    local config_dir="$HOME/.config/zsh"
+    
+    # Create keybindings config
+    cat > "$config_dir/keybindings.zsh" << 'EOF'
+# ZSH Keybindings Configuration
+
+# Use vi key bindings
+bindkey -v
+
+# Make Vi mode transitions faster (KEYTIMEOUT is in hundredths of a second)
+export KEYTIMEOUT=1
+
+# Use vim keys in tab complete menu
+zmodload zsh/complist
+bindkey -M menuselect 'h' vi-backward-char
+bindkey -M menuselect 'k' vi-up-line-or-history
+bindkey -M menuselect 'l' vi-forward-char
+bindkey -M menuselect 'j' vi-down-line-or-history
+
+# Edit command in editor
+autoload -Uz edit-command-line
+zle -N edit-command-line
+bindkey -M vicmd v edit-command-line
+
+# Add text objects for brackets and quotes
+autoload -Uz select-bracketed select-quoted
+zle -N select-quoted
+zle -N select-bracketed
+for km in viopp visual; do
+  bindkey -M $km -- '-' vi-up-line-or-history
+  for c in {a,i}${(s..)^:-\'\"\`\|,./:;=+@}; do
+    bindkey -M $km $c select-quoted
+  done
+  for c in {a,i}${(s..)^:-'()[]{}<>bB'}; do
+    bindkey -M $km $c select-bracketed
+  done
+done
+
+# Add surround capability (similar to vim-surround)
+autoload -Uz surround
+zle -N delete-surround surround
+zle -N add-surround surround
+zle -N change-surround surround
+bindkey -M vicmd cs change-surround
+bindkey -M vicmd ds delete-surround
+bindkey -M vicmd ys add-surround
+bindkey -M visual S add-surround
+
+# Common keybindings
+bindkey '^R' history-incremental-search-backward   # Ctrl+R for backward search
+bindkey '^S' history-incremental-search-forward    # Ctrl+S for forward search
+bindkey '^P' up-history                          # Ctrl+P for previous command
+bindkey '^N' down-history                        # Ctrl+N for next command
+bindkey '^A' beginning-of-line                   # Ctrl+A go to beginning of line
+bindkey '^E' end-of-line                         # Ctrl+E go to end of line
+bindkey '\e.' insert-last-word                   # Alt+. insert last argument
+EOF
+
+    return 0
+}
+
+# Install and configure essential plugins
+configure_plugins() {
+    log "INFO" "Configuring ZSH plugins..." "zsh"
+    
+    local config_dir="$HOME/.config/zsh"
+    local plugins_dir="$config_dir/plugins"
+    
+    # Create plugins directory
+    mkdir -p "$plugins_dir"
+    
+    # Install essential plugins if not already installed
+    local plugins=(
+        "zsh-syntax-highlighting|https://github.com/zsh-users/zsh-syntax-highlighting.git"
+        "zsh-history-substring-search|https://github.com/zsh-users/zsh-history-substring-search.git"
+    )
+    
+    for plugin_info in "${plugins[@]}"; do
+        local plugin_name="${plugin_info%%|*}"
+        local plugin_url="${plugin_info#*|}"
+        
+        if [[ ! -d "$plugins_dir/$plugin_name" ]]; then
+            log "INFO" "Installing plugin: $plugin_name" "zsh"
+            git clone --depth 1 "$plugin_url" "$plugins_dir/$plugin_name"
+        fi
+    done
+    
+    # Create plugins loader
+    cat > "$config_dir/plugins.zsh" << 'EOF'
+# ZSH Plugins Configuration
+
+# Load syntax highlighting (must be before history-substring-search)
+source "$ZDOTDIR/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+
+# Load history substring search
+source "$ZDOTDIR/plugins/zsh-history-substring-search/zsh-history-substring-search.zsh"
+
+# Configure history substring search
+bindkey '^[[A' history-substring-search-up
+bindkey '^[[B' history-substring-search-down
+bindkey -M vicmd 'k' history-substring-search-up
+bindkey -M vicmd 'j' history-substring-search-down
+EOF
+
+    return 0
+}
+
+# Install specific component
+install_component() {
+    local component=$1
+    if check_state "$component" && verify_component "$component"; then
+        log "INFO" "Component $component already installed and verified" "zsh"
+        return 0
+    fi
+    
+    case "$component" in
+        "core")
+            if install_zsh_core && create_zsh_dirs; then
+                save_state "core" "installed"
+                return 0
+            fi
+            ;;
+        "config")
+            if configure_zshenv && configure_zshrc; then
+                save_state "config" "installed"
+                return 0
+            fi
+            ;;
+        "prompt")
+            if configure_prompt; then
+                save_state "prompt" "installed"
+                return 0
+            fi
+            ;;
+        "keybindings")
+            if configure_keybindings; then
+                save_state "keybindings" "installed"
+                return 0
+            fi
+            ;;
+        "completion")
+            if configure_completion; then
+                save_state "completion" "installed"
+                return 0
+            fi
+            ;;
+        "plugins")
+            if configure_plugins; then
+                save_state "plugins" "installed"
+                return 0
+            fi
+            ;;
+    esac
+    return 1
+}
+
+# Check if ZSH is already installed and configured
 grovel_zsh() {
     local status=0
     
@@ -183,6 +628,8 @@ grovel_zsh() {
     
     return $status
 }
+
+# Install ZSH with all components
 install_zsh() {
     local force=${1:-false}
     
@@ -202,14 +649,28 @@ install_zsh() {
         fi
     done
     
-    # Add zsh's own aliases
-    add_module_aliases "zsh" "shell" || return 1
+    # Add shell aliases directly to the aliases file instead of using add_module_aliases
+    log "INFO" "Adding shell aliases..." "zsh"
+    local config_dir="$HOME/.config/zsh"
+    local aliases=$(get_module_config "zsh" ".shell.aliases.shell")
+    
+    if [[ -n "$aliases" ]]; then
+        # Add shell aliases section to the aliases file
+        echo -e "\n# Shell aliases managed by devenv" >> "$config_dir/aliases"
+        
+        # Get keys from the shell aliases object and add each one
+        local alias_keys=($(get_module_config "zsh" ".shell.aliases.shell | keys[]"))
+        for key in "${alias_keys[@]}"; do
+            local cmd=$(get_module_config "zsh" ".shell.aliases.shell[\"$key\"]")
+            echo "alias $key='$cmd'" >> "$config_dir/aliases"
+        done
+    fi
     
     # Show module information after successful installation
     show_module_info
     
     # Set zsh as default shell if it isn't already
-    if [[ "$SHELL" != "/bin/zsh" ]]; then
+    if [[ "$SHELL" != *"zsh"* ]]; then
         chsh -s "$(command -v zsh)"
         log "INFO" "Shell changed to zsh. Please log out and back in for changes to take effect." "zsh"
     fi
@@ -217,6 +678,7 @@ install_zsh() {
     return 0
 }
 
+# Verify ZSH installation
 verify_zsh() {
     local status=0
     
@@ -230,394 +692,20 @@ verify_zsh() {
     return $status
 }
 
-# Verify specific component
-verify_component() {
-    local component=$1
-    case "$component" in
-        "core")
-            command -v zsh &>/dev/null
-            ;;
-        "oh-my-zsh")
-            local omz_path=$(get_module_config "zsh" ".shell.paths.oh_my_zsh")
-            omz_path=$(eval echo "$omz_path")
-            [[ -d "$omz_path" ]]
-            ;;
-        "powerlevel10k")
-            local themes_dir=$(get_module_config "zsh" ".shell.paths.themes_dir")
-            themes_dir=$(eval echo "$themes_dir")
-            [[ -d "$themes_dir/powerlevel10k" ]]
-            ;;
-        "plugins")
-            verify_plugins
-            ;;
-        "completions")
-            verify_completions
-            ;;
-        "fonts")
-            verify_fonts
-            ;;
-        "config")
-            [[ -f "$HOME/.zshrc" ]] && [[ -f "$HOME/.p10k.zsh" ]]
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-    return $?
-}
-
-# Verify plugins
-verify_plugins() {
-    local plugins_dir=$(get_module_config "zsh" ".shell.paths.plugins_dir")
-    plugins_dir=$(eval echo "$plugins_dir")
-    
-    # First check required plugins
-    local custom_plugins=($(get_module_config "zsh" ".shell.custom_plugins | keys[]"))
-    for plugin in "${custom_plugins[@]}"; do
-        if [[ ! -d "$plugins_dir/$plugin" ]]; then
-            log "DEBUG" "Missing plugin directory: $plugin" "zsh"
-            return 1
-        fi
-    done
-    return 0
-}
-
-# Verify completions
-verify_completions() {
-    local completions_dir=$(get_module_config "zsh" ".shell.paths.completions_dir")
-    completions_dir=$(eval echo "$completions_dir")
-    
-    # First check if directory exists
-    if [[ ! -d "$completions_dir" ]]; then
-        log "DEBUG" "Completions directory missing: $completions_dir" "zsh"
-        return 1
-    fi
-    
-    # For now, just verify the directory exists since completions 
-    # will be installed by their respective modules
-    return 0
-}
-
-
-# Verify fonts
-verify_fonts() {
-    local fonts_dir="$HOME/.local/share/fonts"
-    local font_files=(
-        "MesloLGS NF Regular.ttf"
-        "MesloLGS NF Bold.ttf"
-        "MesloLGS NF Italic.ttf"
-        "MesloLGS NF Bold Italic.ttf"
-    )
-    
-    for font in "${font_files[@]}"; do
-        if [[ ! -f "$fonts_dir/$font" ]]; then
-            log "DEBUG" "Missing font file: $font" "zsh"
-            return 1
-        fi
-    done
-    return 0
-}
-
-# Install specific component
-install_component() {
-    local component=$1
-    if check_state "$component" && verify_component "$component"; then
-        log "INFO" "Component $component already installed and verified" "zsh"
-        return 0
-    fi
-    
-    case "$component" in
-        "core")
-            if install_zsh_core; then
-                save_state "core" "installed"
-                return 0
-            fi
-            ;;
-        "oh-my-zsh")
-            if install_oh_my_zsh; then
-                save_state "oh-my-zsh" "installed"
-                return 0
-            fi
-            ;;
-        "powerlevel10k")
-            if install_powerlevel10k; then
-                save_state "powerlevel10k" "installed"
-                return 0
-            fi
-            ;;
-        "plugins")
-            if install_plugins; then
-                save_state "plugins" "installed"
-                return 0
-            fi
-            ;;
-        "completions")
-            if install_completions; then
-                save_state "completions" "installed"
-                return 0
-            fi
-            ;;
-        "fonts")
-            if install_fonts; then
-                save_state "fonts" "installed"
-                return 0
-            fi
-            ;;
-        "config")
-            if configure_zsh; then
-                save_state "config" "installed"
-                return 0
-            fi
-            ;;
-    esac
-    return 1
-}
-
-# Install core ZSH
-install_zsh_core() {
-    if ! command -v zsh &>/dev/null; then
-        log "INFO" "Installing zsh..." "zsh"
-        if command -v apt-get &>/dev/null; then
-            sudo apt-get update
-            sudo apt-get install -y zsh curl git fontconfig
-        elif command -v dnf &>/dev/null; then
-            sudo dnf install -y zsh curl git fontconfig
-        else
-            log "ERROR" "Unsupported package manager" "zsh"
-            return 1
-        fi
-    fi
-    return 0
-}
-
-# Install Oh My ZSH
-install_oh_my_zsh() {
-    local omz_path=$(get_module_config "zsh" ".shell.paths.oh_my_zsh")
-    omz_path=$(eval echo "$omz_path")
-
-    if [[ ! -d "$omz_path" ]]; then
-        log "INFO" "Installing oh-my-zsh..." "zsh"
-        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-    fi
-    return 0
-}
-
-# Install Powerlevel10k
-install_powerlevel10k() {
-    local themes_dir=$(get_module_config "zsh" ".shell.paths.themes_dir")
-    themes_dir=$(eval echo "$themes_dir")
-    local p10k_dir="$themes_dir/powerlevel10k"
-
-    if [[ ! -d "$p10k_dir" ]]; then
-        log "INFO" "Installing Powerlevel10k theme..." "zsh"
-        git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$p10k_dir"
-    fi
-
-    if [[ ! -f "$HOME/.p10k.zsh" ]]; then
-        curl -fsSL https://raw.githubusercontent.com/romkatv/powerlevel10k/master/config/p10k-rainbow.zsh -o "$HOME/.p10k.zsh"
-    fi
-    return 0
-}
-
-# Install plugins
-install_plugins() {
-    local plugins_dir=$(get_module_config "zsh" ".shell.paths.plugins_dir")
-    plugins_dir=$(eval echo "$plugins_dir")
-    mkdir -p "$plugins_dir"
-
-    local custom_plugins=($(get_module_config "zsh" ".shell.custom_plugins | keys[]"))
-    for plugin in "${custom_plugins[@]}"; do
-        local repo=$(get_module_config "zsh" ".shell.custom_plugins[\"$plugin\"]")
-        local plugin_dir="$plugins_dir/$plugin"
-
-        if [[ ! -d "$plugin_dir" ]]; then
-            log "INFO" "Installing plugin: $plugin" "zsh"
-            git clone --depth 1 "$repo" "$plugin_dir"
-        fi
-    done
-    return 0
-}
-
-# Install completions
-install_completions() {
-    log "INFO" "Installing ZSH completions..." "zsh"
-    
-    local completions_dir=$(get_module_config "zsh" ".shell.paths.completions_dir")
-    completions_dir=$(eval echo "$completions_dir")
-    mkdir -p "$completions_dir"
-    
-    # Ensure completions are loaded in zshrc
-    if ! grep -q "fpath=($completions_dir \$fpath)" "$HOME/.zshrc" 2>/dev/null; then
-        log "DEBUG" "Adding completions directory to fpath" "zsh"
-        echo "fpath=($completions_dir \$fpath)" >> "$HOME/.zshrc"
-    fi
-    
-    # Note: Individual completions will be installed by their respective modules
-    return 0
-}
-
-# Install fonts
-install_fonts() {
-    log "INFO" "Installing required fonts..." "zsh"
-    
-    local fonts_dir="$HOME/.local/share/fonts"
-    mkdir -p "$fonts_dir"
-    
-    local font_urls=(
-        "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf"
-        "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold.ttf"
-        "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf"
-        "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf"
-    )
-    
-    for url in "${font_urls[@]}"; do
-        local filename=$(basename "$url" | sed 's/%20/ /g')
-        if [[ ! -f "$fonts_dir/$filename" ]]; then
-            curl -fL "$url" -o "$fonts_dir/$filename"
-        fi
-    done
-    
-    fc-cache -f "$fonts_dir"
-    return 0
-}
-
-# Configure ZSH
-configure_zsh() {
-    log "INFO" "Configuring zsh..." "zsh"
-    
-    # Backup existing config
-    [[ -f "$HOME/.zshrc" ]] && backup_file "$HOME/.zshrc" "zsh"
-    
-    # Get paths from config
-    local custom_dir=$(get_module_config "zsh" ".shell.paths.custom_dir")
-    local modules_dir=$(get_module_config "zsh" ".shell.paths.modules_dir")
-    local completions_dir=$(get_module_config "zsh" ".shell.paths.completions_dir")
-    
-    custom_dir=$(eval echo "$custom_dir")
-    modules_dir=$(eval echo "$modules_dir")
-    completions_dir=$(eval echo "$completions_dir")
-    
-    # Create required directories
-    mkdir -p "$custom_dir" "$modules_dir" "$completions_dir"
-    
-    # Create base zshrc
-    cat > "$HOME/.zshrc" << 'EOF'
-# Enable Powerlevel10k instant prompt
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
-
-# Path to oh-my-zsh installation
-export ZSH="$HOME/.oh-my-zsh"
-
-# Theme configuration
-ZSH_THEME="powerlevel10k/powerlevel10k"
-
-# Completion configuration
-fpath=($HOME/.oh-my-zsh/custom/completions $fpath)
-autoload -Uz compinit
-compinit
-
-# Case-insensitive completion
-zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
-
-EOF
-
-    # Add plugins from config
-    local plugins=($(get_module_config "zsh" ".shell.plugins[]"))
-    for plugin in "${plugins[@]}"; do
-        echo "    $plugin" >> "$HOME/.zshrc"
-    done
-
-
-# Complete zshrc configuration
-cat >> "$HOME/.zshrc" << 'EOF'
-)
-
-# Load oh-my-zsh
-source $ZSH/oh-my-zsh.sh
-
-# Load custom module configurations
-for config_file in $ZSH/custom/modules/*.zsh; do
-    [ -f "$config_file" ] && source "$config_file"
-done
-
-# Load completions
-for comp_file in $ZSH/custom/completions/_*; do
-    [ -f "$comp_file" ] && source "$comp_file"
-done
-
-# History configuration
-HISTSIZE=100000
-SAVEHIST=100000
-setopt SHARE_HISTORY
-setopt HIST_EXPIRE_DUPS_FIRST
-setopt HIST_IGNORE_DUPS
-setopt HIST_IGNORE_SPACE
-setopt HIST_VERIFY
-
-# Directory navigation
-setopt AUTO_CD
-setopt AUTO_PUSHD
-setopt PUSHD_IGNORE_DUPS
-setopt PUSHD_SILENT
-
-# Completion settings
-setopt COMPLETE_IN_WORD
-setopt ALWAYS_TO_END
-setopt PATH_DIRS
-setopt AUTO_MENU
-setopt AUTO_LIST
-setopt AUTO_PARAM_SLASH
-setopt EXTENDED_GLOB
-unsetopt MENU_COMPLETE
-unsetopt FLOW_CONTROL
-
-# Load Powerlevel10k configuration
-[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
-
-# User configuration
-export PATH=$HOME/.local/bin:$PATH
-EOF
-
-    # Add zsh's own aliases
-    log "INFO" "Setting up zsh aliases..." "zsh"
-    add_module_aliases "zsh" "shell"
-
-    return 0
-}
-
 # Remove ZSH configuration
 remove_zsh() {
     log "INFO" "Removing ZSH configuration..." "zsh"
     
     # Backup existing configs before removal
-    for file in "$HOME/.zshrc" "$HOME/.p10k.zsh"; do
+    for file in "$HOME/.zshenv" "$HOME/.config/zsh/.zshrc"; do
         if [[ -f "$file" ]]; then
             backup_file "$file" "zsh"
         fi
     done
     
-    # Get oh-my-zsh path from config
-    local omz_path=$(get_module_config "zsh" ".shell.paths.oh_my_zsh")
-    omz_path=$(eval echo "$omz_path")
-    
     # Remove all zsh-related files and directories
-    local files_to_remove=(
-        "$HOME/.zshrc"
-        "$HOME/.p10k.zsh"
-        "$omz_path"
-    )
-    
-    for file in "${files_to_remove[@]}"; do
-        if [[ -e "$file" ]]; then
-            log "INFO" "Removing $file" "zsh"
-            rm -rf "$file"
-        fi
-    done
-    
-    # Remove aliases
-    remove_module_aliases "zsh" "shell"
+    rm -f "$HOME/.zshenv"
+    rm -rf "$HOME/.config/zsh"
     
     # Remove state file
     rm -f "$STATE_FILE"
