@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-# Get absolute paths
+# Get absolute paths if not already set
 if [[ -z "${ROOT_DIR:-}" ]]; then
     export ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
@@ -29,16 +29,32 @@ PLATFORM=$(detect_platform)
 # Set platform-specific script directory
 export SCRIPT_DIR="$ROOT_DIR/lib"
 export MODULES_DIR="$ROOT_DIR/modules"
-export STATE_DIR="$HOME/.devenv/state"
+
+# Ensure DEVENV environment variables are set
+if [[ -z "${DEVENV_ROOT:-}" ]]; then
+    export DEVENV_ROOT="$ROOT_DIR"
+    export DEVENV_DATA_DIR="$ROOT_DIR/data"
+    export DEVENV_CONFIG_DIR="$ROOT_DIR/config"
+    export DEVENV_MODULES_DIR="$ROOT_DIR/modules"
+    export DEVENV_STATE_DIR="$DEVENV_DATA_DIR/state"
+    export DEVENV_LOGS_DIR="$DEVENV_DATA_DIR/logs"
+    export DEVENV_BACKUPS_DIR="$DEVENV_DATA_DIR/backups"
+    
+    # Create data directories if they don't exist
+    mkdir -p "$DEVENV_DATA_DIR"
+    mkdir -p "$DEVENV_STATE_DIR"
+    mkdir -p "$DEVENV_LOGS_DIR"
+    mkdir -p "$DEVENV_BACKUPS_DIR"
+fi
+
+# Use project-based state directory
+export STATE_DIR="$DEVENV_STATE_DIR"
 
 # Load utilities
 source "$SCRIPT_DIR/logging.sh"  # Load logging first
 source "$SCRIPT_DIR/json.sh"     # Then JSON handling
 source "$SCRIPT_DIR/module.sh"   # Then module utilities
 source "$SCRIPT_DIR/backup.sh"   # Finally backup utilities
-
-# Create required directories
-mkdir -p "$STATE_DIR"
 
 # Verify environment
 verify_environment() {
@@ -204,7 +220,7 @@ create_backup() {
             if [[ -e "$path" ]]; then
                 backup_file "$path" "$module"
             fi
-        }
+        done
     done
 }
 
@@ -258,6 +274,10 @@ main() {
             ;;
         backup)
             create_backup "$specific_module"
+            ;;
+        restore)
+            log "ERROR" "Restore functionality not yet implemented"
+            exit 1
             ;;
         *)
             show_usage

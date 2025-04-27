@@ -1,0 +1,75 @@
+# Keep module configurations
+!/modules/*/config.json
+
+# Ignore project-specific data and generated files
+/data/
+/config.json
+
+# Ignore generated state files
+*.state
+
+# Ignore module-specific state and log files
+modules/*/state/
+modules/*/logs/
+
+# Ignore backup files
+*.backup
+/backups/
+
+# Ignore log files
+*.log
+/logs/
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Python-specific
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Node.js-specific
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+.npm
+.yarn-integrity
+
+# Cache and temporary files
+.sass-cache/
+.tmp/
+.cache/
+tmp/
+temp/
+
+# Personal files
+.env
+.env.local
+*.pem
+*.key
+.venv/

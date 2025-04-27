@@ -11,6 +11,7 @@
       "modules": {
         "order": [
           "python",
+          "zsh",
           "git",
           "vscode",
           "docker",
@@ -113,27 +114,9 @@
                   "profile_dir": "${DEVENV_ROOT}/data/powershell"
                 }
               }
-            },
-            "git": {
-              "enabled": true,
-              "git": {
-                "config": {
-                  "user.name": "Your Name",
-                  "user.email": "username@users.noreply.github.com"
-                }
-              }
             }
           }
         }
-      }
-    },
-    "user": {
-      "name": "Your Name",
-      "email": "username@users.noreply.github.com",
-      "preferences": {
-        "theme": "dark",
-        "editor": "vscode",
-        "terminal": "windows-terminal"
       }
     }
   }
