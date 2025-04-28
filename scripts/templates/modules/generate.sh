@@ -95,8 +95,8 @@ EOF
 fi
 
 # Create platform-specific implementation scripts
-BASH_TEMPLATE="$ROOT_DIR/scripts/templates/modules/module.sh"
-PS1_TEMPLATE="$ROOT_DIR/scripts/templates/modules/module.ps1"
+BASH_TEMPLATE="$ROOT_DIR/scripts/lib/module.sh"
+PS1_TEMPLATE="$ROOT_DIR/scripts/lib/windows/module.ps1"
 
 # Create bash implementation for Linux and macOS
 if [ -f "$BASH_TEMPLATE" ]; then

@@ -28,7 +28,7 @@ COMPONENTS=(
 show_module_info() {
     # Check if this module is containerized
     local container_info=""
-    if should_containerize "python"; then
+    if type should_containerize >/dev/null 2>&1 && should_containerize "python"; then
         container_info="(Containerized)"
         local image=$(get_module_container_image "python")
         container_info="$container_info\nContainer image: $image"
@@ -92,7 +92,7 @@ Quick Start:
 EOF
 
     # If containerized, add container commands
-    if should_containerize "python"; then
+    if type should_containerize >/dev/null 2>&1 && should_containerize "python"; then
         cat << 'EOF'
 Container Commands:
 -----------------
@@ -134,34 +134,44 @@ EOF
             echo "✓ $component: Installed"
             case "$component" in
                 "core")
-                    if command -v python3 &>/dev/null; then
-                        if should_containerize "python"; then
-                            # Use container to get Python version
-                            if docker ps -q --filter "name=devenv-python" &>/dev/null; then
-                                echo "  Version: $(docker exec devenv-python python3 --version 2>/dev/null)"
-                            else
-                                echo "  Version: (container not running)"
-                            fi
+                    if type should_containerize >/dev/null 2>&1 && should_containerize "python"; then
+                        # Use container to get Python version
+                        if docker ps -q --filter "name=devenv-python" &>/dev/null; then
+                            echo "  Version: $(docker exec devenv-python python3 --version 2>/dev/null)"
+                        else
+                            echo "  Version: (container not running)"
+                        fi
+                    else
+                        # Check virtual environment
+                        local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
+                        venv_dir=$(eval echo "$venv_dir")
+                        if [[ -f "$venv_dir/bin/python" ]]; then
+                            echo "  Version: $("$venv_dir/bin/python" --version 2>/dev/null)"
                         else
                             echo "  Version: $(python3 --version 2>/dev/null)"
                         fi
                     fi
                     ;;
                 "packages")
-                    if command -v pip &>/dev/null; then
-                        if should_containerize "python"; then
-                            if docker ps -q --filter "name=devenv-python" &>/dev/null; then
-                                echo "  Packages: $(docker exec devenv-python pip list --format=freeze | wc -l) installed"
-                            else
-                                echo "  Packages: (container not running)"
-                            fi
+                    if type should_containerize >/dev/null 2>&1 && should_containerize "python"; then
+                        if docker ps -q --filter "name=devenv-python" &>/dev/null; then
+                            echo "  Packages: $(docker exec devenv-python pip list --format=freeze | wc -l) installed"
+                        else
+                            echo "  Packages: (container not running)"
+                        fi
+                    else
+                        # Check virtual environment
+                        local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
+                        venv_dir=$(eval echo "$venv_dir")
+                        if [[ -f "$venv_dir/bin/pip" ]]; then
+                            echo "  Packages: $("$venv_dir/bin/pip" list --format=freeze | wc -l) installed"
                         else
                             echo "  Packages: $(pip list --format=freeze | wc -l) installed"
                         fi
                     fi
                     ;;
                 "container")
-                    if should_containerize "python"; then
+                    if type should_containerize >/dev/null 2>&1 && should_containerize "python"; then
                         if docker ps -q --filter "name=devenv-python" &>/dev/null; then
                             echo "  Container: Running"
                         elif docker ps -qa --filter "name=devenv-python" &>/dev/null; then
@@ -170,7 +180,14 @@ EOF
                             echo "  Container: Not created"
                         fi
                     else
-                        echo "  Container: Not enabled"
+                        # Check virtual environment
+                        local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
+                        venv_dir=$(eval echo "$venv_dir")
+                        if [[ -d "$venv_dir" ]]; then
+                            echo "  Virtual Env: $venv_dir"
+                        else
+                            echo "  Virtual Env: Not created"
+                        fi
                     fi
                     ;;
             esac
@@ -199,31 +216,71 @@ check_state() {
     return 1
 }
 
+# Check if containerization is available and usable
+check_container_functions() {
+    # Check if required functions are available
+    if ! type should_containerize >/dev/null 2>&1; then
+        log "WARN" "Container functions not available, using virtual environment" "python"
+        return 1
+    fi
+    
+    # Check if Docker is available
+    if ! command -v docker >/dev/null 2>&1; then
+        log "WARN" "Docker not installed, using virtual environment" "python"
+        return 1
+    fi
+    
+    # Test Docker functionality
+    if ! docker info >/dev/null 2>&1; then
+        log "WARN" "Docker is not running or not accessible, using virtual environment" "python"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Safe version of should_containerize
+should_use_container() {
+    local module=$1
+    
+    # Check if container functions are available
+    if ! check_container_functions; then
+        return 1
+    fi
+    
+    # Use the existing function if available
+    should_containerize "$module"
+}
+
 # Verify specific component
 verify_component() {
     local component=$1
     case "$component" in
         "core")
-            if should_containerize "python"; then
+            if should_use_container "python"; then
                 # For containerized Python, verify the container image exists
                 docker image inspect $(get_module_container_image "python") &>/dev/null
             else
-                # For native Python, verify the command exists
-                command -v python3 &>/dev/null
+                # For virtual env Python, verify python or venv exists
+                local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
+                venv_dir=$(eval echo "$venv_dir")
+                [[ -f "$venv_dir/bin/python" ]] || command -v python3 &>/dev/null
             fi
             ;;
         "venv")
-            if should_containerize "python"; then
+            if should_use_container "python"; then
                 # For containerized Python, assume venv is available
                 return 0
             else
-                # For native Python, verify venv module
-                python3 -c "import venv" &>/dev/null
+                # For virtual env Python, verify venv exists
+                local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
+                venv_dir=$(eval echo "$venv_dir")
+                [[ -d "$venv_dir" ]] && [[ -f "$venv_dir/bin/python" ]]
             fi
             ;;
         "packages")
             # Checking if necessary packages are installed
-            if should_containerize "python"; then
+            if should_use_container "python"; then
                 # For containerized Python, check container
                 if docker ps -q --filter "name=devenv-python" &>/dev/null; then
                     docker exec devenv-python python3 -c "import pip" &>/dev/null
@@ -232,13 +289,15 @@ verify_component() {
                     return 0
                 fi
             else
-                # For native Python
-                python3 -c "import pip" &>/dev/null
+                # For virtual env Python
+                local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
+                venv_dir=$(eval echo "$venv_dir")
+                [[ -f "$venv_dir/bin/pip" ]]
             fi
             ;;
         "linting")
             # Check linting tools
-            if should_containerize "python"; then
+            if should_use_container "python"; then
                 # For containerized Python, check container
                 if docker ps -q --filter "name=devenv-python" &>/dev/null; then
                     docker exec devenv-python python3 -c "import black, pylint, flake8, mypy" &>/dev/null
@@ -247,8 +306,10 @@ verify_component() {
                     return 0
                 fi
             else
-                # For native Python
-                python3 -c "import black, pylint, flake8, mypy" &>/dev/null
+                # For virtual env Python
+                local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
+                venv_dir=$(eval echo "$venv_dir")
+                "$venv_dir/bin/python" -c "import black, pylint, flake8, mypy" &>/dev/null
             fi
             ;;
         "config")
@@ -260,14 +321,16 @@ verify_component() {
             [[ -f "$config_dir/pylintrc" ]]
             ;;
         "container")
-            # Check container configuration
-            if should_containerize "python"; then
+            # Check container or virtual env configuration
+            if should_use_container "python"; then
                 # Image should exist
                 local image=$(get_module_container_image "python")
                 docker image inspect "$image" &>/dev/null
             else
-                # Container not required
-                return 0
+                # Virtual env should exist
+                local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
+                venv_dir=$(eval echo "$venv_dir")
+                [[ -d "$venv_dir" ]]
             fi
             ;;
         *)
@@ -303,69 +366,136 @@ create_directories() {
 install_python_core() {
     log "INFO" "Installing Python core..." "python"
     
-    if should_containerize "python"; then
+    if should_use_container "python"; then
         # For containerized Python, use the container management script
         log "INFO" "Using containerized Python..." "python"
         
-        # Make sure Docker module is installed
+        # Check for Docker installation
         if ! command -v docker &>/dev/null; then
             log "ERROR" "Docker not installed, required for containerized Python" "python"
-            return 1
+            log "WARN" "Attempting to install Docker module..." "python"
+            
+            # Try to install Docker module
+            if [[ -f "$DEVENV_ROOT/devenv.sh" ]]; then
+                "$DEVENV_ROOT/devenv.sh" install docker
+                
+                # Check if Docker was installed successfully
+                if ! command -v docker &>/dev/null; then
+                    log "ERROR" "Failed to install Docker, falling back to virtual environment" "python"
+                    # Continue with virtual environment approach
+                else
+                    log "INFO" "Docker installed successfully" "python"
+                fi
+            else
+                log "ERROR" "Failed to install Docker, falling back to virtual environment" "python"
+                # Continue with virtual environment approach
+            fi
         fi
         
-        # Create container for Python
+        # Check for devenv-container script
         if ! command -v devenv-container &>/dev/null; then
-            log "ERROR" "devenv-container not found, please install Docker module first" "python"
-            return 1
+            local bin_dir="${DEVENV_ROOT}/data/bin"
+            if [[ -x "${DEVENV_ROOT}/modules/docker/bin/devenv-container" ]]; then
+                # Copy the script to bin directory if it exists
+                mkdir -p "$bin_dir"
+                cp "${DEVENV_ROOT}/modules/docker/bin/devenv-container" "$bin_dir/"
+                chmod +x "$bin_dir/devenv-container"
+                export PATH="$PATH:$bin_dir"
+            else
+                log "ERROR" "devenv-container not found, falling back to virtual environment" "python"
+                # Continue with virtual environment approach without containerization
+            fi
+        fi
+        
+        # Final check if we can still use containerization
+        if ! command -v docker &>/dev/null || ! command -v devenv-container &>/dev/null; then
+            # If we got here, we couldn't set up containerization, so fall back to venv
+            goto_venv_setup
+            return $?
         fi
         
         # Build the container
+        log "INFO" "Building Python container..." "python"
         if ! devenv-container build python; then
-            log "ERROR" "Failed to build Python container" "python"
-            return 1
+            log "ERROR" "Failed to build Python container, falling back to virtual environment" "python"
+            goto_venv_setup
+            return $?
         fi
         
         # Start the container
+        log "INFO" "Starting Python container..." "python"
         if ! devenv-container start python; then
-            log "ERROR" "Failed to start Python container" "python"
-            return 1
+            log "ERROR" "Failed to start Python container, falling back to virtual environment" "python"
+            goto_venv_setup
+            return $?
         fi
         
         log "INFO" "Python container setup complete" "python"
     else
-        # For native Python, install the packages
-        log "INFO" "Installing native Python..." "python"
-        
-        # Install Python if needed
-        if ! command -v python3 &>/dev/null; then
-            if command -v apt-get &>/dev/null; then
-                sudo apt-get update
-                sudo apt-get install -y python3 python3-pip python3-venv python3-dev
-            elif command -v dnf &>/dev/null; then
-                sudo dnf install -y python3 python3-pip python3-devel
-            else
-                log "ERROR" "Unsupported package manager" "python"
-                return 1
-            fi
-        fi
-        
-        # Verify pip installation
-        if ! python3 -c "import pip" &>/dev/null; then
-            log "INFO" "Installing pip manually..." "python"
-            curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
-            if ! python3 /tmp/get-pip.py --user; then
-                log "ERROR" "Failed to install pip" "python"
-                rm -f /tmp/get-pip.py
-                return 1
-            fi
-            rm -f /tmp/get-pip.py
-        fi
-        
-        python3 -m pip install --user --upgrade pip setuptools wheel
-        
-        log "INFO" "Native Python installation complete" "python"
+        # For non-containerized Python, use a virtual environment
+        goto_venv_setup
     fi
     
+    return 0
+}
+
+# Setup Python virtual environment (used as fallback or primary approach)
+goto_venv_setup() {
+    log "INFO" "Setting up Python virtual environment..." "python"
+    
+    # Make sure Python is installed
+    if ! command -v python3 &>/dev/null; then
+        log "INFO" "Installing Python..." "python"
+        if command -v apt-get &>/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y python3 python3-pip python3-venv python3-dev
+        elif command -v dnf &>/dev/null; then
+            sudo dnf install -y python3 python3-pip python3-devel
+        else
+            log "ERROR" "Unsupported package manager" "python"
+            return 1
+        fi
+    fi
+    
+    # Create virtual environment
+    local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
+    venv_dir=$(eval echo "$venv_dir")
+    
+    # Create virtual environment if it doesn't exist
+    if [[ ! -d "$venv_dir" ]]; then
+        log "INFO" "Creating Python virtual environment in $venv_dir" "python"
+        if ! python3 -m venv "$venv_dir"; then
+            # If venv module isn't available, try to install it
+            if command -v apt-get &>/dev/null; then
+                log "INFO" "Installing python3-venv package..." "python"
+                sudo apt-get install -y python3-venv
+                
+                # Try creating the virtual environment again
+                if ! python3 -m venv "$venv_dir"; then
+                    log "ERROR" "Failed to create virtual environment" "python"
+                    return 1
+                fi
+            else
+                log "ERROR" "Failed to create virtual environment" "python"
+                return 1
+            fi
+        fi
+    fi
+    
+    # Activate and update the virtual environment
+    if [[ -f "$venv_dir/bin/activate" ]]; then
+        log "INFO" "Activating virtual environment..." "python"
+        source "$venv_dir/bin/activate"
+        
+        # Update pip, setuptools, and wheel
+        log "INFO" "Updating pip in virtual environment..." "python"
+        "$venv_dir/bin/pip" install --upgrade pip setuptools wheel
+    else
+        log "ERROR" "Virtual environment activation script not found" "python"
+        return 1
+    fi
+    
+    log "INFO" "Python virtual environment setup complete" "python"
     return 0
 }
 
@@ -373,9 +503,15 @@ install_python_core() {
 install_python_packages() {
     log "INFO" "Installing Python packages..." "python"
     
-    if should_containerize "python"; then
+    if should_use_container "python"; then
         # For containerized Python, install packages in the container
         log "INFO" "Installing packages in Python container..." "python"
+        
+        # Check if container is running
+        if ! docker ps -q --filter "name=devenv-python" &>/dev/null; then
+            log "ERROR" "Python container not running" "python"
+            return 1
+        fi
         
         # Development packages
         local dev_packages=($(get_module_config "python" ".python.packages.development[]"))
@@ -409,31 +545,40 @@ install_python_packages() {
         
         log "INFO" "Package installation in container complete" "python"
     else
-        # For native Python, install the packages on the host
-        log "INFO" "Installing Python packages natively..." "python"
+        # For non-containerized Python, use the virtual environment
+        log "INFO" "Installing Python packages in virtual environment..." "python"
+        
+        local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
+        venv_dir=$(eval echo "$venv_dir")
+        
+        # Ensure virtual environment exists
+        if [[ ! -f "$venv_dir/bin/pip" ]]; then
+            log "ERROR" "Virtual environment not found or incomplete" "python"
+            return 1
+        fi
         
         # Development packages
         local dev_packages=($(get_module_config "python" ".python.packages.development[]"))
         if [[ ${#dev_packages[@]} -gt 0 ]]; then
-            log "INFO" "Installing development packages..." "python"
-            python3 -m pip install --user ${dev_packages[@]} || return 1
+            log "INFO" "Installing development packages in virtual environment..." "python"
+            "$venv_dir/bin/pip" install ${dev_packages[@]} || return 1
         fi
         
         # Linting packages
         local lint_packages=($(get_module_config "python" ".python.packages.linting[]"))
         if [[ ${#lint_packages[@]} -gt 0 ]]; then
-            log "INFO" "Installing linting packages..." "python"
-            python3 -m pip install --user ${lint_packages[@]} || return 1
+            log "INFO" "Installing linting packages in virtual environment..." "python"
+            "$venv_dir/bin/pip" install ${lint_packages[@]} || return 1
         fi
         
         # Data science packages
         local data_packages=($(get_module_config "python" ".python.packages.utils.data_processing.packages[]"))
         if [[ ${#data_packages[@]} -gt 0 ]]; then
-            log "INFO" "Installing data science packages..." "python"
-            python3 -m pip install --user ${data_packages[@]} || return 1
+            log "INFO" "Installing data science packages in virtual environment..." "python"
+            "$venv_dir/bin/pip" install ${data_packages[@]} || return 1
         fi
         
-        log "INFO" "Native package installation complete" "python"
+        log "INFO" "Package installation in virtual environment complete" "python"
     fi
     
     return 0
@@ -462,13 +607,41 @@ EOF
     # Configure Pylint
     local pylint_config=$(get_module_config "python" ".python.config.pylint")
     if [[ -n "$pylint_config" ]]; then
-        # Create pylintrc
-        if should_containerize "python"; then
+        # Create pylintrc from template or generate it
+        if should_use_container "python"; then
             # For containerized Python, use the container to generate pylintrc
             devenv-container exec python pylint --generate-rcfile > "$config_dir/pylintrc"
         else
-            # For native Python, use pylint directly
-            pylint --generate-rcfile > "$config_dir/pylintrc"
+            # For non-containerized Python, use virtual environment
+            local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
+            venv_dir=$(eval echo "$venv_dir")
+            
+            if [[ -f "$venv_dir/bin/pylint" ]]; then
+                "$venv_dir/bin/pylint" --generate-rcfile > "$config_dir/pylintrc"
+            else
+                # If pylint not installed yet, create a minimal template
+                cat > "$config_dir/pylintrc" << EOF
+[MASTER]
+ignore=CVS
+persistent=yes
+load-plugins=
+
+[MESSAGES CONTROL]
+disable=raw-checker-failed,locally-disabled
+
+[REPORTS]
+output-format=text
+reports=yes
+evaluation=10.0 - ((float(5 * error + warning + refactor + convention) / statement) * 10)
+
+[BASIC]
+good-names=i,j,k,ex,Run,_
+bad-names=foo,bar,baz
+
+[FORMAT]
+max-line-length=100
+EOF
+            fi
         fi
         
         # Update pylintrc with configuration
@@ -497,190 +670,189 @@ EOF
     return 0
 }
 
-# Create Python command wrappers for containerized Python
+# Create Python command wrappers
 create_python_wrappers() {
     log "INFO" "Creating Python command wrappers..." "python"
     
     local bin_dir=$(get_module_config "python" ".shell.paths.bin_dir")
     bin_dir=$(eval echo "$bin_dir")
+    local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
+    venv_dir=$(eval echo "$venv_dir")
     
     mkdir -p "$bin_dir"
     
     # Python wrapper
-    cat > "$bin_dir/py" << 'EOF'
+    cat > "$bin_dir/py" << EOF
 #!/bin/bash
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && \
+if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Run Python in container
-    devenv-container exec python python "$@"
+    devenv-container exec python python "\$@"
+elif [ -f "$venv_dir/bin/python" ]; then
+    # Run Python from virtual environment
+    "$venv_dir/bin/python" "\$@"
 else
-    # Run Python natively
-    python3 "$@"
+    # Fallback to system Python as last resort
+    python3 "\$@"
 fi
 EOF
     chmod +x "$bin_dir/py"
     
     # Pip wrapper
-    cat > "$bin_dir/py-pip" << 'EOF'
+    cat > "$bin_dir/py-pip" << EOF
 #!/bin/bash
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && \
+if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Run pip in container
-    devenv-container exec python pip "$@"
+    devenv-container exec python pip "\$@"
+elif [ -f "$venv_dir/bin/pip" ]; then
+    # Run pip from virtual environment
+    "$venv_dir/bin/pip" "\$@"
 else
-    # Run pip natively
-    python3 -m pip "$@"
+    # Fallback to system pip as last resort
+    python3 -m pip "\$@"
 fi
 EOF
     chmod +x "$bin_dir/py-pip"
     
     # Venv wrapper
-    cat > "$bin_dir/py-venv" << 'EOF'
+    cat > "$bin_dir/py-venv" << EOF
 #!/bin/bash
 
-if [ -z "$1" ]; then
-    echo "Usage: $0 <venv_name>"
+if [ -z "\$1" ]; then
+    echo "Usage: \$0 <venv_name>"
     exit 1
 fi
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && \
+if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Create venv in container
-    devenv-container exec python python -m venv "$1"
+    devenv-container exec python python -m venv "\$1"
+elif [ -f "$venv_dir/bin/python" ]; then
+    # Create venv using Python from main virtual environment
+    "$venv_dir/bin/python" -m venv "\$1"
 else
-    # Create venv natively
-    python3 -m venv "$1"
+    # Create venv using system Python
+    python3 -m venv "\$1"
 fi
 EOF
     chmod +x "$bin_dir/py-venv"
     
     # IPython wrapper
-    cat > "$bin_dir/py-ipython" << 'EOF'
+    cat > "$bin_dir/py-ipython" << EOF
 #!/bin/bash
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && \
+if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Run IPython in container
-    devenv-container exec python ipython "$@"
+    devenv-container exec python ipython "\$@"
+elif [ -f "$venv_dir/bin/ipython" ]; then
+    # Run IPython from virtual environment
+    "$venv_dir/bin/ipython" "\$@"
 else
-    # Run IPython natively
-    if command -v ipython &>/dev/null; then
-        ipython "$@"
-    else
-        echo "IPython not installed. Run 'py-pip install ipython' to install it."
-        exit 1
-    fi
+    echo "IPython not installed. Run 'py-pip install ipython' to install it."
+    exit 1
 fi
 EOF
     chmod +x "$bin_dir/py-ipython"
     
     # Jupyter wrapper
-    cat > "$bin_dir/py-jupyter" << 'EOF'
+    cat > "$bin_dir/py-jupyter" << EOF
 #!/bin/bash
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && \
+if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Start Jupyter in container with port forwarding
     docker exec -it -p 8888:8888 devenv-python jupyter lab --ip 0.0.0.0 --no-browser
+elif [ -f "$venv_dir/bin/jupyter" ]; then
+    # Run Jupyter from virtual environment
+    "$venv_dir/bin/jupyter" lab "\$@"
 else
-    # Run Jupyter natively
-    if command -v jupyter &>/dev/null; then
-        jupyter lab "$@"
-    else
-        echo "Jupyter not installed. Run 'py-pip install jupyterlab' to install it."
-        exit 1
-    fi
+    echo "Jupyter not installed. Run 'py-pip install jupyterlab' to install it."
+    exit 1
 fi
 EOF
     chmod +x "$bin_dir/py-jupyter"
     
     # Black formatter wrapper
-    cat > "$bin_dir/py-fmt" << 'EOF'
+    cat > "$bin_dir/py-fmt" << EOF
 #!/bin/bash
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && \
+if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Run Black in container
-    devenv-container exec python black "$@"
+    devenv-container exec python black "\$@"
+elif [ -f "$venv_dir/bin/black" ]; then
+    # Run Black from virtual environment
+    "$venv_dir/bin/black" "\$@"
 else
-    # Run Black natively
-    if command -v black &>/dev/null; then
-        black "$@"
-    else
-        echo "Black not installed. Run 'py-pip install black' to install it."
-        exit 1
-    fi
+    echo "Black not installed. Run 'py-pip install black' to install it."
+    exit 1
 fi
 EOF
     chmod +x "$bin_dir/py-fmt"
     
     # Pylint wrapper
-    cat > "$bin_dir/py-lint" << 'EOF'
+    cat > "$bin_dir/py-lint" << EOF
 #!/bin/bash
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && \
+if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Run Pylint in container
-    devenv-container exec python pylint "$@"
+    devenv-container exec python pylint "\$@"
+elif [ -f "$venv_dir/bin/pylint" ]; then
+    # Run Pylint from virtual environment
+    "$venv_dir/bin/pylint" "\$@"
 else
-    # Run Pylint natively
-    if command -v pylint &>/dev/null; then
-        pylint "$@"
-    else
-        echo "Pylint not installed. Run 'py-pip install pylint' to install it."
-        exit 1
-    fi
+    echo "Pylint not installed. Run 'py-pip install pylint' to install it."
+    exit 1
 fi
 EOF
     chmod +x "$bin_dir/py-lint"
     
     # MyPy wrapper
-    cat > "$bin_dir/py-mypy" << 'EOF'
+    cat > "$bin_dir/py-mypy" << EOF
 #!/bin/bash
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && \
+if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Run MyPy in container
-    devenv-container exec python mypy "$@"
+    devenv-container exec python mypy "\$@"
+elif [ -f "$venv_dir/bin/mypy" ]; then
+    # Run MyPy from virtual environment
+    "$venv_dir/bin/mypy" "\$@"
 else
-    # Run MyPy natively
-    if command -v mypy &>/dev/null; then
-        mypy "$@"
-    else
-        echo "MyPy not installed. Run 'py-pip install mypy' to install it."
-        exit 1
-    fi
+    echo "MyPy not installed. Run 'py-pip install mypy' to install it."
+    exit 1
 fi
 EOF
     chmod +x "$bin_dir/py-mypy"
     
     # PyTest wrapper
-    cat > "$bin_dir/py-test" << 'EOF'
+    cat > "$bin_dir/py-test" << EOF
 #!/bin/bash
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && \
+if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Run PyTest in container
-    devenv-container exec python pytest "$@"
+    devenv-container exec python pytest "\$@"
+elif [ -f "$venv_dir/bin/pytest" ]; then
+    # Run PyTest from virtual environment
+    "$venv_dir/bin/pytest" "\$@"
 else
-    # Run PyTest natively
-    if command -v pytest &>/dev/null; then
-        pytest "$@"
-    else
-        echo "PyTest not installed. Run 'py-pip install pytest' to install it."
-        exit 1
-    fi
+    echo "PyTest not installed. Run 'py-pip install pytest' to install it."
+    exit 1
 fi
 EOF
     chmod +x "$bin_dir/py-test"
@@ -702,7 +874,7 @@ EOF
 setup_python_container() {
     log "INFO" "Setting up Python container..." "python"
     
-    if ! should_containerize "python"; then
+    if ! should_use_container "python"; then
         log "INFO" "Python containerization not enabled, skipping" "python"
         return 0
     fi
@@ -753,7 +925,7 @@ install_component() {
             fi
             ;;
         "venv")
-            # venv is included in core Python
+            # venv is included in core Python or handled by container
             save_state "venv" "installed"
             return 0
             ;;
@@ -843,14 +1015,21 @@ verify_python() {
         log "INFO" "Python verification completed successfully" "python"
         
         # Show Python version
-        if should_containerize "python"; then
+        if should_use_container "python"; then
             if docker ps -q --filter "name=devenv-python" &>/dev/null; then
                 log "INFO" "Python version: $(docker exec devenv-python python3 --version)" "python"
             else
                 log "INFO" "Python container not running" "python"
             fi
         else
-            log "INFO" "Python version: $(python3 --version)" "python"
+            # Virtual environment approach
+            local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
+            venv_dir=$(eval echo "$venv_dir")
+            if [[ -f "$venv_dir/bin/python" ]]; then
+                log "INFO" "Python version: $("$venv_dir/bin/python" --version)" "python"
+            else
+                log "INFO" "Python virtual environment not activated" "python"
+            fi
         fi
     fi
     
@@ -862,13 +1041,21 @@ remove_python() {
     log "INFO" "Removing Python configuration..." "python"
     
     # Stop and remove container if containerized
-    if should_containerize "python"; then
+    if should_use_container "python"; then
         log "INFO" "Stopping and removing Python container..." "python"
         
         if command -v devenv-container &>/dev/null; then
             devenv-container stop python
             docker rm -f devenv-python 2>/dev/null
         fi
+    fi
+    
+    # Remove virtual environment
+    local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
+    venv_dir=$(eval echo "$venv_dir")
+    if [[ -d "$venv_dir" ]]; then
+        log "INFO" "Removing Python virtual environment..." "python"
+        rm -rf "$venv_dir"
     fi
     
     # Remove configuration files
@@ -893,7 +1080,7 @@ remove_python() {
     rm -f "$STATE_FILE"
     
     log "INFO" "Python configuration removed" "python"
-    log "WARN" "Python packages were preserved. Use 'pip uninstall' to remove specific packages." "python"
+    log "WARN" "Python system packages were preserved. Use system package manager to remove if needed." "python"
     return 0
 }
 

@@ -1,11 +1,15 @@
 {
     "enabled": true,
     "runlevel": 2,
+    "dependencies": [
+        "docker"
+    ],
     "backup": {
       "paths": [
         "${DEVENV_DATA_DIR}/python/config/pylintrc",
         "${DEVENV_DATA_DIR}/python/config/pyproject.toml",
-        "${DEVENV_DATA_DIR}/python/config/flake8"
+        "${DEVENV_DATA_DIR}/python/config/flake8",
+        "${DEVENV_DATA_DIR}/python/venv"
       ],
       "retention_days": 30
     },
@@ -174,7 +178,7 @@
         }
       }
     },
-    "docker": {
+    "container": {
       "enabled": true,
       "image": "python:3.10-slim",
       "workdir": "/app",
@@ -229,4 +233,4 @@
         "python.analysis.typeCheckingMode": "basic"
       }
     }
-  }
+}
