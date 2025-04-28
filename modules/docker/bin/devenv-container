@@ -1,0 +1,396 @@
+#!/bin/bash
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+CONFIG_FILE="$ROOT_DIR/config.json"
+CONTAINER_DIR="$ROOT_DIR/data/docker/containers"
+
+# Command help
+show_help() {
+    echo "DevEnv Container Management Utility"
+    echo ""
+    echo "Usage: devenv-container COMMAND [OPTIONS]"
+    echo ""
+    echo "Commands:"
+    echo "  list                 List all DevEnv containers"
+    echo "  build MODULE         Build container for MODULE"
+    echo "  start MODULE         Start container for MODULE"
+    echo "  stop MODULE          Stop container for MODULE"
+    echo "  restart MODULE       Restart container for MODULE"
+    echo "  exec MODULE CMD      Execute CMD in MODULE container"
+    echo "  logs MODULE          Show logs for MODULE container"
+    echo "  shell MODULE         Start a shell in MODULE container"
+    echo "  status MODULE        Show status of MODULE container"
+    echo ""
+    echo "Options:"
+    echo "  --help               Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  devenv-container list"
+    echo "  devenv-container build python"
+    echo "  devenv-container start python"
+    echo "  devenv-container exec python pip list"
+    echo "  devenv-container shell python"
+}
+
+# List containers
+list_containers() {
+    echo "DevEnv Containers:"
+    echo "-----------------"
+    
+    # Get all modules that can be containerized
+    if command -v jq &>/dev/null; then
+        local modules=$(jq -r '.global.container.modules | keys[]' "$CONFIG_FILE" 2>/dev/null)
+        
+        if [[ -n "$modules" ]]; then
+            for module in $modules; do
+                local containerize=$(jq -r ".global.container.modules.\"$module\".containerize" "$CONFIG_FILE" 2>/dev/null)
+                if [[ "$containerize" == "true" ]]; then
+                    local image=$(jq -r ".global.container.modules.\"$module\".image" "$CONFIG_FILE" 2>/dev/null)
+                    
+                    # Check container status
+                    if docker ps -a --format '{{.Names}}' | grep -q "devenv-$module"; then
+                        if docker ps --format '{{.Names}}' | grep -q "devenv-$module"; then
+                            echo "✓ $module (Running) - $image"
+                        else
+                            echo "✗ $module (Stopped) - $image"
+                        fi
+                    else
+                        echo "- $module (Not created) - $image"
+                    fi
+                fi
+            done
+        else
+            echo "No containerized modules found in configuration."
+        fi
+    else
+        echo "Error: jq not installed. Please install jq to use this command."
+        return 1
+    fi
+}
+
+# Build container for module
+build_container() {
+    local module="$1"
+    
+    if [[ -z "$module" ]]; then
+        echo "Error: MODULE is required"
+        show_help
+        return 1
+    fi
+    
+    # Check if module can be containerized
+    if command -v jq &>/dev/null; then
+        local containerize=$(jq -r ".global.container.modules.\"$module\".containerize" "$CONFIG_FILE" 2>/dev/null)
+        if [[ "$containerize" != "true" ]]; then
+            echo "Error: Module $module is not configured for containerization"
+            return 1
+        fi
+        
+        local image=$(jq -r ".global.container.modules.\"$module\".image" "$CONFIG_FILE" 2>/dev/null)
+        if [[ -z "$image" || "$image" == "null" ]]; then
+            echo "Error: No image specified for module $module"
+            return 1
+        fi
+        
+        # Pull the image
+        echo "Pulling image: $image"
+        docker pull "$image"
+        
+        # Create a simple Dockerfile for the module
+        mkdir -p "$CONTAINER_DIR/$module"
+        cat > "$CONTAINER_DIR/$module/Dockerfile" << EOF
+FROM $image
+
+# Create user to match host user
+RUN groupadd -g $(id -g) $(id -gn) && \\
+    useradd -m -u $(id -u) -g $(id -g) -s /bin/bash user
+
+# Create directories
+RUN mkdir -p /devenv/modules /devenv/lib /devenv/bin /devenv/data
+
+# Set working directory
+WORKDIR /devenv
+
+# Set user
+USER user
+
+# Set entrypoint to bash by default
+ENTRYPOINT ["/bin/bash"]
+EOF
+        
+        # Build the container
+        echo "Building container for module: $module"
+        docker build -t "devenv-$module" -f "$CONTAINER_DIR/$module/Dockerfile" "$CONTAINER_DIR/$module"
+        
+        echo "Container for module $module built successfully"
+        return 0
+    else
+        echo "Error: jq not installed. Please install jq to use this command."
+        return 1
+    fi
+
+}
+
+# Start container for module
+start_container() {
+    local module="$1"
+    
+    if [[ -z "$module" ]]; then
+        echo "Error: MODULE is required"
+        show_help
+        return 1
+    fi
+    
+    # Check if module can be containerized
+    if command -v jq &>/dev/null; then
+        local containerize=$(jq -r ".global.container.modules.\"$module\".containerize" "$CONFIG_FILE" 2>/dev/null)
+        if [[ "$containerize" != "true" ]]; then
+            echo "Error: Module $module is not configured for containerization"
+            return 1
+        fi
+        
+        # Check if container exists
+        if ! docker ps -a --format '{{.Names}}' | grep -q "devenv-$module"; then
+            # Build the container first
+            build_container "$module"
+        fi
+        
+        # Get container configuration
+        local image=$(jq -r ".global.container.modules.\"$module\".image" "$CONFIG_FILE" 2>/dev/null)
+        local mounts=""
+        
+        # Add global mount paths
+        for key in $(jq -r '.global.container.mount_paths | keys[]' "$CONFIG_FILE" 2>/dev/null); do
+            local path=$(jq -r ".global.container.mount_paths.\"$key\"" "$CONFIG_FILE" 2>/dev/null)
+            # Expand environment variables
+            path=$(eval echo "$path")
+            mounts="$mounts -v $path"
+        done
+        
+        # Add module-specific extra mounts
+        for mount in $(jq -r ".global.container.modules.\"$module\".extra_mounts[]" "$CONFIG_FILE" 2>/dev/null); do
+            # Expand environment variables
+            mount=$(eval echo "$mount")
+            mounts="$mounts -v $mount"
+        done
+        
+        # Get extra arguments
+        local extra_args=$(jq -r ".global.container.modules.\"$module\".extra_args" "$CONFIG_FILE" 2>/dev/null)
+        if [[ "$extra_args" == "null" ]]; then
+            extra_args=""
+        fi
+        
+        # Get network configuration
+        local network=$(jq -r ".global.container.network" "$CONFIG_FILE" 2>/dev/null)
+        if [[ "$network" == "null" ]]; then
+            network="bridge"
+        fi
+        
+        # Start the container
+        echo "Starting container for module: $module"
+        docker run -d --name "devenv-$module" \
+            $mounts \
+            -v "$ROOT_DIR:/devenv" \
+            -v "/var/run/docker.sock:/var/run/docker.sock" \
+            --network="$network" \
+            $extra_args \
+            "devenv-$module" \
+            sleep infinity
+        
+        echo "Container for module $module started"
+        return 0
+    else
+        echo "Error: jq not installed. Please install jq to use this command."
+        return 1
+    fi
+}
+
+# Stop container for module
+stop_container() {
+    local module="$1"
+    
+    if [[ -z "$module" ]]; then
+        echo "Error: MODULE is required"
+        show_help
+        return 1
+    fi
+    
+    # Check if container exists and is running
+    if docker ps --format '{{.Names}}' | grep -q "devenv-$module"; then
+        echo "Stopping container for module: $module"
+        docker stop "devenv-$module"
+        echo "Container for module $module stopped"
+    else
+        echo "Container for module $module is not running"
+    fi
+    
+    return 0
+}
+
+# Execute command in container
+exec_in_container() {
+    local module="$1"
+    shift
+    
+    if [[ -z "$module" ]]; then
+        echo "Error: MODULE is required"
+        show_help
+        return 1
+    fi
+    
+    if [[ $# -eq 0 ]]; then
+        echo "Error: Command is required"
+        show_help
+        return 1
+    fi
+    
+    # Check if container exists and is running
+    if ! docker ps --format '{{.Names}}' | grep -q "devenv-$module"; then
+        echo "Container for module $module is not running"
+        
+        # Ask to start the container
+        read -p "Start the container? (y/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            start_container "$module"
+        else
+            return 1
+        fi
+    fi
+    
+    # Execute the command
+    echo "Executing in container for module $module: $@"
+    docker exec -it "devenv-$module" "$@"
+    
+    return 0
+}
+
+# Start a shell in container
+shell_in_container() {
+    local module="$1"
+    
+    if [[ -z "$module" ]]; then
+        echo "Error: MODULE is required"
+        show_help
+        return 1
+    fi
+    
+    # Check if container exists and is running
+    if ! docker ps --format '{{.Names}}' | grep -q "devenv-$module"; then
+        echo "Container for module $module is not running"
+        
+        # Ask to start the container
+        read -p "Start the container? (y/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            start_container "$module"
+        else
+            return 1
+        fi
+    fi
+    
+    # Start a shell
+    echo "Starting shell in container for module $module"
+    docker exec -it "devenv-$module" bash
+    
+    return 0
+}
+
+# Show logs for container
+show_container_logs() {
+    local module="$1"
+    
+    if [[ -z "$module" ]]; then
+        echo "Error: MODULE is required"
+        show_help
+        return 1
+    fi
+    
+    # Check if container exists
+    if docker ps -a --format '{{.Names}}' | grep -q "devenv-$module"; then
+        echo "Showing logs for container: $module"
+        docker logs "devenv-$module"
+    else
+        echo "Container for module $module does not exist"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Show status of container
+show_container_status() {
+    local module="$1"
+    
+    if [[ -z "$module" ]]; then
+        echo "Error: MODULE is required"
+        show_help
+        return 1
+    fi
+    
+    # Check if container exists
+    if docker ps -a --format '{{.Names}}' | grep -q "devenv-$module"; then
+        echo "Status for container: $module"
+        docker ps -a --filter "name=devenv-$module" --format "table {{.Names}}\t{{.Status}}\t{{.Image}}\t{{.Ports}}"
+        
+        # Show additional information
+        echo -e "\nContainer Details:"
+        docker inspect "devenv-$module" --format '{{json .}}' | jq '.ContainerJSONFile'
+    else
+        echo "Container for module $module does not exist"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Main function
+main() {
+    local command="$1"
+    shift
+    
+    case "$command" in
+        list)
+            list_containers
+            ;;
+        build)
+            build_container "$@"
+            ;;
+        start)
+            start_container "$@"
+            ;;
+        stop)
+            stop_container "$@"
+            ;;
+        restart)
+            stop_container "$1" && start_container "$1"
+            ;;
+        exec)
+            exec_in_container "$@"
+            ;;
+        shell)
+            shell_in_container "$@"
+            ;;
+        logs)
+            show_container_logs "$@"
+            ;;
+        status)
+            show_container_status "$@"
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        *)
+            echo "Error: Unknown command: $command"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+# Execute if run directly
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi
