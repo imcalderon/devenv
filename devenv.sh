@@ -58,6 +58,8 @@ source "$SCRIPT_DIR/backup.sh"   # Finally backup utilities
 
 # Detect and configure WSL environment
 setup_wsl_environment() {
+    local force_flag="${1:-}"  # Set default empty value to avoid unbound variable
+    
     # Only run this on Windows/WSL
     if ! grep -q "microsoft" /proc/version 2>/dev/null; then
         return 0
@@ -65,26 +67,13 @@ setup_wsl_environment() {
     
     # Check if WSL is already configured
     local wsl_state_file="${DEVENV_STATE_DIR}/wsl_configured"
-    if [[ -f "$wsl_state_file" ]] && [[ "$1" != "--force" ]]; then
+    if [[ -f "$wsl_state_file" ]] && [[ "$force_flag" != "--force" ]]; then
         log "INFO" "WSL environment already configured, skipping setup"
         return 0
     fi
     
     log "INFO" "WSL environment detected, configuring for optimal performance..."
-    setup_wsl_environment() {
-    # Only run this on Windows/WSL
-    if ! grep -q "microsoft" /proc/version 2>/dev/null; then
-        return 0
-    fi
     
-    # Check if WSL is already configured
-    local wsl_state_file="${DEVENV_STATE_DIR}/wsl_configured"
-    if [[ -f "$wsl_state_file" ]] && [[ "$1" != "--force" ]]; then
-        log "INFO" "WSL environment already configured, skipping setup"
-        return 0
-    fi
-    
-    log "INFO" "WSL environment detected, configuring for optimal performance..."
     # Get Windows home directory path
     local windows_home=$(wslpath "$(cmd.exe /c "echo %USERPROFILE%" 2>/dev/null | tr -d '\r')")
     local wslconfig="${windows_home}/.wslconfig"
@@ -244,6 +233,7 @@ EOF
 
     return 0
 }
+
 # Verify environment
 verify_environment() {
     # Check for required directories
@@ -292,8 +282,8 @@ get_ordered_modules() {
 # Execute a stage for modules
 execute_stage() {
     local stage=$1
-    local specific_module=${2:-}
-    local force=${3:-false}
+    local specific_module="${2:-}"  # Default to empty string
+    local force="${3:-false}"       # Default to false
     local -a modules
     
     if [[ -n "$specific_module" ]]; then
@@ -376,7 +366,7 @@ EOF
 }
 
 create_backup() {
-    local specific_module=${1:-}
+    local specific_module="${1:-}"  # Default to empty string
     local -a modules
     
     if [[ -n "$specific_module" ]]; then
@@ -398,7 +388,9 @@ create_backup() {
         local paths=($(get_module_config "$module" '.backup.paths[]'))
         
         # Get platform-specific backup paths
-        #local platform_paths=($(get_module_config "$module" ".platforms.$PLATFORM.backup.paths[]" || echo ""))
+        local platform_paths=()
+        # Commented out to avoid potential errors if this value doesn't exist
+        # platform_paths=($(get_module_config "$module" ".platforms.$PLATFORM.backup.paths[]" || echo ""))
         
         # Combine paths
         paths+=("${platform_paths[@]}")

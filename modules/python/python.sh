@@ -435,16 +435,34 @@ install_python_core() {
         
         # Check for devenv-container script
         if ! command -v devenv-container &>/dev/null; then
-            local bin_dir="${DEVENV_ROOT}/data/bin"
-            if [[ -x "${DEVENV_ROOT}/modules/docker/bin/devenv-container" ]]; then
-                # Copy the script to bin directory if it exists
-                mkdir -p "$bin_dir"
-                cp "${DEVENV_ROOT}/modules/docker/bin/devenv-container" "$bin_dir/"
-                chmod +x "$bin_dir/devenv-container"
-                export PATH="$PATH:$bin_dir"
+            # Create directory in WSL native filesystem
+            local wsl_bin_dir="$HOME/.local/bin"
+            mkdir -p "$wsl_bin_dir"
+            
+            # Check if source script exists
+            if [[ -f "${DEVENV_ROOT}/modules/docker/bin/devenv-container" ]]; then
+                # Create a wrapper script instead of a symlink
+                cat > "$wsl_bin_dir/devenv-container" << EOF
+#!/bin/bash
+# Wrapper for devenv-container
+bash "${DEVENV_ROOT}/modules/docker/bin/devenv-container" "\$@"
+EOF
+                sudo chmod +x "$wsl_bin_dir/devenv-container"
+                
+                # Add to PATH if not already there
+                if [[ ":$PATH:" != *":$wsl_bin_dir:"* ]]; then
+                    export PATH="$PATH:$wsl_bin_dir"
+                    log "INFO" "Added $wsl_bin_dir to PATH" "python"
+                fi
+                
+                # Verify script is executable
+                if [[ -x "$wsl_bin_dir/devenv-container" ]]; then
+                    log "INFO" "Successfully created wrapper for devenv-container" "python"
+                else
+                    log "ERROR" "Failed to create executable wrapper, falling back to virtual environment" "python"
+                fi
             else
-                log "ERROR" "devenv-container not found, falling back to virtual environment" "python"
-                # Continue with virtual environment approach without containerization
+                log "ERROR" "devenv-container source not found, falling back to virtual environment" "python"
             fi
         fi
         
