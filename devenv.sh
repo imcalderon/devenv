@@ -65,13 +65,26 @@ setup_wsl_environment() {
     
     # Check if WSL is already configured
     local wsl_state_file="${DEVENV_STATE_DIR}/wsl_configured"
-    if [[ -f "$wsl_state_file" ]]; then
+    if [[ -f "$wsl_state_file" ]] && [[ "$1" != "--force" ]]; then
         log "INFO" "WSL environment already configured, skipping setup"
         return 0
     fi
     
     log "INFO" "WSL environment detected, configuring for optimal performance..."
+    setup_wsl_environment() {
+    # Only run this on Windows/WSL
+    if ! grep -q "microsoft" /proc/version 2>/dev/null; then
+        return 0
+    fi
     
+    # Check if WSL is already configured
+    local wsl_state_file="${DEVENV_STATE_DIR}/wsl_configured"
+    if [[ -f "$wsl_state_file" ]] && [[ "$1" != "--force" ]]; then
+        log "INFO" "WSL environment already configured, skipping setup"
+        return 0
+    fi
+    
+    log "INFO" "WSL environment detected, configuring for optimal performance..."
     # Get Windows home directory path
     local windows_home=$(wslpath "$(cmd.exe /c "echo %USERPROFILE%" 2>/dev/null | tr -d '\r')")
     local wslconfig="${windows_home}/.wslconfig"
@@ -118,9 +131,65 @@ EOF
         log "INFO" "Created optimized .wslconfig file at $wslconfig"
     fi
     
-    # Check Docker Desktop integration
+    # Fix Docker permissions
     if command -v docker &>/dev/null; then
-        log "INFO" "Docker found, checking WSL integration..."
+       log "INFO" "Docker found, checking permissions..."
+        
+        # Test Docker connectivity with timeout (5 seconds)
+        if ! timeout 5 docker info &>/dev/null; then
+            log "WARN" "Docker permission issues detected"
+            
+            # Check if docker group exists
+            if getent group docker &>/dev/null; then
+                # Check if user is already in the docker group
+                if ! groups | grep -q docker; then
+                    log "INFO" "Adding current user to docker group..."
+                    sudo usermod -aG docker $USER
+                    
+                    # Fix socket permissions
+                    if [[ -S /var/run/docker.sock ]]; then
+                        log "INFO" "Fixing Docker socket permissions..."
+                        sudo chown root:docker /var/run/docker.sock
+                        sudo chmod 660 /var/run/docker.sock
+                    fi
+                    
+                    # Mark WSL as configured BEFORE asking about restart
+                    mkdir -p "$(dirname "$wsl_state_file")"
+                    echo "WSL configured on $(date)" > "$wsl_state_file"
+                    
+                    log "WARN" "Docker permissions fixed. You need to log out and back in for group changes to take effect"
+                    log "INFO" "Would you like to restart the WSL session now? (y/n): "
+                    read -r response
+                    if [[ "$response" =~ ^[Yy]$ ]]; then
+                        log "INFO" "Requesting WSL restart..."
+                        # Use PowerShell to restart WSL
+                        powershell.exe -Command "wsl --shutdown" || true
+                        log "INFO" "WSL shutdown requested. Please restart your WSL session manually."
+                        exit 0
+                    else
+                        log "INFO" "Please restart your WSL session manually for changes to take effect"
+                    fi
+                else
+                    log "INFO" "User already in docker group, but Docker still not accessible"
+                    log "INFO" "This could be a Docker Desktop configuration issue"
+                    # Still mark as configured
+                    mkdir -p "$(dirname "$wsl_state_file")"
+                    echo "WSL configured on $(date)" > "$wsl_state_file"
+                fi
+            else
+                log "ERROR" "Docker group not found. Docker may not be properly installed"
+                # Still mark as configured to avoid endless loops
+                mkdir -p "$(dirname "$wsl_state_file")"
+                echo "WSL configured on $(date)" > "$wsl_state_file"
+            fi
+        else
+            log "INFO" "Docker permissions are correctly configured"
+            # Mark as configured
+            mkdir -p "$(dirname "$wsl_state_file")"
+            echo "WSL configured on $(date)" > "$wsl_state_file"
+        fi
+
+        log "INFO" "checking WSL integration..."
         
         if ! docker info &>/dev/null; then
             log "WARN" "Docker command exists but daemon is not accessible."
@@ -133,6 +202,10 @@ EOF
         else
             log "INFO" "Docker Desktop WSL integration is working correctly."
         fi
+    else
+        # No Docker, but still mark as configured
+        mkdir -p "$(dirname "$wsl_state_file")"
+        echo "WSL configured on $(date)" > "$wsl_state_file"
     fi
     
     # Configure systemd if not already enabled
@@ -164,11 +237,11 @@ EOF
         fi
     fi
     
-    # Mark WSL as configured to prevent future runs
+    # Mark WSL as configured
     mkdir -p "$(dirname "$wsl_state_file")"
     echo "WSL configured on $(date)" > "$wsl_state_file"
     log "INFO" "WSL configuration complete and marked as configured"
-    
+
     return 0
 }
 # Verify environment
@@ -374,11 +447,14 @@ main() {
     fi
 
     if [[ "$action" == "install" && "$force" == "true" ]]; then
+        # Enable force reconfiguration if --force is specified
         # Remove the WSL configured flag if it exists
         rm -f "${DEVENV_STATE_DIR}/wsl_configured"
+        setup_wsl_environment "--force"
+    else
+        # Normal configuration check
+        setup_wsl_environment
     fi
-
-    setup_wsl_environment
     
     case "$action" in
         install)

@@ -230,27 +230,40 @@ check_container_functions() {
         return 1
     fi
     
-    # Special check for WSL2
+    # Special check for WSL2 with timeout to prevent hanging
     if grep -q "microsoft" /proc/version 2>/dev/null; then
         log "INFO" "WSL2 environment detected, checking Docker Desktop connection..." "python"
         
-        # Check for Docker Desktop socket
-        if [[ -e "/var/run/docker-desktop.sock" ]]; then
-            # Test Docker connectivity
-            if docker info >/dev/null 2>&1; then
-                log "INFO" "Successfully connected to Docker Desktop from WSL2" "python"
-                return 0
-            else
-                log "WARN" "Docker Desktop socket exists but connection failed. Make sure Docker Desktop is running on Windows host" "python"
-                return 1
-            fi
-        elif [[ -e "/var/run/docker.sock" ]]; then
-            # Test Docker connectivity
-            if docker info >/dev/null 2>&1; then
+        # Check for Docker Desktop socket with timeout
+        if [[ -e "/var/run/docker.sock" ]]; then
+            # Test Docker connectivity with timeout
+            if timeout 5 docker info >/dev/null 2>&1; then
                 log "INFO" "Successfully connected to Docker via /var/run/docker.sock" "python"
                 return 0
             else
-                log "WARN" "Docker socket exists but connection failed. Make sure Docker Desktop is running on Windows host" "python"
+                log "WARN" "Docker socket exists but connection failed or timed out." "python"
+                log "INFO" "Attempting to fix Docker permissions..." "python"
+                
+                # Try to fix permissions if docker group exists
+                if getent group docker &>/dev/null; then
+                    log "INFO" "Adding current user to docker group..." "python"
+                    sudo usermod -aG docker $USER || true
+                    
+                    # Fix socket permissions
+                    sudo chown root:docker /var/run/docker.sock || true
+                    sudo chmod 660 /var/run/docker.sock || true
+                    
+                    # Try again with fixed permissions
+                    if timeout 5 docker info >/dev/null 2>&1; then
+                        log "INFO" "Docker permissions fixed, connection successful" "python"
+                        return 0
+                    else
+                        log "WARN" "Still unable to connect to Docker, using virtual environment" "python"
+                        log "INFO" "You may need to log out and back in for group changes to take effect" "python"
+                    fi
+                fi
+                
+                log "WARN" "Falling back to virtual environment" "python"
                 return 1
             fi
         else
@@ -259,15 +272,14 @@ check_container_functions() {
         fi
     fi
     
-    # Standard Docker test for non-WSL environments
-    if ! docker info >/dev/null 2>&1; then
+    # Standard Docker test for non-WSL environments with timeout
+    if ! timeout 5 docker info >/dev/null 2>&1; then
         log "WARN" "Docker is not running or not accessible, using virtual environment" "python"
         return 1
     fi
     
     return 0
 }
-
 # Safe version of should_containerize
 should_use_container() {
     local module=$1
