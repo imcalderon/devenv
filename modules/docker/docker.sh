@@ -332,7 +332,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 CONFIG_FILE="$ROOT_DIR/config.json"
 CONTAINER_DIR="$ROOT_DIR/data/docker/containers"
-
+EOF
 # Command help
 show_help() {
     echo "DevEnv Container Management Utility"
@@ -457,6 +457,7 @@ EOF
         echo "Error: jq not installed. Please install jq to use this command."
         return 1
     fi
+
 }
 
 # Start container for module

@@ -1,5 +1,5 @@
 {
-    "version": "1.0.0",
+    "version": "2.0.0",
     "global": {
       "paths": {
         "data_dir": "${DEVENV_ROOT}/data",
@@ -11,11 +11,9 @@
       "modules": {
         "order": [
           "zsh",
-          "python",
           "git",
-          "vscode",
           "docker",
-          "conda"
+          "python"
         ],
         "defaults": {
           "backup": {
@@ -26,6 +24,60 @@
             "level": "INFO",
             "rotation_days": 7,
             "max_size": "10M"
+          },
+          "container": {
+            "enabled": false
+          }
+        }
+      },
+      "container": {
+        "enabled": true,
+        "strategy": "selective",
+        "mount_paths": {
+          "home": "${HOME}:/home/user",
+          "dotfiles": "${DEVENV_ROOT}:/devenv",
+          "projects": "${DEVENV_ROOT}/..:/home/user/projects",
+          "data": "${DEVENV_DATA_DIR}:/devenv/data"
+        },
+        "network": "bridge",
+        "modules": {
+          "zsh": { 
+            "containerize": false, 
+            "reason": "shell interface, better as host interface" 
+          },
+          "git": { 
+            "containerize": false, 
+            "reason": "authentication workflow and SSH keys" 
+          },
+          "docker": { 
+            "containerize": false, 
+            "reason": "docker daemon access required" 
+          },
+          "vscode": { 
+            "containerize": true, 
+            "image": "vscode-server",
+            "extra_args": "--network=host" 
+          },
+          "python": { 
+            "containerize": true, 
+            "image": "python:3.10-slim",
+            "extra_mounts": [
+              "${HOME}/.config/pip:/home/user/.config/pip"
+            ]
+          },
+          "nodejs": { 
+            "containerize": true, 
+            "image": "node:18-alpine",
+            "extra_mounts": [
+              "${HOME}/.npmrc:/home/user/.npmrc"
+            ]
+          },
+          "conda": { 
+            "containerize": true, 
+            "image": "continuumio/miniconda3:latest",
+            "extra_mounts": [
+              "${HOME}/.condarc:/home/user/.condarc"
+            ]
           }
         }
       }
@@ -36,6 +88,10 @@
         "shell": "/bin/bash",
         "paths": {
           "script_dir": "${DEVENV_ROOT}/lib"
+        },
+        "wsl": {
+          "enabled": false,
+          "docker_socket": "/var/run/docker.sock"
         },
         "modules": {
           "overrides": {
@@ -92,6 +148,7 @@
           "enabled": true,
           "distribution": "Ubuntu-20.04",
           "use_wsl": true,
+          "docker_socket": "/var/run/docker-desktop.sock",
           "mount_paths": {
             "data_dir": "${DEVENV_ROOT}/data"
           }
@@ -114,27 +171,9 @@
                   "profile_dir": "${DEVENV_ROOT}/data/powershell"
                 }
               }
-            },
-            "git": {
-              "enabled": true,
-              "git": {
-                "config": {
-                  "user.name": "Ivan Calderon",
-                  "user.email": "imcalderon@users.noreply.github.com"
-                }
-              }
             }
           }
         }
-      }
-    },
-    "user": {
-      "name": "Ivan Calderon",
-      "email": "imcalderon@users.noreply.github.com",
-      "preferences": {
-        "theme": "dark",
-        "editor": "vscode",
-        "terminal": "windows-terminal"
       }
     }
   }

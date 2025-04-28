@@ -329,7 +329,7 @@ install_python_core() {
         if ! devenv-container start python; then
             log "ERROR" "Failed to start Python container" "python"
             return 1
-        }
+        fi
         
         log "INFO" "Python container setup complete" "python"
     else
@@ -364,7 +364,7 @@ install_python_core() {
         python3 -m pip install --user --upgrade pip setuptools wheel
         
         log "INFO" "Native Python installation complete" "python"
-    }
+    fi
     
     return 0
 }
@@ -852,7 +852,7 @@ verify_python() {
         else
             log "INFO" "Python version: $(python3 --version)" "python"
         fi
-    }
+    fi
     
     return $status
 }
