@@ -9,8 +9,22 @@ get_aliases_dir() {
         return 1
     fi
 
-    local modules_dir=$(get_json_value "$zsh_config" ".shell.paths.modules_dir")
+    # First try to get from config
+    local modules_dir=$(get_json_value "$zsh_config" ".shell.paths.modules_dir" "")
+    
+    # Check if value is null or empty
+    if [[ -z "$modules_dir" || "$modules_dir" == "null" ]]; then
+        # Fallback to default location
+        modules_dir="$HOME/.config/zsh/modules"
+        log "WARN" "ZSH modules_dir not found in config, using default: $modules_dir" "alias"
+    fi
+    
+    # Expand env variables
     modules_dir=$(eval echo "$modules_dir")
+    
+    # Create directory if it doesn't exist
+    mkdir -p "$modules_dir"
+    
     echo "$modules_dir"
 }
 
@@ -32,7 +46,12 @@ add_module_aliases() {
     # Remove existing aliases for this module/category if they exist
     local marker_start="# BEGIN ${module}${category:+_$category} aliases"
     local marker_end="# END ${module}${category:+_$category} aliases"
-    sed -i "/^${marker_start}/,/^${marker_end}/d" "$aliases_file"
+    
+    # Use a temporary file for sed operations
+    local temp_file=$(mktemp)
+    sed "/^${marker_start}/,/^${marker_end}/d" "$aliases_file" > "$temp_file"
+    cat "$temp_file" > "$aliases_file"
+    rm -f "$temp_file"
     
     # Get aliases from module config
     local query=".shell.aliases"

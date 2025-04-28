@@ -11,6 +11,7 @@
     },
     "shell": {
         "paths": {
+            "modules_dir": "$HOME/.config/zsh/modules",
             "config_dir": "$HOME/.config/zsh",
             "cache_dir": "$HOME/.cache/zsh",
             "data_dir": "$HOME/.local/share/zsh"

@@ -100,10 +100,10 @@ Key files:
 
 Tips:
 ----
-• Use 'Tab' for smart completion
-• Press 'v' in normal mode to edit command in $EDITOR
-• Press 'Esc' to enter vi command mode
-• Use 'Alt+.' to insert last argument
+- Use 'Tab' for smart completion
+- Press 'v' in normal mode to edit command in $EDITOR
+- Press 'Esc' to enter vi command mode
+- Use 'Alt+.' to insert last argument
 
 EOF
 
@@ -214,8 +214,31 @@ create_zsh_dirs() {
     local cache_dir="$HOME/.cache/zsh"
     local data_dir="$HOME/.local/share/zsh"
     local plugins_dir="$config_dir/plugins"
+    local modules_dir="$config_dir/modules"  # Add this line for the modules directory
     
-    mkdir -p "$config_dir" "$cache_dir" "$data_dir" "$plugins_dir"
+    mkdir -p "$config_dir" "$cache_dir" "$data_dir" "$plugins_dir" "$modules_dir"
+    
+    # Explicitly set module directory path in configuration
+    # This is needed for alias.sh to find the correct location
+    if [[ -f "$HOME/.config/zsh/config.json" ]]; then
+        # Update existing config file
+        log "INFO" "Updating modules_dir in ZSH configuration..." "zsh"
+        # This would require jq manipulation - simplified here
+    else
+        # Create a minimal config file if it doesn't exist
+        log "INFO" "Creating minimal ZSH config file with modules_dir..." "zsh"
+        mkdir -p "$HOME/.config/zsh"
+        echo '{
+            "shell": {
+                "paths": {
+                    "modules_dir": "$HOME/.config/zsh/modules",
+                    "config_dir": "$HOME/.config/zsh",
+                    "cache_dir": "$HOME/.cache/zsh",
+                    "data_dir": "$HOME/.local/share/zsh"
+                }
+            }
+        }' > "$HOME/.config/zsh/config.json"
+    fi
     
     return 0
 }
@@ -309,6 +332,11 @@ source "$ZDOTDIR/plugins.zsh"
 
 # Load aliases
 [[ -f "$ZDOTDIR/aliases" ]] && source "$ZDOTDIR/aliases"
+
+# Load modules aliases (added for devenv support)
+[[ -d "$ZDOTDIR/modules" ]] && for module_file in "$ZDOTDIR/modules"/*.zsh; do
+    [[ -f "$module_file" ]] && source "$module_file"
+done
 
 # Load any local customizations
 [[ -f "$ZDOTDIR/local.zsh" ]] && source "$ZDOTDIR/local.zsh"
@@ -666,14 +694,47 @@ install_zsh() {
         done
     fi
     
+    # Setup ZSH environment without changing login shell
+    if [[ "$SHELL" != *"zsh"* ]]; then
+        # Set a global flag to indicate ZSH was installed but login shell not changed
+        export ZSH_INSTALLED=1
+        export ZSH_LOGIN_SHELL_PENDING=1
+        
+        # Create a zsh executor script in bin directory
+        local bin_dir="$HOME/.local/bin"
+        mkdir -p "$bin_dir"
+        
+        cat > "$bin_dir/zsh-exec" << 'EOF'
+#!/bin/bash
+# ZSH executor for DevEnv
+zsh_bin=$(command -v zsh)
+if [ -n "$zsh_bin" ]; then
+    $zsh_bin -c "$*"
+else
+    echo "Error: ZSH not found"
+    exit 1
+fi
+EOF
+        chmod +x "$bin_dir/zsh-exec"
+        
+        # Add this to PATH if needed
+        if ! echo "$PATH" | grep -q "$bin_dir"; then
+            export PATH="$bin_dir:$PATH"
+        fi
+        
+        log "INFO" "ZSH installed but login shell will be changed after all modules are installed." "zsh"
+        log "INFO" "Created zsh-exec helper script for other modules to use." "zsh"
+        
+        # If this is the end of all module installations, change login shell
+        if [[ "${DEVENV_FINAL_MODULE:-}" == "zsh" || "$force" == "true" ]]; then
+            log "INFO" "Changing login shell to ZSH..." "zsh"
+            chsh -s "$(command -v zsh)"
+            log "INFO" "Shell changed to zsh. Please log out and back in for changes to take effect." "zsh"
+        fi
+    fi
+    
     # Show module information after successful installation
     show_module_info
-    
-    # Set zsh as default shell if it isn't already
-    if [[ "$SHELL" != *"zsh"* ]]; then
-        chsh -s "$(command -v zsh)"
-        log "INFO" "Shell changed to zsh. Please log out and back in for changes to take effect." "zsh"
-    fi
     
     return 0
 }
@@ -731,9 +792,17 @@ case "${1:-}" in
     remove)
         remove_zsh
         ;;
+    finalize)
+        # This is a new action to handle final shell change after all other modules
+        if [[ "${ZSH_LOGIN_SHELL_PENDING:-0}" -eq 1 ]]; then
+            log "INFO" "Finalizing ZSH installation by changing login shell..." "zsh"
+            chsh -s "$(command -v zsh)"
+            log "INFO" "Shell changed to zsh. Please log out and back in for changes to take effect." "zsh"
+        fi
+        ;;
     *)
         log "ERROR" "Unknown action: ${1:-}" "zsh"
-        log "ERROR" "Usage: $0 {install|remove|verify|info} [--force]"
+        log "ERROR" "Usage: $0 {install|remove|verify|info|finalize} [--force]"
         exit 1
         ;;
 esac

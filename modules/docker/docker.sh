@@ -318,7 +318,7 @@ configure_devenv_containers() {
 
     local devenv_data_dir="${DEVENV_ROOT}/data/docker"
     local container_dir="${devenv_data_dir}/containers"
-    local bin_dir="${devenv_data_dir}/data/bin"
+    local bin_dir="${DEVENV_ROOT}/data/bin"
     local module_bin_dir="${DEVENV_ROOT}/modules/docker/bin"
 
     # Create directories
