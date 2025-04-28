@@ -56,6 +56,121 @@ source "$SCRIPT_DIR/json.sh"     # Then JSON handling
 source "$SCRIPT_DIR/module.sh"   # Then module utilities
 source "$SCRIPT_DIR/backup.sh"   # Finally backup utilities
 
+# Detect and configure WSL environment
+setup_wsl_environment() {
+    # Only run this on Windows/WSL
+    if ! grep -q "microsoft" /proc/version 2>/dev/null; then
+        return 0
+    fi
+    
+    # Check if WSL is already configured
+    local wsl_state_file="${DEVENV_STATE_DIR}/wsl_configured"
+    if [[ -f "$wsl_state_file" ]]; then
+        log "INFO" "WSL environment already configured, skipping setup"
+        return 0
+    fi
+    
+    log "INFO" "WSL environment detected, configuring for optimal performance..."
+    
+    # Get Windows home directory path
+    local windows_home=$(wslpath "$(cmd.exe /c "echo %USERPROFILE%" 2>/dev/null | tr -d '\r')")
+    local wslconfig="${windows_home}/.wslconfig"
+    
+    # Create optimized .wslconfig content
+    local wslconfig_content=$(cat << 'EOF'
+[wsl2]
+# Memory allocation
+memory=8GB
+# CPU allocation
+processors=4
+# Enable better GPU support
+gpuSupport=true
+# Enable experimental features
+nestedVirtualization=true
+# Network settings
+dnsTunneling=true
+firewall=true
+# Set swap storage
+swap=4GB
+# Set VM disk compression
+diskCompression=zstd
+EOF
+)
+    
+    # Check if .wslconfig already exists
+    if [[ -f "$wslconfig" ]]; then
+        log "WARN" "Existing .wslconfig found at $windows_home"
+        log "INFO" "DevEnv can create an optimized .wslconfig for better performance"
+        
+        # Ask user for permission to overwrite
+        read -p "Would you like to overwrite the existing .wslconfig with optimized settings? (y/n): " confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+            log "INFO" "Keeping existing .wslconfig"
+        else
+            log "INFO" "Overwriting .wslconfig with optimized settings..."
+            echo "$wslconfig_content" > "$wslconfig"
+            log "INFO" "Created optimized .wslconfig file at $wslconfig"
+        fi
+    else
+        # No existing file, create a new one
+        log "INFO" "Creating optimized .wslconfig in Windows home directory..."
+        echo "$wslconfig_content" > "$wslconfig"
+        log "INFO" "Created optimized .wslconfig file at $wslconfig"
+    fi
+    
+    # Check Docker Desktop integration
+    if command -v docker &>/dev/null; then
+        log "INFO" "Docker found, checking WSL integration..."
+        
+        if ! docker info &>/dev/null; then
+            log "WARN" "Docker command exists but daemon is not accessible."
+            log "INFO" "Please ensure Docker Desktop is running with WSL integration enabled for this distribution."
+            log "INFO" "Steps to enable:"
+            log "INFO" "1. Open Docker Desktop"
+            log "INFO" "2. Go to Settings > Resources > WSL Integration"
+            log "INFO" "3. Enable integration with this distribution"
+            log "INFO" "4. Click 'Apply & Restart'"
+        else
+            log "INFO" "Docker Desktop WSL integration is working correctly."
+        fi
+    fi
+    
+    # Configure systemd if not already enabled
+    if ! grep -q "systemd=true" /etc/wsl.conf 2>/dev/null; then
+        log "INFO" "WSL distribution would benefit from systemd support."
+        read -p "Would you like to enable systemd in WSL? (requires sudo, y/n): " confirm
+        
+        if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+            log "INFO" "Configuring systemd support in WSL..."
+            
+            sudo tee /etc/wsl.conf > /dev/null << EOF
+[boot]
+systemd=true
+
+[automount]
+enabled=true
+options=metadata,uid=1000,gid=1000,umask=022
+
+[network]
+generateResolvConf=true
+
+[interop]
+enabled=true
+appendWindowsPath=true
+EOF
+            
+            log "WARN" "WSL configured with systemd support. You must restart WSL for changes to take effect."
+            log "INFO" "Run 'wsl.exe --shutdown' from PowerShell to restart WSL."
+        fi
+    fi
+    
+    # Mark WSL as configured to prevent future runs
+    mkdir -p "$(dirname "$wsl_state_file")"
+    echo "WSL configured on $(date)" > "$wsl_state_file"
+    log "INFO" "WSL configuration complete and marked as configured"
+    
+    return 0
+}
 # Verify environment
 verify_environment() {
     # Check for required directories
@@ -257,6 +372,13 @@ main() {
         log "ERROR" "Environment verification failed"
         exit 1
     fi
+
+    if [[ "$action" == "install" && "$force" == "true" ]]; then
+        # Remove the WSL configured flag if it exists
+        rm -f "${DEVENV_STATE_DIR}/wsl_configured"
+    fi
+
+    setup_wsl_environment
     
     case "$action" in
         install)

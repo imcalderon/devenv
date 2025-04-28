@@ -230,7 +230,36 @@ check_container_functions() {
         return 1
     fi
     
-    # Test Docker functionality
+    # Special check for WSL2
+    if grep -q "microsoft" /proc/version 2>/dev/null; then
+        log "INFO" "WSL2 environment detected, checking Docker Desktop connection..." "python"
+        
+        # Check for Docker Desktop socket
+        if [[ -e "/var/run/docker-desktop.sock" ]]; then
+            # Test Docker connectivity
+            if docker info >/dev/null 2>&1; then
+                log "INFO" "Successfully connected to Docker Desktop from WSL2" "python"
+                return 0
+            else
+                log "WARN" "Docker Desktop socket exists but connection failed. Make sure Docker Desktop is running on Windows host" "python"
+                return 1
+            fi
+        elif [[ -e "/var/run/docker.sock" ]]; then
+            # Test Docker connectivity
+            if docker info >/dev/null 2>&1; then
+                log "INFO" "Successfully connected to Docker via /var/run/docker.sock" "python"
+                return 0
+            else
+                log "WARN" "Docker socket exists but connection failed. Make sure Docker Desktop is running on Windows host" "python"
+                return 1
+            fi
+        else
+            log "WARN" "No Docker socket found in WSL2. Make sure Docker Desktop is running with WSL2 integration enabled" "python"
+            return 1
+        fi
+    fi
+    
+    # Standard Docker test for non-WSL environments
     if ! docker info >/dev/null 2>&1; then
         log "WARN" "Docker is not running or not accessible, using virtual environment" "python"
         return 1
