@@ -414,58 +414,9 @@ install_python_core() {
         # Check for Docker installation
         if ! command -v docker &>/dev/null; then
             log "ERROR" "Docker not installed, required for containerized Python" "python"
-            log "WARN" "Attempting to install Docker module..." "python"
-            
-            # Try to install Docker module
-            if [[ -f "$DEVENV_ROOT/devenv.sh" ]]; then
-                "$DEVENV_ROOT/devenv.sh" install docker
-                
-                # Check if Docker was installed successfully
-                if ! command -v docker &>/dev/null; then
-                    log "ERROR" "Failed to install Docker, falling back to virtual environment" "python"
-                    # Continue with virtual environment approach
-                else
-                    log "INFO" "Docker installed successfully" "python"
-                fi
-            else
-                log "ERROR" "Failed to install Docker, falling back to virtual environment" "python"
-                # Continue with virtual environment approach
-            fi
+            return 1
         fi
-        
-        # Check for devenv-container script
-        if ! command -v devenv-container &>/dev/null; then
-            # Create directory in WSL native filesystem
-            local wsl_bin_dir="$HOME/.local/bin"
-            mkdir -p "$wsl_bin_dir"
-            
-            # Check if source script exists
-            if [[ -f "${DEVENV_ROOT}/modules/docker/bin/devenv-container" ]]; then
-                # Create a wrapper script instead of a symlink
-                cat > "$wsl_bin_dir/devenv-container" << EOF
-#!/bin/bash
-# Wrapper for devenv-container
-bash "${DEVENV_ROOT}/modules/docker/bin/devenv-container" "\$@"
-EOF
-                sudo chmod +x "$wsl_bin_dir/devenv-container"
-                
-                # Add to PATH if not already there
-                if [[ ":$PATH:" != *":$wsl_bin_dir:"* ]]; then
-                    export PATH="$PATH:$wsl_bin_dir"
-                    log "INFO" "Added $wsl_bin_dir to PATH" "python"
-                fi
-                
-                # Verify script is executable
-                if [[ -x "$wsl_bin_dir/devenv-container" ]]; then
-                    log "INFO" "Successfully created wrapper for devenv-container" "python"
-                else
-                    log "ERROR" "Failed to create executable wrapper, falling back to virtual environment" "python"
-                fi
-            else
-                log "ERROR" "devenv-container source not found, falling back to virtual environment" "python"
-            fi
-        fi
-        
+       
         # Final check if we can still use containerization
         if ! command -v docker &>/dev/null || ! command -v devenv-container &>/dev/null; then
             # If we got here, we couldn't set up containerization, so fall back to venv

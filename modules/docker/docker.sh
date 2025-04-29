@@ -323,14 +323,25 @@ configure_devenv_containers() {
 
     # Create directories
     mkdir -p "$container_dir" "$bin_dir"
-
-    # Copy the script
+        
+    # Create a wrapper script for devenv-container
     if [[ -f "${module_bin_dir}/devenv-container" ]]; then
-        cp "${module_bin_dir}/devenv-container" "${bin_dir}/devenv-container"
-        sudo chmod +x "${bin_dir}/devenv-container"
+        # Create a wrapper script instead of a symlink
+        cat > "$bin_dir/devenv-container" << EOF
+#!/bin/bash
+# Wrapper for devenv-container
+bash "${module_bin_dir}/devenv-container" "\$@"
+EOF
+        sudo chmod +x "$bin_dir/devenv-container"
+                
+        # Verify script is executable
+        if [[ -x "$wsl_bin_dir/devenv-container" ]]; then
+            log "INFO" "Successfully created wrapper for devenv-container" "docker"
+        else
+            log "ERROR" "Failed to create executable wrapper" "docker"
+        fi
     else
-        log "ERROR" "Script not found: ${module_bin_dir}/devenv-container" "docker"
-        return 1
+        log "ERROR" "devenv-container source not found" "docker"
     fi
     
     # Add to PATH

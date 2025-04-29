@@ -150,7 +150,7 @@ EOF
                     log "INFO" "Would you like to restart the WSL session now? (y/n): "
                     read -r response
                     if [[ "$response" =~ ^[Yy]$ ]]; then
-                        log "INFO" "Requesting WSL restart..."
+                        log "INFO" "Requesting WSL restart...(Note this migh take a while as Docker Desktop has to restart)"
                         # Use PowerShell to restart WSL
                         powershell.exe -Command "wsl --shutdown" || true
                         log "INFO" "WSL shutdown requested. Please restart your WSL session manually."
