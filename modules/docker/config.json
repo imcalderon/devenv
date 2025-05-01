@@ -11,7 +11,7 @@
     "shell": {
       "paths": {
         "data_dir": "${DEVENV_ROOT}/data/docker",
-        "container_dir": "${DEVENV_ROOT}/data/docker/containers",
+        "container_dir": "${DEVENV_ROOT}/data/containers",
         "bin_dir": "${DEVENV_ROOT}/data/bin"
       },
       "aliases": {

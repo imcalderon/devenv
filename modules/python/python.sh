@@ -411,20 +411,15 @@ install_python_core() {
         # For containerized Python, use the container management script
         log "INFO" "Using containerized Python..." "python"
         
-        # Check for Docker installation
-        if ! command -v docker &>/dev/null; then
-            log "ERROR" "Docker not installed, required for containerized Python" "python"
-            return 1
-        fi
-       
-        # Final check if we can still use containerization
-        if ! command -v docker &>/dev/null || ! command -v devenv-container &>/dev/null; then
-            # If we got here, we couldn't set up containerization, so fall back to venv
+        # Check for devenv-container executable before attempting to build
+        if ! command -v devenv-container &>/dev/null; then
+            log "ERROR" "devenv-container not found, required for containerized Python" "python"
+            log "INFO" "Falling back to virtual environment..." "python"
             goto_venv_setup
             return $?
         fi
         
-        # Build the container
+        # Try to build the container
         log "INFO" "Building Python container..." "python"
         if ! devenv-container build python; then
             log "ERROR" "Failed to build Python container, falling back to virtual environment" "python"
@@ -441,12 +436,12 @@ install_python_core() {
         fi
         
         log "INFO" "Python container setup complete" "python"
+        return 0
     else
-        # For non-containerized Python, use a virtual environment
+        # For non-containerized Python, use virtual environment
         goto_venv_setup
+        return $?
     fi
-    
-    return 0
 }
 
 # Setup Python virtual environment (used as fallback or primary approach)
@@ -455,7 +450,7 @@ goto_venv_setup() {
     
     # Make sure Python is installed
     if ! command -v python3 &>/dev/null; then
-        log "INFO" "Installing Python..." "python"
+        log "INFO" "Installing Python using apt..." "python"
         if command -v apt-get &>/dev/null; then
             sudo apt-get update
             sudo apt-get install -y python3 python3-pip python3-venv python3-dev
@@ -474,36 +469,19 @@ goto_venv_setup() {
     # Create virtual environment if it doesn't exist
     if [[ ! -d "$venv_dir" ]]; then
         log "INFO" "Creating Python virtual environment in $venv_dir" "python"
-        if ! python3 -m venv "$venv_dir"; then
-            # If venv module isn't available, try to install it
-            if command -v apt-get &>/dev/null; then
-                log "INFO" "Installing python3-venv package..." "python"
-                sudo apt-get install -y python3-venv
-                
-                # Try creating the virtual environment again
-                if ! python3 -m venv "$venv_dir"; then
-                    log "ERROR" "Failed to create virtual environment" "python"
-                    return 1
-                fi
-            else
-                log "ERROR" "Failed to create virtual environment" "python"
-                return 1
-            fi
-        fi
+        python3 -m venv "$venv_dir"
+    fi
+    
+    # Verify the virtual environment was created
+    if [[ ! -f "$venv_dir/bin/activate" ]]; then
+        log "ERROR" "Failed to create virtual environment" "python"
+        return 1
     fi
     
     # Activate and update the virtual environment
-    if [[ -f "$venv_dir/bin/activate" ]]; then
-        log "INFO" "Activating virtual environment..." "python"
-        source "$venv_dir/bin/activate"
-        
-        # Update pip, setuptools, and wheel
-        log "INFO" "Updating pip in virtual environment..." "python"
-        "$venv_dir/bin/pip" install --upgrade pip setuptools wheel
-    else
-        log "ERROR" "Virtual environment activation script not found" "python"
-        return 1
-    fi
+    source "$venv_dir/bin/activate"
+    log "INFO" "Updating pip in virtual environment..." "python"
+    "$venv_dir/bin/pip" install --upgrade pip setuptools wheel
     
     log "INFO" "Python virtual environment setup complete" "python"
     return 0

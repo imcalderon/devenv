@@ -2,10 +2,10 @@
     "version": "2.0.0",
     "global": {
       "paths": {
-        "data_dir": "${DEVENV_ROOT}/data",
-        "logs_dir": "${DEVENV_ROOT}/data/logs",
-        "backups_dir": "${DEVENV_ROOT}/data/backups",
-        "state_dir": "${DEVENV_ROOT}/data/state",
+        "data_dir": "${DEVENV_DATA_DIR}",
+        "logs_dir": "${DEVEDEVENV_DATA_DIRNV_ROOT}/logs",
+        "backups_dir": "${DEVENV_DATA_DIR}/backups",
+        "state_dir": "${DEVENV_DATA_DIR}/state",
         "modules_dir": "${DEVENV_ROOT}/modules"
       },
       "modules": {
@@ -99,7 +99,7 @@
               "enabled": true,
               "shell": {
                 "paths": {
-                  "config_dir": "${DEVENV_ROOT}/data/zsh"
+                  "config_dir": "${DEVENV_DATA_DIR}/zsh"
                 }
               }
             },
@@ -107,7 +107,7 @@
               "enabled": true,
               "shell": {
                 "paths": {
-                  "config_dir": "${DEVENV_ROOT}/data/vscode"
+                  "config_dir": "${DEVENV_DATA_DIR}/vscode"
                 }
               }
             }
@@ -126,7 +126,7 @@
               "enabled": true,
               "shell": {
                 "paths": {
-                  "config_dir": "${DEVENV_ROOT}/data/zsh"
+                  "config_dir": "${DEVENV_DATA_DIR}/zsh"
                 }
               }
             },
@@ -134,7 +134,7 @@
               "enabled": true,
               "shell": {
                 "paths": {
-                  "config_dir": "${DEVENV_ROOT}/data/vscode"
+                  "config_dir": "${DEVENV_DATA_DIR}/vscode"
                 }
               }
             }
@@ -150,13 +150,13 @@
           "use_wsl": true,
           "docker_socket": "/var/run/docker-desktop.sock",
           "mount_paths": {
-            "data_dir": "${DEVENV_ROOT}/data"
+            "data_dir": "${DEVENV_DATA_DIR}"
           }
         },
         "paths": {
           "script_dir": "${DEVENV_ROOT}/lib/windows",
           "vscode": {
-            "config_dir": "${DEVENV_ROOT}/data/vscode"
+            "config_dir": "${DEVENV_DATA_DIR}/vscode"
           }
         },
         "modules": {
@@ -168,7 +168,7 @@
               "enabled": true,
               "shell": {
                 "paths": {
-                  "profile_dir": "${DEVENV_ROOT}/data/powershell"
+                  "profile_dir": "${DEVENV_DATA_DIR}/powershell"
                 }
               }
             }

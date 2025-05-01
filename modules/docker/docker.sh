@@ -90,7 +90,7 @@ devenv-container exec   : Run command in module container
 Configuration:
 -------------
 Location: /etc/docker/daemon.json
-Container config: ${DEVENV_ROOT}/data/docker/containers
+Container config: ${DEVENV_ROOT}/data/containers
 
 EOF
 
@@ -316,8 +316,7 @@ configure_docker_compose() {
 configure_devenv_containers() {
     log "INFO" "Configuring DevEnv container management..." "docker"
 
-    local devenv_data_dir="${DEVENV_ROOT}/data/docker"
-    local container_dir="${devenv_data_dir}/containers"
+    local container_dir="${DEVENV_DATA_DIR}/containers"
     local bin_dir="${DEVENV_ROOT}/data/bin"
     local module_bin_dir="${DEVENV_ROOT}/modules/docker/bin"
 
@@ -335,7 +334,7 @@ EOF
         sudo chmod +x "$bin_dir/devenv-container"
                 
         # Verify script is executable
-        if [[ -x "$wsl_bin_dir/devenv-container" ]]; then
+        if [[ -x "$bin_dir/devenv-container" ]]; then
             log "INFO" "Successfully created wrapper for devenv-container" "docker"
         else
             log "ERROR" "Failed to create executable wrapper" "docker"
