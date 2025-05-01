@@ -1,0 +1,70 @@
+{
+  "enabled": true,
+  "runlevel": 3,
+  "backup": {
+    "paths": [
+      "$HOME/.config/{{module}}",
+      "/etc/{{module}}"
+    ],
+    "dir": "${DEVENV_DATA_DIR}/backups"
+  },
+  "devenv": {
+    "paths": {
+      "state_dir": "${DEVENV_DATA_DIR}/state",
+      "logs_dir": "${DEVENV_DATA_DIR}/logs",
+      "templates_dir": "${DEVENV_DATA_DIR}/templates/{{module}}"
+    }
+  },
+  "shell": {
+    "paths": {
+      "config_dir": "$HOME/.config/{{module}}",
+      "data_dir": "$HOME/.local/share/{{module}}",
+      "bin_dir": "$HOME/.local/bin"
+    },
+    "aliases": {
+      "{{module}}": {}
+    }
+  },
+  "platforms": {
+    "linux": {
+      "enabled": true,
+      "shell": {
+        "paths": {
+          "system_config_dir": "/etc/{{module}}",
+          "system_bin_dir": "/usr/bin"
+        }
+      },
+      "package": {
+        "manager": "apt",
+        "name": "{{module}}",
+        "repositories": {}
+      }
+    },
+    "darwin": {
+      "enabled": true,
+      "shell": {
+        "paths": {
+          "system_config_dir": "/etc/{{module}}",
+          "system_bin_dir": "/usr/local/bin"
+        }
+      },
+      "package": {
+        "manager": "brew",
+        "name": "{{module}}"
+      }
+    },
+    "windows": {
+      "enabled": true,
+      "shell": {
+        "paths": {
+          "system_config_dir": "C:\\Program Files\\{{module}}",
+          "system_bin_dir": "C:\\Program Files\\{{module}}\\bin"
+        }
+      },
+      "package": {
+        "manager": "choco",
+        "name": "{{module}}"
+      }
+    }
+  }
+}

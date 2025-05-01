@@ -1,116 +1,71 @@
 {
     "enabled": true,
-    "runlevel": 3,
+    "runlevel": 2,
     "backup": {
-        "paths": [
-            "/etc/docker/daemon.json",
-            "$HOME/.docker/config.json"
-        ]
+      "paths": [
+        "/etc/docker/daemon.json",
+        "${DEVENV_ROOT}/data/docker",
+        "${DEVENV_ROOT}/data/bin/devenv-container"
+      ]
     },
     "shell": {
-        "paths": {
-            "config_dir": "/etc/docker",
-            "daemon_config": "/etc/docker/daemon.json",
-            "user_config": "$HOME/.docker/config.json",
-            "docker_desktop": "/mnt/c/Program Files/Docker/Docker/Docker Desktop.exe",
-            "windows_scripts_dir": "$HOME/.devenv/windows_scripts"
+      "paths": {
+        "data_dir": "${DEVENV_ROOT}/data/docker",
+        "container_dir": "${DEVENV_ROOT}/data/containers",
+        "bin_dir": "${DEVENV_ROOT}/data/bin"
+      },
+      "aliases": {
+        "basic": {
+          "d": "docker",
+          "dc": "docker compose",
+          "dcu": "docker compose up -d",
+          "dcd": "docker compose down",
+          "dcl": "docker compose logs -f"
         },
-        "aliases": {
-            "basic": {
-                "d": "docker",
-                "dc": "docker compose",
-                "dcu": "docker compose up",
-                "dcub": "docker compose up --build",
-                "dcd": "docker compose down",
-                "dcl": "docker compose logs -f"
-            },
-            "container": {
-                "dps": "docker ps",
-                "dpsa": "docker ps -a",
-                "dex": "docker exec -it",
-                "dtop": "docker top",
-                "dstats": "docker stats"
-            },
-            "cleanup": {
-                "dprune": "docker system prune -f",
-                "dvprune": "docker volume prune -f",
-                "dclean": "docker system prune -af --volumes"
-            },
-            "windows": {
-                "dstart": "$HOME/.devenv/windows_scripts/docker_wsl.sh start",
-                "dstop": "powershell.exe -Command 'Stop-Process -Name \"Docker Desktop\" -Force -ErrorAction SilentlyContinue'",
-                "dcheck": "$HOME/.devenv/windows_scripts/docker_wsl.sh check",
-                "dconfig": "$HOME/.devenv/windows_scripts/docker_wsl.sh configure"
-            }
+        "container": {
+          "di": "docker images",
+          "dps": "docker ps",
+          "dpsa": "docker ps -a",
+          "dex": "docker exec -it",
+          "dlog": "docker logs -f",
+          "dst": "docker stats"
+        },
+        "cleanup": {
+          "dprune": "docker system prune -f",
+          "dvprune": "docker volume prune -f",
+          "dclean": "docker system prune -af --volumes",
+          "diprune": "docker image prune -f"
         }
+      }
     },
     "docker": {
-        "windows": {
-            "wsl_integration": true,
-            "use_docker_desktop": true,
-            "expose_daemon": true,
-            "expose_daemon_port": 2375,
-            "resource_limits": {
-                "memory": "8GB",
-                "cpus": 4
-            }
-        },
-        "compose": {
-            "package": {
-                "name": "docker-compose-plugin",
-                "components": [
-                    "docker-compose-plugin"
-                ]
-            },
-            "version": "2"
-        },
-        "package": {
-            "name": "docker-ce-cli",
-            "components": [
-                "docker-ce-cli"
-            ],
-            "repositories": {
-                "rpm": {
-                    "repo_url": "https://download.docker.com/linux/centos/docker-ce.repo",
-                    "os_release_file": "/etc/os-release",
-                    "platform_path": "/etc/yum.repos.d/",
-                    "platform_command": "dnf config-manager"
-                },
-                "deb": {
-                    "key_url": "https://download.docker.com/linux/ubuntu/gpg",
-                    "key_path": "/usr/share/keyrings/docker-archive-keyring.gpg",
-                    "repo_file": "/etc/apt/sources.list.d/docker.list",
-                    "repo_config": "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu {release} stable"
-                }
-            }
-        },
-        "daemon": {
-            "log-driver": "json-file",
-            "log-opts": {
-              "max-size": "10m",
-              "max-file": "3"
-            }
-        },
-        "container_defaults": {
-            "resources": {
-                "memory": {
-                    "swap": "1G",
-                    "limit": "8G"
-                },
-                "cpu": {
-                    "shares": 1024
-                }
-            }
-        },
-        "helper_functions": {
-            "dexec": "Execute command in container or open shell if no command provided",
-            "dlog": "View logs of container with optional tail",
-            "dbash": "Quick access to container bash shell",
-            "dcex": "Execute command in docker-compose service",
-            "dstart": "Start Docker Desktop on Windows",
-            "dstop": "Stop Docker Desktop on Windows",
-            "dcheck": "Check Docker Desktop status and configuration",
-            "dconfig": "Configure Docker for WSL"
+      "daemon": {
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "10m",
+          "max-file": "3"
         }
+      },
+      "wsl": {
+        "enabled": true,
+        "docker_desktop_socket": "/var/run/docker-desktop.sock",
+        "daemon_config": {
+          "hosts": [
+            "unix:///var/run/docker.sock",
+            "unix:///var/run/docker-desktop.sock"
+          ]
+        }
+      }
+    },
+    "container": {
+      "enabled": true,
+      "strategy": "selective",
+      "default_mounts": {
+        "home": "${HOME}:/home/user",
+        "devenv": "${DEVENV_ROOT}:/devenv",
+        "docker": "/var/run/docker.sock:/var/run/docker.sock"
+      },
+      "default_network": "bridge",
+      "default_user": "user"
     }
-}
+  }

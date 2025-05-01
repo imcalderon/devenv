@@ -1,11 +1,11 @@
 {
-    "version": "2.0.0",
+    "version": "1.0.0",
     "global": {
       "paths": {
-        "data_dir": "${DEVENV_DATA_DIR}",
-        "logs_dir": "${DEVEDEVENV_DATA_DIRNV_ROOT}/logs",
-        "backups_dir": "${DEVENV_DATA_DIR}/backups",
-        "state_dir": "${DEVENV_DATA_DIR}/state",
+        "data_dir": "${DEVENV_ROOT}/data",
+        "logs_dir": "${DEVENV_ROOT}/data/logs",
+        "backups_dir": "${DEVENV_ROOT}/data/backups",
+        "state_dir": "${DEVENV_ROOT}/data/state",
         "modules_dir": "${DEVENV_ROOT}/modules"
       },
       "modules": {
@@ -13,7 +13,9 @@
           "zsh",
           "git",
           "docker",
-          "python"
+          "python",
+          "vscode",
+          "conda"
         ],
         "defaults": {
           "backup": {
@@ -36,7 +38,7 @@
         "mount_paths": {
           "home": "${HOME}:/home/user",
           "dotfiles": "${DEVENV_ROOT}:/devenv",
-          "projects": "${DEVENV_ROOT}/..:/home/user/projects",
+          "projects": "${HOME}/projects:/home/user/projects",
           "data": "${DEVENV_DATA_DIR}:/devenv/data"
         },
         "network": "bridge",
@@ -99,7 +101,7 @@
               "enabled": true,
               "shell": {
                 "paths": {
-                  "config_dir": "${DEVENV_DATA_DIR}/zsh"
+                  "config_dir": "${DEVENV_ROOT}/data/zsh"
                 }
               }
             },
@@ -107,7 +109,7 @@
               "enabled": true,
               "shell": {
                 "paths": {
-                  "config_dir": "${DEVENV_DATA_DIR}/vscode"
+                  "config_dir": "${DEVENV_ROOT}/data/vscode"
                 }
               }
             }
@@ -126,7 +128,7 @@
               "enabled": true,
               "shell": {
                 "paths": {
-                  "config_dir": "${DEVENV_DATA_DIR}/zsh"
+                  "config_dir": "${DEVENV_ROOT}/data/zsh"
                 }
               }
             },
@@ -134,7 +136,7 @@
               "enabled": true,
               "shell": {
                 "paths": {
-                  "config_dir": "${DEVENV_DATA_DIR}/vscode"
+                  "config_dir": "${DEVENV_ROOT}/data/vscode"
                 }
               }
             }
@@ -150,13 +152,13 @@
           "use_wsl": true,
           "docker_socket": "/var/run/docker-desktop.sock",
           "mount_paths": {
-            "data_dir": "${DEVENV_DATA_DIR}"
+            "data_dir": "${DEVENV_ROOT}/data"
           }
         },
         "paths": {
           "script_dir": "${DEVENV_ROOT}/lib/windows",
           "vscode": {
-            "config_dir": "${DEVENV_DATA_DIR}/vscode"
+            "config_dir": "${DEVENV_ROOT}/data/vscode"
           }
         },
         "modules": {
@@ -168,7 +170,7 @@
               "enabled": true,
               "shell": {
                 "paths": {
-                  "profile_dir": "${DEVENV_DATA_DIR}/powershell"
+                  "profile_dir": "${DEVENV_ROOT}/data/powershell"
                 }
               }
             }

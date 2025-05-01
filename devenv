@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+# devenv - Cross-platform development environment entry point
+
+# Detect platform
+detect_platform() {
+    local platform="unknown"
+    case "$(uname -s)" in
+        Linux*)     platform="linux";;
+        Darwin*)    platform="darwin";;
+        CYGWIN*)    platform="windows";;
+        MINGW*)     platform="windows";;
+        MSYS*)      platform="windows";;
+        *)          platform="unknown";;
+    esac
+    
+    # Additional check for Windows environment
+    if [[ "$platform" == "unknown" && -n "$WINDIR" ]]; then
+        platform="windows"
+    fi
+    
+    echo "$platform"
+}
+
+# Get absolute path of script
+get_script_dir() {
+    local source="${BASH_SOURCE[0]}"
+    while [ -h "$source" ]; do
+        local dir="$( cd -P "$( dirname "$source" )" && pwd )"
+        source="$(readlink "$source")"
+        [[ $source != /* ]] && source="$dir/$source"
+    done
+    local dir="$( cd -P "$( dirname "$source" )" && pwd )"
+    echo "$dir"
+}
+
+# Load configuration
+load_config() {
+    local root_dir="$1"
+    local config_file="$root_dir/config.json"
+    local template_file="$root_dir/config.template.json"
+    
+    # If config.json doesn't exist, create it from template
+    if [[ ! -f "$config_file" && -f "$template_file" ]]; then
+        echo "Creating config.json from template..."
+        cp "$template_file" "$config_file"
+    fi
+    
+    # Verify config file exists
+    if [[ ! -f "$config_file" ]]; then
+        echo "Error: Configuration file not found: $config_file"
+        echo "Please create a config.json file based on config.template.json"
+        exit 1
+    fi
+    
+    echo "$config_file"
+}
+
+# Setup project environment variables
+setup_environment() {
+    local root_dir="$1"
+    local platform="$2"
+
+    # Set up project-specific environment variables
+    export DEVENV_ROOT="$root_dir"
+    export DEVENV_DATA_DIR="$root_dir/data"
+    export DEVENV_CONFIG_DIR="$root_dir/config"
+    export DEVENV_MODULES_DIR="$root_dir/modules"
+    
+    # Create data directories if they don't exist
+    mkdir -p "$DEVENV_DATA_DIR"
+    mkdir -p "$DEVENV_DATA_DIR/state"
+    mkdir -p "$DEVENV_DATA_DIR/logs"
+    mkdir -p "$DEVENV_DATA_DIR/backups"
+    
+    # Platform-specific environment setup
+    case "$platform" in
+        linux|darwin)
+            export DEVENV_HOME="$DEVENV_ROOT"
+            export DEVENV_STATE_DIR="$DEVENV_DATA_DIR/state"
+            export DEVENV_LOGS_DIR="$DEVENV_DATA_DIR/logs"
+            export DEVENV_BACKUPS_DIR="$DEVENV_DATA_DIR/backups"
+            ;;
+        windows)
+            export DEVENV_HOME="$DEVENV_ROOT"
+            export DEVENV_STATE_DIR="$DEVENV_DATA_DIR/state"
+            export DEVENV_LOGS_DIR="$DEVENV_DATA_DIR/logs"
+            export DEVENV_BACKUPS_DIR="$DEVENV_DATA_DIR/backups"
+            ;;
+        *)
+            echo "Error: Unsupported platform: $platform"
+            exit 1
+            ;;
+    esac
+}
+
+# Main execution
+main() {
+    # Get script directory
+    local script_dir=$(get_script_dir)
+    
+    # Detect platform
+    local platform=$(detect_platform)
+    echo "Detected platform: $platform"
+    
+    # Load configuration
+    local config_file=$(load_config "$script_dir")
+    
+    # Setup environment
+    setup_environment "$script_dir" "$platform"
+    
+    # Execute platform-specific script
+    case "$platform" in
+        linux|darwin)
+            # Use bash for Linux and macOS
+            export ROOT_DIR="$script_dir"
+            export CONFIG_FILE="$config_file"
+            "$script_dir/devenv.sh" "$@"
+            ;;
+        windows)
+            # Check if we're in WSL
+            if grep -q "microsoft" /proc/version 2>/dev/null; then
+                # We're in WSL, use bash
+                export ROOT_DIR="$script_dir"
+                export CONFIG_FILE="$config_file"
+                "$script_dir/devenv.sh" "$@"
+            else
+                # We're in Windows, use PowerShell
+                if command -v powershell.exe &>/dev/null; then
+                    powershell.exe -ExecutionPolicy Bypass -File "$script_dir\\devenv.ps1" -ConfigFile "$config_file" -RootDir "$script_dir" "$@"
+                else
+                    echo "Error: PowerShell not found. Please install PowerShell."
+                    exit 1
+                fi
+            fi
+            ;;
+        *)
+            echo "Error: Unsupported platform: $platform"
+            exit 1
+            ;;
+    esac
+}
+
+# Execute main if script is run directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

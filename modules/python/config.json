@@ -1,179 +1,236 @@
 {
     "enabled": true,
     "runlevel": 2,
+    "dependencies": [
+        "docker"
+    ],
     "backup": {
-        "paths": [
-            "$HOME/.local/bin",
-            "$HOME/.config/pylintrc",
-            "$HOME/.config/flake8"
-        ]
+      "paths": [
+        "${DEVENV_DATA_DIR}/python/config/pylintrc",
+        "${DEVENV_DATA_DIR}/python/config/pyproject.toml",
+        "${DEVENV_DATA_DIR}/python/config/flake8",
+        "${DEVENV_DATA_DIR}/python/venv"
+      ],
+      "retention_days": 30
     },
     "shell": {
-        "paths": {
-            "local_bin": "$HOME/.local/bin",
-            "config_dir": "$HOME/.config"
+      "paths": {
+        "config_dir": "${DEVENV_DATA_DIR}/python/config",
+        "bin_dir": "${DEVENV_DATA_DIR}/python/bin",
+        "venv_dir": "${DEVENV_DATA_DIR}/python/venv",
+        "projects_dir": "${HOME}/Projects/python"
+      },
+      "aliases": {
+        "python": {
+          "py": "python3",
+          "ipy": "ipython",
+          "pylab": "ipython --pylab",
+          "jlab": "jupyter lab"
         },
-        "aliases": {
-            "python": {
-                "py": "python3",
-                "ipy": "ipython",
-                "pylab": "ipython --pylab",
-                "jlab": "jupyter lab"
-            },
-            "tools": {
-                "lint": "pylint",
-                "fmt": "black",
-                "mypy": "mypy",
-                "pytest": "pytest -v"
-            }
+        "tools": {
+          "lint": "pylint",
+          "fmt": "black",
+          "mypy": "mypy",
+          "pytest": "pytest -v"
+        },
+        "venv": {
+          "venv-create": "python3 -m venv",
+          "venv-activate": "source"
         }
+      }
     },
     "python": {
-        "version": "3.10",
-        "packages": {
-            "development": [
-                "ipython",
-                "jupyter",
-                "jupyterlab",
-                "notebook"
+      "version": "3.10",
+      "packages": {
+        "development": [
+          "ipython",
+          "jupyter",
+          "jupyterlab",
+          "notebook"
+        ],
+        "build": [
+          "build",
+          "twine",
+          "setuptools",
+          "wheel",
+          "pip"
+        ],
+        "linting": [
+          "black",
+          "pylint",
+          "flake8",
+          "mypy",
+          "isort",
+          "bandit"
+        ],
+        "testing": [
+          "pytest",
+          "pytest-cov",
+          "pytest-benchmark",
+          "tox"
+        ],
+        "utils": {
+          "data_processing": {
+            "packages": [
+              "numpy",
+              "pandas",
+              "scipy"
             ],
-            "build": [
-                "build",
-                "twine",
-                "setuptools",
-                "wheel",
-                "pip"
-            ],
-            "linting": [
-                "black",
-                "pylint",
-                "flake8",
-                "mypy",
-                "isort",
-                "bandit"
-            ],
-            "testing": [
-                "pytest",
-                "pytest-cov",
-                "pytest-benchmark",
-                "tox"
-            ],
-            "documentation": [
-                "sphinx",
-                "sphinx-rtd-theme",
-                "sphinx-autodoc-typehints",
-                "mkdocs",
-                "mkdocs-material"
-            ],
-            "utils": {
-                "data_processing": {
-                    "description": "Data manipulation and scientific computing libraries",
-                    "packages": [
-                        "pandas",
-                        "numpy",
-                        "scipy",
-                        "anytree",
-                        "networkx",
-                        "tabulate",
-                        "pyarrow"
-                    ]
-                },
-                "io_parsing": {
-                    "description": "Data format parsing and I/O handling",
-                    "packages": [
-                        "requests",
-                        "aiohttp",
-                        "pyyaml",
-                        "toml",
-                        "configparser",
-                        "python-dotenv",
-                        "jmespath",
-                        "jsonschema"
-                    ]
-                },
-                "cli_tools": {
-                    "description": "Command line interface and terminal utilities",
-                    "packages": [
-                        "rich",
-                        "click",
-                        "typer",
-                        "tqdm",
-                        "colorama",
-                        "prompt_toolkit",
-                        "questionary"
-                    ]
-                },
-                "dev_tools": {
-                    "description": "Development utilities and helpers",
-                    "packages": [
-                        "more-itertools",
-                        "toolz",
-                        "cachetools",
-                        "python-dateutil",
-                        "tenacity",
-                        "structlog",
-                        "typing-extensions"
-                    ]
-                },
-                "process_tools": {
-                    "description": "System and process management utilities",
-                    "packages": [
-                        "psutil",
-                        "watchdog",
-                        "schedule",
-                        "appdirs",
-                        "filelock"
-                    ]
-                },
-                "serialization": {
-                    "description": "Data serialization and validation",
-                    "packages": [
-                        "msgpack",
-                        "protobuf",
-                        "marshmallow",
-                        "pydantic"
-                    ]
-                },
-                "performance": {
-                    "description": "Performance optimization and parallel processing",
-                    "packages": [
-                        "joblib",
-                        "numba",
-                        "cython",
-                        "dask"
-                    ]
-                }
-            }
-        },
-        "config": {
-            "pylint": {
-                "disable": [
-                    "C0111",
-                    "C0103"
-                ],
-                "max-line-length": 100,
-                "good-names": [
-                    "i",
-                    "j",
-                    "k",
-                    "ex",
-                    "Run",
-                    "_"
-                ]
-            },
-            "black": {
-                "line-length": 100,
-                "target-version": [
-                    "py310"
-                ]
-            },
-            "flake8": {
-                "max-line-length": 100,
-                "ignore": [
-                    "E203",
-                    "W503"
-                ]
-            }
+            "optional": [
+              "matplotlib",
+              "seaborn"
+            ]
+          },
+          "web": {
+            "packages": [
+              "requests",
+              "httpx",
+              "beautifulsoup4"
+            ]
+          }
         }
+      },
+      "config": {
+        "pylint": {
+          "disable": [
+            "C0111",
+            "C0103"
+          ],
+          "max-line-length": 100,
+          "good-names": [
+            "i",
+            "j",
+            "k",
+            "ex",
+            "Run",
+            "_"
+          ]
+        },
+        "black": {
+          "line-length": 100,
+          "target-version": [
+            "py310"
+          ]
+        },
+        "flake8": {
+          "max-line-length": 100,
+          "ignore": [
+            "E203",
+            "W503"
+          ]
+        }
+      }
+    },
+    "platforms": {
+      "linux": {
+        "enabled": true,
+        "package": {
+          "manager": "apt",
+          "name": "python3",
+          "packages": [
+            "python3",
+            "python3-pip",
+            "python3-venv",
+            "python3-dev"
+          ]
+        },
+        "shell": {
+          "paths": {
+            "system_python": "/usr/bin/python3",
+            "system_pip": "/usr/bin/pip3"
+          }
+        }
+      },
+      "darwin": {
+        "enabled": true,
+        "package": {
+          "manager": "brew",
+          "name": "python@3.10",
+          "packages": [
+            "python@3.10"
+          ]
+        },
+        "shell": {
+          "paths": {
+            "system_python": "/usr/local/bin/python3",
+            "system_pip": "/usr/local/bin/pip3"
+          }
+        }
+      },
+      "windows": {
+        "enabled": true,
+        "package": {
+          "manager": "choco",
+          "name": "python",
+          "packages": [
+            "python3"
+          ]
+        },
+        "shell": {
+          "paths": {
+            "system_python": "C:\\Python310\\python.exe",
+            "system_pip": "C:\\Python310\\Scripts\\pip.exe"
+          }
+        },
+        "wsl": {
+          "enabled": true,
+          "distribution": "Ubuntu-20.04"
+        }
+      }
+    },
+    "container": {
+      "enabled": true,
+      "image": "python:3.10-slim",
+      "workdir": "/app",
+      "volumes": [
+        "${DEVENV_DATA_DIR}/python:/config",
+        "${HOME}/Projects:/projects"
+      ],
+      "environment": {
+        "PYTHONPATH": "/app",
+        "PYTHONUSERBASE": "/config",
+        "PIP_CONFIG_FILE": "/config/pip.conf"
+      },
+      "cmd": "python3",
+      "jupyter": {
+        "image": "jupyter/minimal-notebook",
+        "port": 8888,
+        "volumes": [
+          "${DEVENV_DATA_DIR}/jupyter:/home/jovyan/.jupyter",
+          "${HOME}/Projects:/home/jovyan/work"
+        ]
+      },
+      "vscode": {
+        "enabled": true,
+        "devcontainer": {
+          "dockerfile": "${DEVENV_DATA_DIR}/python/Dockerfile.dev",
+          "extensions": [
+            "ms-python.python",
+            "ms-python.vscode-pylance",
+            "ms-toolsai.jupyter"
+          ]
+        }
+      }
+    },
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-toolsai.jupyter",
+        "njpwerner.autodocstring"
+      ],
+      "settings": {
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": true,
+        "python.linting.flake8Enabled": true,
+        "python.linting.mypyEnabled": true,
+        "python.formatting.provider": "black",
+        "python.formatting.blackArgs": [
+          "--line-length",
+          "100"
+        ],
+        "editor.formatOnSave": true,
+        "python.analysis.typeCheckingMode": "basic"
+      }
     }
 }
