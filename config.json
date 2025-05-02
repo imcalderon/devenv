@@ -3,7 +3,7 @@
     "global": {
       "paths": {
         "data_dir": "${DEVENV_DATA_DIR}",
-        "logs_dir": "${DEVEDEVENV_DATA_DIRNV_ROOT}/logs",
+        "logs_dir": "${DEVENV_DATA_DIR}/logs",
         "backups_dir": "${DEVENV_DATA_DIR}/backups",
         "state_dir": "${DEVENV_DATA_DIR}/state",
         "modules_dir": "${DEVENV_ROOT}/modules"

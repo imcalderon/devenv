@@ -70,7 +70,6 @@ function Setup-Environment {
     # Set up project-specific environment variables
     $env:DEVENV_ROOT = $RootDir
     $env:DEVENV_DATA_DIR = Join-Path -Path $RootDir -ChildPath "data"
-    $env:DEVENV_CONFIG_DIR = Join-Path -Path $RootDir -ChildPath "config"
     $env:DEVENV_MODULES_DIR = Join-Path -Path $RootDir -ChildPath "modules"
     
     # Create data directories if they don't exist

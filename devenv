@@ -62,8 +62,7 @@ setup_environment() {
 
     # Set up project-specific environment variables
     export DEVENV_ROOT="$root_dir"
-    export DEVENV_DATA_DIR="$root_dir/data"
-    export DEVENV_CONFIG_DIR="$root_dir/config"
+    export DEVENV_DATA_DIR="$HOME/.devenv"
     export DEVENV_MODULES_DIR="$root_dir/modules"
     
     # Create data directories if they don't exist

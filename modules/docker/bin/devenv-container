@@ -2,8 +2,8 @@
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
-CONFIG_FILE="$ROOT_DIR/../../config.json"
-CONTAINER_DIR="$ROOT_DIR/../../data/containers"
+CONFIG_FILE="$HOME/.devenv/config.json"
+CONTAINER_DIR="$HOME/.devenv/containers"
 
 # Command help
 show_help() {
