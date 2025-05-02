@@ -34,11 +34,20 @@ setup_wsl_environment() {
     # Check if WSL is already configured
     local wsl_state_file="${DEVENV_STATE_DIR}/wsl_configured"
     if [[ -f "$wsl_state_file" ]] && [[ "$force_flag" != "--force" ]]; then
-        log "INFO" "WSL environment already configured, skipping setup"
+        log "INFO" "WSL environment already configured, running permission check anyway..." "docker"
+        # Even if configured, check docker permissions
+        if command -v docker &>/dev/null; then
+            if ! timeout 5 docker info &>/dev/null; then
+                log "WARN" "Docker permissions need to be fixed" "docker"
+                fix_docker_permissions
+            else
+                log "INFO" "Docker permissions are properly configured" "docker"
+            fi
+        fi
         return 0
     fi
     
-    log "INFO" "WSL environment detected, configuring for optimal performance..."
+    log "INFO" "WSL environment detected, configuring for optimal performance..." "docker"
     
     # Get Windows home directory path
     local windows_home=$(wslpath "$(cmd.exe /c "echo %USERPROFILE%" 2>/dev/null | tr -d '\r')")
@@ -87,81 +96,7 @@ EOF
     fi
     
     # Fix Docker permissions
-    if command -v docker &>/dev/null; then
-       log "INFO" "Docker found, checking permissions..."
-        
-        # Test Docker connectivity with timeout (5 seconds)
-        if ! timeout 5 docker info &>/dev/null; then
-            log "WARN" "Docker permission issues detected"
-            
-            # Check if docker group exists
-            if getent group docker &>/dev/null; then
-                # Check if user is already in the docker group
-                if ! groups | grep -q docker; then
-                    log "INFO" "Adding current user to docker group..."
-                    sudo usermod -aG docker $USER
-                    
-                    # Fix socket permissions
-                    if [[ -S /var/run/docker.sock ]]; then
-                        log "INFO" "Fixing Docker socket permissions..."
-                        sudo chown root:docker /var/run/docker.sock
-                        sudo chmod 660 /var/run/docker.sock
-                    fi
-                    
-                    # Mark WSL as configured BEFORE asking about restart
-                    mkdir -p "$(dirname "$wsl_state_file")"
-                    echo "WSL configured on $(date)" > "$wsl_state_file"
-                    
-                    log "WARN" "Docker permissions fixed. You need to log out and back in for group changes to take effect"
-                    log "INFO" "Would you like to restart the WSL session now? (y/n): "
-                    read -r response
-                    if [[ "$response" =~ ^[Yy]$ ]]; then
-                        log "INFO" "Requesting WSL restart...(Note this migh take a while as Docker Desktop has to restart)"
-                        # Use PowerShell to restart WSL
-                        powershell.exe -Command "wsl --shutdown" || true
-                        log "INFO" "WSL shutdown requested. Please restart your WSL session manually."
-                        exit 0
-                    else
-                        log "INFO" "Please restart your WSL session manually for changes to take effect"
-                    fi
-                else
-                    log "INFO" "User already in docker group, but Docker still not accessible"
-                    log "INFO" "This could be a Docker Desktop configuration issue"
-                    # Still mark as configured
-                    mkdir -p "$(dirname "$wsl_state_file")"
-                    echo "WSL configured on $(date)" > "$wsl_state_file"
-                fi
-            else
-                log "ERROR" "Docker group not found. Docker may not be properly installed"
-                # Still mark as configured to avoid endless loops
-                mkdir -p "$(dirname "$wsl_state_file")"
-                echo "WSL configured on $(date)" > "$wsl_state_file"
-            fi
-        else
-            log "INFO" "Docker permissions are correctly configured"
-            # Mark as configured
-            mkdir -p "$(dirname "$wsl_state_file")"
-            echo "WSL configured on $(date)" > "$wsl_state_file"
-        fi
-
-        log "INFO" "checking WSL integration..."
-        
-        if ! docker info &>/dev/null; then
-            log "WARN" "Docker command exists but daemon is not accessible."
-            log "INFO" "Please ensure Docker Desktop is running with WSL integration enabled for this distribution."
-            log "INFO" "Steps to enable:"
-            log "INFO" "1. Open Docker Desktop"
-            log "INFO" "2. Go to Settings > Resources > WSL Integration"
-            log "INFO" "3. Enable integration with this distribution"
-            log "INFO" "4. Click 'Apply & Restart'"
-        else
-            log "INFO" "Docker Desktop WSL integration is working correctly."
-        fi
-    else
-        # No Docker, but still mark as configured
-        mkdir -p "$(dirname "$wsl_state_file")"
-        echo "WSL configured on $(date)" > "$wsl_state_file"
-    fi
+    fix_docker_permissions
     
     # Configure systemd if not already enabled
     if ! grep -q "systemd=true" /etc/wsl.conf 2>/dev/null; then
@@ -198,6 +133,83 @@ EOF
     log "INFO" "WSL configuration complete and marked as configured"
 
     return 0
+}
+
+# New helper function to fix Docker permissions
+fix_docker_permissions() {
+    if command -v docker &>/dev/null; then
+        log "INFO" "Docker found, checking permissions..." "docker"
+        
+        # Test Docker connectivity with timeout (5 seconds)
+        if ! timeout 5 docker info &>/dev/null; then
+            log "WARN" "Docker permission issues detected" "docker"
+            
+            # Check if docker group exists
+            if getent group docker &>/dev/null; then
+                # Check if user is already in the docker group
+                if ! groups | grep -q docker; then
+                    log "INFO" "Adding current user to docker group..." "docker"
+                    sudo usermod -aG docker $USER
+                    
+                    # Fix socket permissions
+                    if [[ -S /var/run/docker.sock ]]; then
+                        log "INFO" "Fixing Docker socket permissions..." "docker"
+                        sudo chown root:docker /var/run/docker.sock
+                        sudo chmod 660 /var/run/docker.sock
+                    fi
+                    
+                    log "WARN" "Docker permissions fixed. You need to log out and back in for group changes to take effect"
+                    log "INFO" "Would you like to restart the WSL session now? (y/n): "
+                    read -r response
+                    if [[ "$response" =~ ^[Yy]$ ]]; then
+                        log "INFO" "Requesting WSL restart... (This might take a while as Docker Desktop has to restart)"
+                        # Use PowerShell to restart WSL
+                        powershell.exe -Command "wsl --shutdown" || true
+                        log "INFO" "WSL shutdown requested. Please restart your WSL session manually."
+                        exit 0
+                    else
+                        log "INFO" "Please restart your WSL session manually for changes to take effect"
+                    fi
+                else
+                    log "INFO" "User already in docker group, but Docker still not accessible" "docker"
+                    
+                    # Try to fix socket permissions anyway
+                    if [[ -S /var/run/docker.sock ]]; then
+                        log "INFO" "Fixing Docker socket permissions..." "docker"
+                        sudo chown root:docker /var/run/docker.sock
+                        sudo chmod 660 /var/run/docker.sock
+                        
+                        log "INFO" "Please try running docker commands again" "docker"
+                    fi
+                    
+                    log "INFO" "This could be a Docker Desktop configuration issue" "docker"
+                fi
+            else
+                log "INFO" "Docker group doesn't exist, creating..." "docker"
+                sudo groupadd docker
+                sudo usermod -aG docker $USER
+                
+                log "INFO" "Added docker group and current user to it" "docker"
+                log "WARN" "You need to log out and back in for group changes to take effect" "docker"
+            fi
+        else
+            log "INFO" "Docker permissions are correctly configured" "docker"
+        fi
+
+        log "INFO" "checking WSL integration..." "docker"
+        
+        if ! docker info &>/dev/null; then
+            log "WARN" "Docker command exists but daemon is not accessible." "docker"
+            log "INFO" "Please ensure Docker Desktop is running with WSL integration enabled for this distribution." "docker"
+            log "INFO" "Steps to enable:" "docker"
+            log "INFO" "1. Open Docker Desktop" "docker"
+            log "INFO" "2. Go to Settings > Resources > WSL Integration" "docker"
+            log "INFO" "3. Enable integration with this distribution" "docker"
+            log "INFO" "4. Click 'Apply & Restart'" "docker"
+        else
+            log "INFO" "Docker Desktop WSL integration is working correctly." "docker"
+        fi
+    fi
 }
 
 # Display module information
@@ -267,7 +279,7 @@ devenv-container exec   : Run command in module container
 Configuration:
 -------------
 Location: /etc/docker/daemon.json
-Container config: ${DEVENV_ROOT}/data/containers
+Container config: ${DEVENV_DATA_ROOT}/containers
 
 EOF
 
@@ -384,6 +396,12 @@ install_docker_core() {
             local install_cmd=$(get_docker_install_command)
             log "INFO" "Running: $install_cmd" "docker"
             sudo bash -c "$install_cmd"
+        fi
+    else
+        # Docker is already installed, but we should still run WSL setup for permissions
+        if is_wsl; then
+            log "INFO" "Docker already installed, configuring WSL environment..." "docker"
+            setup_wsl_environment
         fi
     fi
 
@@ -695,7 +713,7 @@ remove_docker() {
     fi
 
     # Remove DevEnv container management script
-    rm -f "$HOME/.devenv/devenv-container"
+    rm -f "$HOME/.devenv/bin/devenv-container"
 
     # Remove aliases
     remove_module_aliases "docker" "basic"

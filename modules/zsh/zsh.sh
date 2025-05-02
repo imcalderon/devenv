@@ -1,5 +1,5 @@
 #!/bin/bash
-# modules/zsh/zsh.sh - Minimal ZSH module implementation
+# modules/zsh/zsh.sh - Minimal ZSH module implementation with fixed shell switching
 
 # Load required utilities
 source "$SCRIPT_DIR/logging.sh"
@@ -22,6 +22,7 @@ COMPONENTS=(
     "keybindings"   # Vi mode and keybindings
     "completion"    # ZSH completion system
     "plugins"       # Minimal essential plugins
+    "shellchange"   # Set ZSH as default shell
 )
 
 # Display module information
@@ -125,6 +126,9 @@ EOF
                 "plugins")
                     echo "  Essential plugins: Active"
                     ;;
+                "shellchange")
+                    echo "  Default shell: ZSH"
+                    ;;
             esac
         else
             echo "✗ $component: Not installed"
@@ -172,6 +176,10 @@ verify_component() {
             ;;
         "plugins")
             verify_plugins
+            ;;
+        "shellchange")
+            # Verify that ZSH is the default shell
+            grep -q "$(command -v zsh)" /etc/passwd
             ;;
         *)
             return 1
@@ -315,28 +323,33 @@ setopt SHARE_HISTORY        # Share history between all sessions
 setopt EXTENDED_HISTORY     # Record timestamp of command in HISTFILE
 
 # Load completion system
-source "$ZDOTDIR/completion.zsh"
+[[ -f "$ZDOTDIR/completion.zsh" ]] && source "$ZDOTDIR/completion.zsh"
 
 # Load custom prompt
-source "$ZDOTDIR/prompt.zsh"
+[[ -f "$ZDOTDIR/prompt.zsh" ]] && source "$ZDOTDIR/prompt.zsh"
 
 # Load keybindings (vi-mode)
-source "$ZDOTDIR/keybindings.zsh"
+[[ -f "$ZDOTDIR/keybindings.zsh" ]] && source "$ZDOTDIR/keybindings.zsh"
 
 # Directory stack aliases
 alias d='dirs -v'
 for index ({1..9}) alias "$index"="cd +${index}"; unset index
 
 # Load essential plugins
-source "$ZDOTDIR/plugins.zsh"
+[[ -f "$ZDOTDIR/plugins.zsh" ]] && source "$ZDOTDIR/plugins.zsh"
 
 # Load aliases
 [[ -f "$ZDOTDIR/aliases" ]] && source "$ZDOTDIR/aliases"
 
 # Load modules aliases (added for devenv support)
-[[ -d "$ZDOTDIR/modules" ]] && for module_file in "$ZDOTDIR/modules"/*.zsh; do
-    [[ -f "$module_file" ]] && source "$module_file"
-done
+if [[ -d "$ZDOTDIR/modules" ]]; then
+    # Use null_glob to prevent errors when no files match
+    setopt null_glob
+    for module_file in "$ZDOTDIR/modules"/*.zsh; do
+        [[ -f "$module_file" ]] && source "$module_file"
+    done
+    unsetopt null_glob
+fi
 
 # Load any local customizations
 [[ -f "$ZDOTDIR/local.zsh" ]] && source "$ZDOTDIR/local.zsh"
@@ -377,6 +390,10 @@ alias df='df -h'
 alias du='du -h'
 alias free='free -m'
 EOF
+
+    # Create modules directory with placeholder
+    mkdir -p "$config_dir/modules"
+    echo "# Placeholder file for ZSH modules" > "$config_dir/modules/placeholder.zsh"
 
     return 0
 }
@@ -594,6 +611,40 @@ EOF
     return 0
 }
 
+# Change the user's default shell to zsh
+change_default_shell() {
+    log "INFO" "Changing default shell to ZSH..." "zsh"
+    
+    # Get the path to zsh
+    local zsh_path=$(command -v zsh)
+    
+    if [[ -z "$zsh_path" ]]; then
+        log "ERROR" "ZSH not found, cannot change shell" "zsh"
+        return 1
+    fi
+    
+    # Check if zsh is already the default shell
+    if grep -q "$zsh_path" /etc/passwd; then
+        log "INFO" "ZSH is already the default shell" "zsh"
+        return 0
+    fi
+    
+    # Change the shell
+    log "INFO" "Running: chsh -s $zsh_path" "zsh"
+    sudo chsh -s "$zsh_path" "$USER"
+    
+    if [ $? -ne 0 ]; then
+        log "ERROR" "Failed to change shell to ZSH" "zsh"
+        return 1
+    fi
+    
+    # Create a file to indicate that a logout and login is needed
+    touch "$HOME/.zsh_shell_changed"
+    
+    log "INFO" "Shell changed to ZSH. Please log out and back in for changes to take effect." "zsh"
+    return 0
+}
+
 # Install specific component
 install_component() {
     local component=$1
@@ -636,6 +687,13 @@ install_component() {
         "plugins")
             if configure_plugins; then
                 save_state "plugins" "installed"
+                return 0
+            fi
+            ;;
+        "shellchange")
+            # Always try to change the shell as the last step
+            if change_default_shell; then
+                save_state "shellchange" "installed"
                 return 0
             fi
             ;;
@@ -694,47 +752,22 @@ install_zsh() {
         done
     fi
     
-    # Setup ZSH environment without changing login shell
-    if [[ "$SHELL" != *"zsh"* ]]; then
-        # Set a global flag to indicate ZSH was installed but login shell not changed
-        export ZSH_INSTALLED=1
-        export ZSH_LOGIN_SHELL_PENDING=1
-        
-        # Create a zsh executor script in bin directory
-        local bin_dir="$HOME/.local/bin"
-        mkdir -p "$bin_dir"
-        
-        cat > "$bin_dir/zsh-exec" << 'EOF'
-#!/bin/bash
-# ZSH executor for DevEnv
-zsh_bin=$(command -v zsh)
-if [ -n "$zsh_bin" ]; then
-    $zsh_bin -c "$*"
-else
-    echo "Error: ZSH not found"
-    exit 1
-fi
-EOF
-        chmod +x "$bin_dir/zsh-exec"
-        
-        # Add this to PATH if needed
-        if ! echo "$PATH" | grep -q "$bin_dir"; then
-            export PATH="$bin_dir:$PATH"
-        fi
-        
-        log "INFO" "ZSH installed but login shell will be changed after all modules are installed." "zsh"
-        log "INFO" "Created zsh-exec helper script for other modules to use." "zsh"
-        
-        # If this is the end of all module installations, change login shell
-        if [[ "${DEVENV_FINAL_MODULE:-}" == "zsh" || "$force" == "true" ]]; then
-            log "INFO" "Changing login shell to ZSH..." "zsh"
-            chsh -s "$(command -v zsh)"
-            log "INFO" "Shell changed to zsh. Please log out and back in for changes to take effect." "zsh"
-        fi
-    fi
-    
     # Show module information after successful installation
     show_module_info
+    
+    # Inform user about shell change
+    if check_state "shellchange"; then
+        log "INFO" "ZSH is now set as your default shell." "zsh"
+        log "INFO" "Log out and log back in to start using ZSH." "zsh"
+        
+        # Prompt the user if they want to start a ZSH session now
+        echo ""
+        echo "Would you like to start a ZSH shell now? (y/n)"
+        read -r response
+        if [[ "$response" =~ ^[Yy]$ ]]; then
+            exec zsh -l
+        fi
+    fi
     
     return 0
 }
@@ -768,6 +801,12 @@ remove_zsh() {
     rm -f "$HOME/.zshenv"
     rm -rf "$HOME/.config/zsh"
     
+    # Change shell back to bash if it's currently zsh
+    if grep -q "$(command -v zsh)" /etc/passwd; then
+        log "INFO" "Changing shell back to bash..." "zsh"
+        sudo chsh -s "$(command -v bash)" "$USER"
+    fi
+    
     # Remove state file
     rm -f "$STATE_FILE"
     
@@ -793,11 +832,12 @@ case "${1:-}" in
         remove_zsh
         ;;
     finalize)
-        # This is a new action to handle final shell change after all other modules
-        if [[ "${ZSH_LOGIN_SHELL_PENDING:-0}" -eq 1 ]]; then
+        # This is for explicit finalization if needed
+        if ! check_state "shellchange"; then
             log "INFO" "Finalizing ZSH installation by changing login shell..." "zsh"
-            chsh -s "$(command -v zsh)"
-            log "INFO" "Shell changed to zsh. Please log out and back in for changes to take effect." "zsh"
+            if change_default_shell; then
+                save_state "shellchange" "installed"
+            fi
         fi
         ;;
     *)

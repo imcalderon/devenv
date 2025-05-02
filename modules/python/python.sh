@@ -96,9 +96,9 @@ EOF
         cat << 'EOF'
 Container Commands:
 -----------------
-$ devenv-container start python    # Start Python container
-$ devenv-container shell python    # Start a shell in the container
-$ devenv-container exec python pip list   # Run a command in container
+$ $HOME/.devenv/bin/devenv-container start python    # Start Python container
+$ $HOME/.devenv/bin/devenv-container shell python    # Start a shell in the container
+$ $HOME/.devenv/bin/devenv-container exec python pip list   # Run a command in container
 
 EOF
     fi
@@ -411,9 +411,9 @@ install_python_core() {
         # For containerized Python, use the container management script
         log "INFO" "Using containerized Python..." "python"
         
-        # Check for devenv-container executable before attempting to build
-        if ! command -v devenv-container &>/dev/null; then
-            log "ERROR" "devenv-container not found, required for containerized Python" "python"
+        # Check for $HOME/.devenv/bin/devenv-container executable before attempting to build
+        if ! command -v $HOME/.devenv/bin/devenv-container &>/dev/null; then
+            log "ERROR" "$HOME/.devenv/bin/devenv-container not found, required for containerized Python" "python"
             log "INFO" "Falling back to virtual environment..." "python"
             goto_venv_setup
             return $?
@@ -421,7 +421,7 @@ install_python_core() {
         
         # Try to build the container
         log "INFO" "Building Python container..." "python"
-        if ! devenv-container build python; then
+        if ! $HOME/.devenv/bin/devenv-container build python; then
             log "ERROR" "Failed to build Python container, falling back to virtual environment" "python"
             goto_venv_setup
             return $?
@@ -429,7 +429,7 @@ install_python_core() {
         
         # Start the container
         log "INFO" "Starting Python container..." "python"
-        if ! devenv-container start python; then
+        if ! $HOME/.devenv/bin/devenv-container start python; then
             log "ERROR" "Failed to start Python container, falling back to virtual environment" "python"
             goto_venv_setup
             return $?
@@ -505,7 +505,7 @@ install_python_packages() {
         local dev_packages=($(get_module_config "python" ".python.packages.development[]"))
         if [[ ${#dev_packages[@]} -gt 0 ]]; then
             log "INFO" "Installing development packages in container..." "python"
-            if ! devenv-container exec python pip install ${dev_packages[@]}; then
+            if ! $HOME/.devenv/bin/devenv-container exec python pip install ${dev_packages[@]}; then
                 log "ERROR" "Failed to install development packages in container" "python"
                 return 1
             fi
@@ -515,7 +515,7 @@ install_python_packages() {
         local lint_packages=($(get_module_config "python" ".python.packages.linting[]"))
         if [[ ${#lint_packages[@]} -gt 0 ]]; then
             log "INFO" "Installing linting packages in container..." "python"
-            if ! devenv-container exec python pip install ${lint_packages[@]}; then
+            if ! $HOME/.devenv/bin/devenv-container exec python pip install ${lint_packages[@]}; then
                 log "ERROR" "Failed to install linting packages in container" "python"
                 return 1
             fi
@@ -525,7 +525,7 @@ install_python_packages() {
         local data_packages=($(get_module_config "python" ".python.packages.utils.data_processing.packages[]"))
         if [[ ${#data_packages[@]} -gt 0 ]]; then
             log "INFO" "Installing data science packages in container..." "python"
-            if ! devenv-container exec python pip install ${data_packages[@]}; then
+            if ! $HOME/.devenv/bin/devenv-container exec python pip install ${data_packages[@]}; then
                 log "ERROR" "Failed to install data science packages in container" "python"
                 return 1
             fi
@@ -598,7 +598,7 @@ EOF
         # Create pylintrc from template or generate it
         if should_use_container "python"; then
             # For containerized Python, use the container to generate pylintrc
-            devenv-container exec python pylint --generate-rcfile > "$config_dir/pylintrc"
+            $HOME/.devenv/bin/devenv-container exec python pylint --generate-rcfile > "$config_dir/pylintrc"
         else
             # For non-containerized Python, use virtual environment
             local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
@@ -674,10 +674,10 @@ create_python_wrappers() {
 #!/bin/bash
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
+if command -v $HOME/.devenv/bin/devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Run Python in container
-    devenv-container exec python python "\$@"
+    $HOME/.devenv/bin/devenv-container exec python python "\$@"
 elif [ -f "$venv_dir/bin/python" ]; then
     # Run Python from virtual environment
     "$venv_dir/bin/python" "\$@"
@@ -693,10 +693,10 @@ EOF
 #!/bin/bash
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
+if command -v $HOME/.devenv/bin/devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Run pip in container
-    devenv-container exec python pip "\$@"
+    $HOME/.devenv/bin/devenv-container exec python pip "\$@"
 elif [ -f "$venv_dir/bin/pip" ]; then
     # Run pip from virtual environment
     "$venv_dir/bin/pip" "\$@"
@@ -717,10 +717,10 @@ if [ -z "\$1" ]; then
 fi
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
+if command -v $HOME/.devenv/bin/devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Create venv in container
-    devenv-container exec python python -m venv "\$1"
+    $HOME/.devenv/bin/devenv-container exec python python -m venv "\$1"
 elif [ -f "$venv_dir/bin/python" ]; then
     # Create venv using Python from main virtual environment
     "$venv_dir/bin/python" -m venv "\$1"
@@ -736,10 +736,10 @@ EOF
 #!/bin/bash
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
+if command -v $HOME/.devenv/bin/devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Run IPython in container
-    devenv-container exec python ipython "\$@"
+    $HOME/.devenv/bin/devenv-container exec python ipython "\$@"
 elif [ -f "$venv_dir/bin/ipython" ]; then
     # Run IPython from virtual environment
     "$venv_dir/bin/ipython" "\$@"
@@ -755,7 +755,7 @@ EOF
 #!/bin/bash
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
+if command -v $HOME/.devenv/bin/devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Start Jupyter in container with port forwarding
     docker exec -it -p 8888:8888 devenv-python jupyter lab --ip 0.0.0.0 --no-browser
@@ -774,10 +774,10 @@ EOF
 #!/bin/bash
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
+if command -v $HOME/.devenv/bin/devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Run Black in container
-    devenv-container exec python black "\$@"
+    $HOME/.devenv/bin/devenv-container exec python black "\$@"
 elif [ -f "$venv_dir/bin/black" ]; then
     # Run Black from virtual environment
     "$venv_dir/bin/black" "\$@"
@@ -793,10 +793,10 @@ EOF
 #!/bin/bash
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
+if command -v $HOME/.devenv/bin/devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Run Pylint in container
-    devenv-container exec python pylint "\$@"
+    $HOME/.devenv/bin/devenv-container exec python pylint "\$@"
 elif [ -f "$venv_dir/bin/pylint" ]; then
     # Run Pylint from virtual environment
     "$venv_dir/bin/pylint" "\$@"
@@ -812,10 +812,10 @@ EOF
 #!/bin/bash
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
+if command -v $HOME/.devenv/bin/devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Run MyPy in container
-    devenv-container exec python mypy "\$@"
+    $HOME/.devenv/bin/devenv-container exec python mypy "\$@"
 elif [ -f "$venv_dir/bin/mypy" ]; then
     # Run MyPy from virtual environment
     "$venv_dir/bin/mypy" "\$@"
@@ -831,10 +831,10 @@ EOF
 #!/bin/bash
 
 # Check if Python is containerized
-if command -v devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
+if command -v $HOME/.devenv/bin/devenv-container &>/dev/null && type should_containerize &>/dev/null && should_containerize "python" && \\
    docker ps -q --filter "name=devenv-python" &>/dev/null; then
     # Run PyTest in container
-    devenv-container exec python pytest "\$@"
+    $HOME/.devenv/bin/devenv-container exec python pytest "\$@"
 elif [ -f "$venv_dir/bin/pytest" ]; then
     # Run PyTest from virtual environment
     "$venv_dir/bin/pytest" "\$@"
@@ -873,22 +873,22 @@ setup_python_container() {
         return 1
     fi
     
-    # Ensure devenv-container is available
-    if ! command -v devenv-container &>/dev/null; then
-        log "ERROR" "devenv-container not found, please install Docker module first" "python"
+    # Ensure $HOME/.devenv/bin/devenv-container is available
+    if ! command -v $HOME/.devenv/bin/devenv-container &>/dev/null; then
+        log "ERROR" "$HOME/.devenv/bin/devenv-container not found, please install Docker module first" "python"
         return 1
     fi
     
     # Build Python container
     log "INFO" "Building Python container..." "python"
-    if ! devenv-container build python; then
+    if ! $HOME/.devenv/bin/devenv-container build python; then
         log "ERROR" "Failed to build Python container" "python"
         return 1
     fi
     
     # Start Python container
     log "INFO" "Starting Python container..." "python"
-    if ! devenv-container start python; then
+    if ! $HOME/.devenv/bin/devenv-container start python; then
         log "ERROR" "Failed to start Python container" "python"
         return 1
     fi
@@ -1032,8 +1032,8 @@ remove_python() {
     if should_use_container "python"; then
         log "INFO" "Stopping and removing Python container..." "python"
         
-        if command -v devenv-container &>/dev/null; then
-            devenv-container stop python
+        if command -v $HOME/.devenv/bin/devenv-container &>/dev/null; then
+            $HOME/.devenv/bin/devenv-container stop python
             docker rm -f devenv-python 2>/dev/null
         fi
     fi
