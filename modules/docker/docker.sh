@@ -13,6 +13,7 @@ init_module "docker" || exit 1
 
 # State file for tracking installation status
 STATE_FILE="$HOME/.devenv/state/docker.state"
+WSL_CONFIG_STATE="$HOME/.devenv/state/wsl_docker.state"
 
 # Define module components
 COMPONENTS=(
@@ -22,193 +23,108 @@ COMPONENTS=(
     "compose"       # Docker Compose installation
     "devenv"        # DevEnv container management
 )
-# Detect and configure WSL environment
-setup_wsl_environment() {
-    local force_flag="${1:-}"  # Set default empty value to avoid unbound variable
-    
-    # Only run this on Windows/WSL
-    if ! grep -q "microsoft" /proc/version 2>/dev/null; then
-        return 0
-    fi
-    
-    # Check if WSL is already configured
-    local wsl_state_file="${DEVENV_STATE_DIR}/wsl_configured"
-    if [[ -f "$wsl_state_file" ]] && [[ "$force_flag" != "--force" ]]; then
-        log "INFO" "WSL environment already configured, running permission check anyway..." "docker"
-        # Even if configured, check docker permissions
-        if command -v docker &>/dev/null; then
-            if ! timeout 5 docker info &>/dev/null; then
-                log "WARN" "Docker permissions need to be fixed" "docker"
-                fix_docker_permissions
-            else
-                log "INFO" "Docker permissions are properly configured" "docker"
-            fi
-        fi
-        return 0
-    fi
-    
-    log "INFO" "WSL environment detected, configuring for optimal performance..." "docker"
-    
-    # Get Windows home directory path
-    local windows_home=$(wslpath "$(cmd.exe /c "echo %USERPROFILE%" 2>/dev/null | tr -d '\r')")
-    local wslconfig="${windows_home}/.wslconfig"
-    
-    # Create optimized .wslconfig content
-    local wslconfig_content=$(cat << 'EOF'
-[wsl2]
-# Memory allocation
-memory=8GB
-# CPU allocation
-processors=4
-# Enable better GPU support
-gpuSupport=true
-# Enable experimental features
-nestedVirtualization=true
-# Network settings
-dnsTunneling=true
-firewall=true
-# Set swap storage
-swap=4GB
-# Set VM disk compression
-diskCompression=zstd
-EOF
-)
-    
-    # Check if .wslconfig already exists
-    if [[ -f "$wslconfig" ]]; then
-        log "WARN" "Existing .wslconfig found at $windows_home"
-        log "INFO" "DevEnv can create an optimized .wslconfig for better performance"
-        
-        # Ask user for permission to overwrite
-        read -p "Would you like to overwrite the existing .wslconfig with optimized settings? (y/n): " confirm
-        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-            log "INFO" "Keeping existing .wslconfig"
-        else
-            log "INFO" "Overwriting .wslconfig with optimized settings..."
-            echo "$wslconfig_content" > "$wslconfig"
-            log "INFO" "Created optimized .wslconfig file at $wslconfig"
-        fi
-    else
-        # No existing file, create a new one
-        log "INFO" "Creating optimized .wslconfig in Windows home directory..."
-        echo "$wslconfig_content" > "$wslconfig"
-        log "INFO" "Created optimized .wslconfig file at $wslconfig"
-    fi
-    
-    # Fix Docker permissions
-    fix_docker_permissions
-    
-    # Configure systemd if not already enabled
-    if ! grep -q "systemd=true" /etc/wsl.conf 2>/dev/null; then
-        log "INFO" "WSL distribution would benefit from systemd support."
-        read -p "Would you like to enable systemd in WSL? (requires sudo, y/n): " confirm
-        
-        if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
-            log "INFO" "Configuring systemd support in WSL..."
-            
-            sudo tee /etc/wsl.conf > /dev/null << EOF
-[boot]
-systemd=true
 
-[automount]
-enabled=true
-options=metadata,uid=1000,gid=1000,umask=022
 
-[network]
-generateResolvConf=true
 
-[interop]
-enabled=true
-appendWindowsPath=true
-EOF
-            
-            log "WARN" "WSL configured with systemd support. You must restart WSL for changes to take effect."
-            log "INFO" "Run 'wsl.exe --shutdown' from PowerShell to restart WSL."
-        fi
-    fi
-    
-    # Mark WSL as configured
-    mkdir -p "$(dirname "$wsl_state_file")"
-    echo "WSL configured on $(date)" > "$wsl_state_file"
-    log "INFO" "WSL configuration complete and marked as configured"
-
-    return 0
+# Detect if running in WSL
+is_wsl() {
+    grep -q "microsoft" /proc/version 2>/dev/null
+    return $?
 }
 
-# New helper function to fix Docker permissions
-fix_docker_permissions() {
-    if command -v docker &>/dev/null; then
-        log "INFO" "Docker found, checking permissions..." "docker"
-        
-        # Test Docker connectivity with timeout (5 seconds)
-        if ! timeout 5 docker info &>/dev/null; then
-            log "WARN" "Docker permission issues detected" "docker"
+# Verify Docker is fully functional in WSL environment
+# This function can be used by other modules (exported)
+verify_docker_wsl_integration() {
+    # Only applicable in WSL environments
+    if ! is_wsl; then
+        return 0  # Not in WSL, so no integration needed
+    fi
+    
+    # Check if Docker command exists
+    if ! command -v docker &>/dev/null; then
+        log "DEBUG" "Docker command not found" "docker"
+        return 1
+    fi
+    
+    # Check if Docker socket exists
+    if [[ ! -S /var/run/docker.sock ]] && [[ ! -S /var/run/docker-desktop.sock ]]; then
+        log "DEBUG" "No Docker socket found" "docker"
+        return 1
+    fi
+    
+    # Try to connect to Docker with timeout (increased from 5 to 10 seconds)
+    if ! timeout 10 docker info &>/dev/null; then
+        log "DEBUG" "Docker daemon not accessible within timeout" "docker"
+        return 1
+    fi
+    
+    # Check if current user is in docker group
+    if ! groups | grep -q docker; then
+        log "DEBUG" "Current user not in docker group" "docker"
+        return 1
+    fi
+    
+    # If we got here, Docker is correctly configured for WSL
+    return 0
+}
+# Export essential functions for other modules
+export -f is_wsl
+export -f verify_docker_wsl_integration
+# Check if Docker Desktop restart is needed
+is_restart_needed() {
+    # If a restart was requested but not completed, return true
+    if [[ -f "$WSL_CONFIG_STATE" ]]; then
+        local restart_time=$(grep "docker_restart_requested=" "$WSL_CONFIG_STATE" | cut -d '=' -f2)
+        if [[ -n "$restart_time" ]]; then
+            local current_time=$(date +%s)
+            local restart_age=$((current_time - restart_time))
             
-            # Check if docker group exists
-            if getent group docker &>/dev/null; then
-                # Check if user is already in the docker group
-                if ! groups | grep -q docker; then
-                    log "INFO" "Adding current user to docker group..." "docker"
-                    sudo usermod -aG docker $USER
-                    
-                    # Fix socket permissions
-                    if [[ -S /var/run/docker.sock ]]; then
-                        log "INFO" "Fixing Docker socket permissions..." "docker"
-                        sudo chown root:docker /var/run/docker.sock
-                        sudo chmod 660 /var/run/docker.sock
-                    fi
-                    
-                    log "WARN" "Docker permissions fixed. You need to log out and back in for group changes to take effect"
-                    log "INFO" "Would you like to restart the WSL session now? (y/n): "
-                    read -r response
-                    if [[ "$response" =~ ^[Yy]$ ]]; then
-                        log "INFO" "Requesting WSL restart... (This might take a while as Docker Desktop has to restart)"
-                        # Use PowerShell to restart WSL
-                        powershell.exe -Command "wsl --shutdown" || true
-                        log "INFO" "WSL shutdown requested. Please restart your WSL session manually."
-                        exit 0
-                    else
-                        log "INFO" "Please restart your WSL session manually for changes to take effect"
-                    fi
-                else
-                    log "INFO" "User already in docker group, but Docker still not accessible" "docker"
-                    
-                    # Try to fix socket permissions anyway
-                    if [[ -S /var/run/docker.sock ]]; then
-                        log "INFO" "Fixing Docker socket permissions..." "docker"
-                        sudo chown root:docker /var/run/docker.sock
-                        sudo chmod 660 /var/run/docker.sock
-                        
-                        log "INFO" "Please try running docker commands again" "docker"
-                    fi
-                    
-                    log "INFO" "This could be a Docker Desktop configuration issue" "docker"
-                fi
-            else
-                log "INFO" "Docker group doesn't exist, creating..." "docker"
-                sudo groupadd docker
-                sudo usermod -aG docker $USER
-                
-                log "INFO" "Added docker group and current user to it" "docker"
-                log "WARN" "You need to log out and back in for group changes to take effect" "docker"
+            # If restart was requested less than 1 hour ago and Docker isn't working
+            if [[ $restart_age -lt 3600 ]] && ! verify_docker_wsl_integration; then
+                return 0
             fi
-        else
-            log "INFO" "Docker permissions are correctly configured" "docker"
         fi
+    fi
+    
+    # No restart needed
+    return 1
+}
 
-        log "INFO" "checking WSL integration..." "docker"
+# Request WSL restart when needed
+request_wsl_restart() {
+    log "INFO" "A system restart is needed for Docker permissions to take effect" "docker"
+    
+    # Save state indicating Docker was just configured
+    mkdir -p "$(dirname "$WSL_CONFIG_STATE")"
+    echo "docker_restart_requested=$(date +%s)" > "$WSL_CONFIG_STATE"
+    
+    # Ask user if they want to restart now
+    echo -e "\n⚠️  Your WSL environment needs to restart for Docker permissions to take effect."
+    read -p "Would you like to restart WSL now? (y/n): " restart_now
+    if [[ "$restart_now" =~ ^[Yy]$ ]]; then
+        log "INFO" "Requesting WSL restart... this will close your current session" "docker"
+        echo -e "\n🔄 Shutting down WSL... Please restart your WSL session after shutdown completes."
+        echo "🛠️  After restarting, run the installation command again to continue setup."
         
-        if ! docker info &>/dev/null; then
-            log "WARN" "Docker command exists but daemon is not accessible." "docker"
-            log "INFO" "Please ensure Docker Desktop is running with WSL integration enabled for this distribution." "docker"
-            log "INFO" "Steps to enable:" "docker"
-            log "INFO" "1. Open Docker Desktop" "docker"
-            log "INFO" "2. Go to Settings > Resources > WSL Integration" "docker"
-            log "INFO" "3. Enable integration with this distribution" "docker"
-            log "INFO" "4. Click 'Apply & Restart'" "docker"
-        else
-            log "INFO" "Docker Desktop WSL integration is working correctly." "docker"
-        fi
+        # Request WSL shutdown with a delay to let the message be seen
+        sleep 2
+        powershell.exe -Command "wsl --shutdown" || true
+        log "INFO" "WSL shutdown requested" "docker"
+        exit 0
+    else
+        log "WARN" "Docker configuration is incomplete until you restart WSL" "docker"
+        echo -e "\n⚠️  You'll need to restart WSL manually before Docker will work correctly."
+        echo "📋 Run the following in PowerShell to restart when ready:"
+        echo "   wsl --shutdown"
+        return 1
+    fi
+}
+
+# Clear docker restart state
+clear_restart_state() {
+    if [[ -f "$WSL_CONFIG_STATE" ]]; then
+        # Keep the file but remove the restart request
+        sed -i '/docker_restart_requested=/d' "$WSL_CONFIG_STATE"
     fi
 }
 
@@ -292,28 +208,36 @@ EOF
             case "$component" in
                 "core")
                     if command -v docker &>/dev/null; then
-                        echo "  Version: $(docker --version)"
+                        echo "  Version: $(docker --version 2>/dev/null || echo "Not available")"
                     fi
                     ;;
                 "compose")
                     if command -v docker-compose &>/dev/null; then
-                        echo "  Compose Version: $(docker-compose --version)"
+                        echo "  Compose Version: $(docker-compose --version 2>/dev/null || echo "Not available")"
                     elif docker compose version &>/dev/null; then
-                        echo "  Compose Plugin: $(docker compose version)"
+                        echo "  Compose Plugin: $(docker compose version 2>/dev/null || echo "Not available")"
                     fi
                     ;;
                 "service")
-                    local running=false
-                    if command -v systemctl &>/dev/null && systemctl is-active --quiet docker; then
-                        running=true
-                    elif command -v docker &>/dev/null && docker info &>/dev/null; then
-                        running=true
-                    fi
-                    
-                    if $running; then
-                        echo "  Service: Running"
+                    if is_wsl; then
+                        if verify_docker_wsl_integration; then
+                            echo "  WSL Integration: Active"
+                        else
+                            echo "  WSL Integration: ⚠️ Configuration incomplete"
+                        fi
                     else
-                        echo "  Service: Not running"
+                        local running=false
+                        if command -v systemctl &>/dev/null && systemctl is-active --quiet docker; then
+                            running=true
+                        elif command -v docker &>/dev/null && docker info &>/dev/null; then
+                            running=true
+                        fi
+                        
+                        if $running; then
+                            echo "  Service: Running"
+                        else
+                            echo "  Service: Not running"
+                        fi
                     fi
                     ;;
             esac
@@ -321,6 +245,43 @@ EOF
             echo "✗ $component: Not installed"
         fi
     done
+    
+    # Show special WSL status if applicable
+    if is_wsl; then
+        echo -e "\nWSL Integration Status:"
+        echo "--------------------"
+        if verify_docker_wsl_integration; then
+            echo "✓ Docker Desktop WSL Integration: Active and working"
+        else
+            echo "✗ Docker Desktop WSL Integration: Not properly configured"
+            if command -v docker &>/dev/null; then
+                echo "  • Docker CLI is installed"
+            else
+                echo "  ✗ Docker CLI is not installed"
+            fi
+            
+            if groups | grep -q docker; then
+                echo "  • Current user is in the docker group"
+            else
+                echo "  ✗ Current user is not in the docker group"
+            fi
+            
+            if [[ -S /var/run/docker.sock ]]; then
+                echo "  • Docker socket exists"
+                if timeout 2 docker info &>/dev/null; then
+                    echo "  • Docker daemon is responsive"
+                else
+                    echo "  ✗ Docker daemon is not responsive"
+                    echo "    → Ensure Docker Desktop is running with WSL integration enabled"
+                    echo "    → You may need to restart WSL: 'wsl --shutdown' in PowerShell"
+                fi
+            else
+                echo "  ✗ Docker socket not found"
+                echo "    → Ensure Docker Desktop is running with WSL integration enabled"
+            fi
+        fi
+    fi
+    
     echo
 }
 
@@ -342,66 +303,250 @@ check_state() {
     return 1
 }
 
-# Check if running in WSL
-is_wsl() {
-    grep -q "microsoft" /proc/version 2>/dev/null
-    return $?
+# Get Docker socket path (handles both standard and WSL Desktop paths)
+get_docker_socket_path() {
+    if [[ -S /var/run/docker-desktop.sock ]]; then
+        echo "/var/run/docker-desktop.sock"
+    else
+        echo "/var/run/docker.sock"
+    fi
 }
 
-# Detect platform and return docker installation commands
-get_docker_install_command() {
-    if command -v apt-get &>/dev/null; then
-        # Debian/Ubuntu
-        echo "apt-get update && apt-get install -y docker.io docker-compose"
-    elif command -v dnf &>/dev/null; then
-        # Fedora/RHEL
-        echo "dnf -y install docker docker-compose"
-    elif command -v yum &>/dev/null; then
-        # Older RHEL/CentOS
-        echo "yum -y install docker docker-compose"
-    else
-        # Unknown platform, use official install script
-        echo 'curl -fsSL https://get.docker.com | sh'
+# Improved permission handling for Docker in WSL
+fix_docker_permissions() {
+    if command -v docker &>/dev/null; then
+        log "INFO" "Docker found, checking permissions..." "docker"
+        
+        # Determine which Docker socket to use
+        local docker_socket=$(get_docker_socket_path)
+        log "INFO" "Using Docker socket: $docker_socket" "docker"
+        
+        # Test Docker connectivity with timeout (10 seconds)
+        if ! timeout 10 docker info &>/dev/null; then
+            log "WARN" "Docker permission issues detected" "docker"
+            
+            # Check if docker group exists
+            if getent group docker &>/dev/null; then
+                # Check if user is already in the docker group
+                if ! groups | grep -q docker; then
+                    log "INFO" "Adding current user to docker group..." "docker"
+                    sudo usermod -aG docker $USER
+                    
+                    # Fix socket permissions
+                    if [[ -S "$docker_socket" ]]; then
+                        log "INFO" "Fixing Docker socket permissions..." "docker"
+                        sudo chown root:docker "$docker_socket"
+                        sudo chmod 660 "$docker_socket"
+                    fi
+                    
+                    log "WARN" "Docker permissions fixed. You need to log out and back in for group changes to take effect"
+                    # Signal that a restart is required
+                    request_wsl_restart
+                else
+                    log "INFO" "User already in docker group, but Docker still not accessible" "docker"
+                    
+                    # Try to fix socket permissions anyway
+                    if [[ -S "$docker_socket" ]]; then
+                        log "INFO" "Fixing Docker socket permissions..." "docker"
+                        sudo chown root:docker "$docker_socket"
+                        sudo chmod 660 "$docker_socket"
+                        
+                        log "INFO" "Please try running docker commands again" "docker"
+                    fi
+                    
+                    log "INFO" "This could be a Docker Desktop configuration issue" "docker"
+                    request_wsl_restart
+                fi
+            else
+                log "INFO" "Docker group doesn't exist, creating..." "docker"
+                sudo groupadd docker
+                sudo usermod -aG docker $USER
+                
+                log "INFO" "Added docker group and current user to it" "docker"
+                log "WARN" "You need to log out and back in for group changes to take effect" "docker"
+                request_wsl_restart
+            fi
+        else
+            log "INFO" "Docker permissions are correctly configured" "docker"
+            clear_restart_state
+        fi
+
+        log "INFO" "checking WSL integration..." "docker"
+        
+        if ! timeout 5 docker info &>/dev/null; then
+            log "WARN" "Docker command exists but daemon is not accessible." "docker"
+            log "INFO" "Please ensure Docker Desktop is running with WSL integration enabled for this distribution." "docker"
+            log "INFO" "Steps to enable:" "docker"
+            log "INFO" "1. Open Docker Desktop" "docker"
+            log "INFO" "2. Go to Settings > Resources > WSL Integration" "docker"
+            log "INFO" "3. Enable integration with this distribution" "docker"
+            log "INFO" "4. Click 'Apply & Restart'" "docker"
+        else
+            log "INFO" "Docker Desktop WSL integration is working correctly." "docker"
+            clear_restart_state
+        fi
     fi
+}
+
+# Detect and configure WSL environment
+setup_wsl_environment() {
+    local force_flag="${1:-}"  # Set default empty value to avoid unbound variable
+    
+    # Only run this on Windows/WSL
+    if ! is_wsl; then
+        return 0
+    fi
+    
+    # Check if WSL is already configured
+    local wsl_state_file="${DEVENV_STATE_DIR}/wsl_configured"
+    if [[ -f "$wsl_state_file" ]] && [[ "$force_flag" != "--force" ]]; then
+        log "INFO" "WSL environment already configured, running permission check anyway..." "docker"
+        # Even if configured, check docker permissions
+        fix_docker_permissions
+        return 0
+    fi
+    
+    log "INFO" "WSL environment detected, configuring for optimal performance..." "docker"
+    
+    # Get Windows home directory path
+    local windows_home=$(wslpath "$(cmd.exe /c "echo %USERPROFILE%" 2>/dev/null | tr -d '\r')")
+    local wslconfig="${windows_home}/.wslconfig"
+    
+    # Create optimized .wslconfig content
+    local wslconfig_content=$(cat << 'EOF'
+[wsl2]
+# Memory allocation
+memory=8GB
+# CPU allocation
+processors=4
+# Enable better GPU support
+gpuSupport=true
+# Enable experimental features
+nestedVirtualization=true
+# Network settings
+dnsTunneling=true
+firewall=true
+# Set swap storage
+swap=4GB
+# Set VM disk compression
+diskCompression=zstd
+EOF
+)
+    
+    # Check if .wslconfig already exists
+    if [[ -f "$wslconfig" ]]; then
+        log "WARN" "Existing .wslconfig found at $windows_home"
+        log "INFO" "DevEnv can create an optimized .wslconfig for better performance"
+        
+        # Ask user for permission to overwrite
+        read -p "Would you like to overwrite the existing .wslconfig with optimized settings? (y/n): " confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+            log "INFO" "Keeping existing .wslconfig"
+        else
+            log "INFO" "Overwriting .wslconfig with optimized settings..."
+            echo "$wslconfig_content" > "$wslconfig"
+            log "INFO" "Created optimized .wslconfig file at $wslconfig"
+        fi
+    else
+        # No existing file, create a new one
+        log "INFO" "Creating optimized .wslconfig in Windows home directory..."
+        echo "$wslconfig_content" > "$wslconfig"
+        log "INFO" "Created optimized .wslconfig file at $wslconfig"
+    fi
+    
+    # Fix Docker permissions
+    fix_docker_permissions
+    
+    # Configure systemd if not already enabled
+    if ! grep -q "systemd=true" /etc/wsl.conf 2>/dev/null; then
+        log "INFO" "WSL distribution would benefit from systemd support."
+        read -p "Would you like to enable systemd in WSL? (requires sudo, y/n): " confirm
+        
+        if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+            log "INFO" "Configuring systemd support in WSL..."
+            
+            sudo tee /etc/wsl.conf > /dev/null << EOF
+[boot]
+systemd=true
+
+[automount]
+enabled=true
+options=metadata,uid=1000,gid=1000,umask=022
+
+[network]
+generateResolvConf=true
+
+[interop]
+enabled=true
+appendWindowsPath=true
+EOF
+            
+            log "WARN" "WSL configured with systemd support. You must restart WSL for changes to take effect."
+            log "INFO" "Run 'wsl.exe --shutdown' from PowerShell to restart WSL."
+            request_wsl_restart
+        fi
+    fi
+    
+    # Mark WSL as configured
+    mkdir -p "$(dirname "$wsl_state_file")"
+    echo "WSL configured on $(date)" > "$wsl_state_file"
+    log "INFO" "WSL configuration complete and marked as configured"
+
+    return 0
 }
 
 # Install core Docker
 install_docker_core() {
+    # Check for restart needed first
+    if is_wsl && is_restart_needed; then
+        log "WARN" "Docker configuration is incomplete because WSL restart is needed" "docker"
+        request_wsl_restart
+        return 1
+    fi
+    
     if ! command -v docker &>/dev/null; then
         log "INFO" "Installing Docker..." "docker"
 
         if is_wsl; then
-            log "INFO" "WSL detected, installing Docker..." "docker"
-            if [[ "$2" == "true" ]]; then
-                # Enable force reconfiguration if --force is specified
-                # Remove the WSL configured flag if it exists
-                rm -f "${DEVENV_STATE_DIR}/wsl_configured"
-                setup_wsl_environment "--force"
-            else
-                # Normal configuration check
-                setup_wsl_environment
-            fi                   
+            log "INFO" "WSL detected, configuring Docker..." "docker"
+            setup_wsl_environment "$2"  # Pass force flag if present
+            
             # For WSL, we install Docker CLI only since we'll use Docker Desktop
             sudo apt-get update
             sudo apt-get install -y docker.io docker-compose
             
             # Create daemon configuration for Docker Desktop socket
             sudo mkdir -p /etc/docker
-            echo '{"hosts": ["unix:///var/run/docker.sock", "unix:///var/run/docker-desktop.sock"]}' | sudo tee /etc/docker/daemon.json
+            echo "{\"hosts\": [\"unix://$(get_docker_socket_path)\"]}" | sudo tee /etc/docker/daemon.json
             
             log "INFO" "Docker CLI installed for WSL" "docker"
             log "INFO" "Please ensure Docker Desktop for Windows is running with WSL integration enabled" "docker"
         else
             # Get and execute the installation command
-            local install_cmd=$(get_docker_install_command)
-            log "INFO" "Running: $install_cmd" "docker"
-            sudo bash -c "$install_cmd"
+            if command -v apt-get &>/dev/null; then
+                # Debian/Ubuntu
+                log "INFO" "Installing Docker with apt..." "docker"
+                sudo apt-get update
+                sudo apt-get install -y docker.io docker-compose
+            elif command -v dnf &>/dev/null; then
+                # Fedora/RHEL
+                log "INFO" "Installing Docker with dnf..." "docker"
+                sudo dnf -y install docker docker-compose
+            elif command -v yum &>/dev/null; then
+                # Older RHEL/CentOS
+                log "INFO" "Installing Docker with yum..." "docker"
+                sudo yum -y install docker docker-compose
+            else
+                # Unknown platform, use official install script
+                log "INFO" "Using Docker's official install script..." "docker"
+                curl -fsSL https://get.docker.com | sudo sh
+            fi
         fi
     else
         # Docker is already installed, but we should still run WSL setup for permissions
         if is_wsl; then
             log "INFO" "Docker already installed, configuring WSL environment..." "docker"
-            setup_wsl_environment
+            setup_wsl_environment "$2"  # Pass force flag if present
         fi
     fi
 
@@ -419,8 +564,22 @@ configure_docker_daemon() {
     log "INFO" "Configuring Docker daemon..." "docker"
 
     if is_wsl; then
-        # For WSL, we've already set up the daemon.json file in install_docker_core
-        log "INFO" "Docker daemon configured for WSL" "docker"
+        # For WSL, ensure socket path is correctly set
+        local docker_socket=$(get_docker_socket_path)
+        log "INFO" "Configuring Docker daemon for WSL using socket: $docker_socket" "docker"
+        
+        sudo mkdir -p /etc/docker
+        echo "{\"hosts\": [\"unix://$docker_socket\"]}" | sudo tee /etc/docker/daemon.json
+        
+        # Special check for Docker Desktop integration
+        log "INFO" "Checking Docker Desktop WSL integration..." "docker"
+        if ! timeout 5 docker info &>/dev/null; then
+            log "WARN" "Docker Desktop doesn't appear to be running or WSL integration might not be enabled" "docker"
+            log "INFO" "Please check that Docker Desktop is running and has WSL integration enabled for this distribution" "docker"
+        else
+            log "INFO" "Docker Desktop WSL integration is active" "docker"
+        fi
+        
         return 0
     fi
 
@@ -534,7 +693,7 @@ configure_devenv_containers() {
 # Wrapper for devenv-container
 bash "${module_bin_dir}/devenv-container" "\$@"
 EOF
-        sudo chmod +x "$bin_dir/devenv-container"
+        chmod +x "$bin_dir/devenv-container"
                 
         # Verify script is executable
         if [[ -x "$bin_dir/devenv-container" ]]; then
@@ -546,11 +705,13 @@ EOF
         log "ERROR" "devenv-container source not found" "docker"
     fi
     
-    # Add to PATH
-    echo 'export PATH="$PATH:'"${bin_dir}"'"' >> "$HOME/.bashrc"
+    # Add to PATH if not already there
+    if ! grep -q "$bin_dir" "$HOME/.bashrc"; then
+        echo 'export PATH="$PATH:'"${bin_dir}"'"' >> "$HOME/.bashrc"
+    fi
     
     # If ZSH exists, add to ZSH also
-    if [[ -f "$HOME/.zshrc" ]]; then
+    if [[ -f "$HOME/.zshrc" ]] && ! grep -q "$bin_dir" "$HOME/.zshrc"; then
         echo 'export PATH="$PATH:'"${bin_dir}"'"' >> "$HOME/.zshrc"
     fi
     
@@ -579,7 +740,7 @@ install_component() {
     
     case "$component" in
         "core")
-            if install_docker_core; then
+            if install_docker_core "$@"; then
                 save_state "core" "installed"
                 return 0
             fi
@@ -622,7 +783,7 @@ verify_component() {
         "daemon")
             # For WSL, we just check if Docker Desktop integration works
             if is_wsl; then
-                docker info &>/dev/null
+                timeout 5 docker info &>/dev/null
             else
                 # For native Linux, check if daemon.json exists
                 [[ -f "/etc/docker/daemon.json" ]]
@@ -631,13 +792,13 @@ verify_component() {
         "service")
             # For WSL, we check if Docker Desktop works
             if is_wsl; then
-                docker info &>/dev/null
+                timeout 5 docker info &>/dev/null
             else
                 # For native Linux, check if service is running
                 if command -v systemctl &>/dev/null; then
                     systemctl is-active --quiet docker
                 else
-                    docker info &>/dev/null
+                    timeout 5 docker info &>/dev/null
                 fi
             fi
             ;;
@@ -646,7 +807,7 @@ verify_component() {
             ;;
         "devenv")
             # Check if container management script exists and is executable
-            [[ -x "$HOME/bin/devenv-container" ]] && 
+            [[ -x "$HOME/.devenv/bin/devenv-container" ]] && 
             # Check if Docker aliases are configured
             list_module_aliases "docker" "basic" &>/dev/null && 
             list_module_aliases "docker" "container" &>/dev/null && 
@@ -670,12 +831,25 @@ grovel_docker() {
         fi
     done
     
+    # Special check for WSL restart
+    if is_wsl && is_restart_needed; then
+        log "WARN" "WSL restart needed to complete Docker configuration" "docker"
+        status=1
+    fi
+    
     return $status
 }
 
 # Install with state awareness
 install_docker() {
     local force=${1:-false}
+    
+    # Check for restart needed first
+    if is_wsl && is_restart_needed; then
+        log "WARN" "Docker configuration incomplete - WSL restart required" "docker"
+        request_wsl_restart
+        return 1
+    fi
     
     if [[ "$force" == "true" ]] || ! grovel_docker &>/dev/null; then
         create_backup
@@ -684,14 +858,34 @@ install_docker() {
     for component in "${COMPONENTS[@]}"; do
         if [[ "$force" == "true" ]] || ! check_state "$component" || ! verify_component "$component"; then
             log "INFO" "Installing component: $component" "docker"
-            if ! install_component "$component"; then
+            if ! install_component "$component" "$force"; then
                 log "ERROR" "Failed to install component: $component" "docker"
+                
+                # Special handling for WSL installs
+                if is_wsl && is_restart_needed; then
+                    log "WARN" "Docker installation incomplete - WSL restart required" "docker"
+                    request_wsl_restart
+                fi
+                
                 return 1
             fi
         else
             log "INFO" "Skipping already installed and verified component: $component" "docker"
         fi
     done
+    
+    # Additional step to verify WSL integration is working
+    if is_wsl && ! verify_docker_wsl_integration; then
+        log "WARN" "Docker installed but WSL integration is not working properly" "docker"
+        log "INFO" "Trying to fix Docker permissions..." "docker"
+        fix_docker_permissions
+        
+        if is_restart_needed; then
+            log "WARN" "Docker configuration incomplete - WSL restart required" "docker"
+            request_wsl_restart
+            return 1
+        fi
+    fi
     
     # Show module information after successful installation
     show_module_info
@@ -706,9 +900,9 @@ remove_docker() {
     # Stop and remove all DevEnv containers
     if command -v docker &>/dev/null; then
         log "INFO" "Stopping and removing DevEnv containers..." "docker"
-        for container in $(docker ps -a --format '{{.Names}}' | grep "^devenv-"); do
-            docker stop "$container" 2>/dev/null
-            docker rm "$container" 2>/dev/null
+        for container in $(docker ps -a --format '{{.Names}}' | grep "^devenv-" 2>/dev/null || echo ""); do
+            docker stop "$container" 2>/dev/null || true
+            docker rm "$container" 2>/dev/null || true
         done
     fi
 
@@ -720,8 +914,9 @@ remove_docker() {
     remove_module_aliases "docker" "container"
     remove_module_aliases "docker" "cleanup"
 
-    # Remove state file
+    # Remove state files
     rm -f "$STATE_FILE"
+    rm -f "$WSL_CONFIG_STATE"
 
     log "WARN" "Docker engine was preserved. Use 'sudo apt-get remove docker.io docker-compose' to remove completely." "docker"
 
@@ -740,16 +935,28 @@ verify_docker() {
         fi
     done
     
+    # Special verification for WSL integration
+    if is_wsl && ! verify_docker_wsl_integration; then
+        log "WARN" "Docker installed but WSL integration check failed" "docker"
+        log "INFO" "This may require a WSL restart to complete setup" "docker"
+        status=1
+    fi
+    
     if [ $status -eq 0 ]; then
         log "INFO" "Docker verification completed successfully" "docker"
-        docker --version
         
-        # Test Docker functionality
+        # Test Docker functionality with timeout to prevent hanging
         log "INFO" "Testing Docker functionality..." "docker"
-        if docker run --rm hello-world 2>/dev/null | grep -q "Hello from Docker!"; then
+        if timeout 20 docker run --rm hello-world 2>/dev/null | grep -q "Hello from Docker!"; then
             log "INFO" "Docker is functioning correctly" "docker"
         else
             log "WARN" "Docker hello-world test failed" "docker"
+            
+            if is_wsl; then
+                log "WARN" "This may be due to Docker Desktop not running or WSL integration being disabled" "docker"
+                log "INFO" "Please verify that Docker Desktop is running and WSL integration is enabled" "docker"
+            fi
+            
             status=1
         fi
     fi

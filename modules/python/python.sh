@@ -407,14 +407,13 @@ create_directories() {
 install_python_core() {
     log "INFO" "Installing Python core..." "python"
     
-    if should_use_container "python"; then
-        # For containerized Python, use the container management script
+    # Check if Docker module has been installed and is functional
+    if command -v docker &>/dev/null && docker info &>/dev/null && should_use_container "python"; then
         log "INFO" "Using containerized Python..." "python"
         
-        # Check for $HOME/.devenv/bin/devenv-container executable before attempting to build
+        # Check for container management tool
         if ! command -v $HOME/.devenv/bin/devenv-container &>/dev/null; then
-            log "ERROR" "$HOME/.devenv/bin/devenv-container not found, required for containerized Python" "python"
-            log "INFO" "Falling back to virtual environment..." "python"
+            log "WARN" "Container management tool not found, falling back to virtual environment" "python"
             goto_venv_setup
             return $?
         fi
@@ -422,7 +421,7 @@ install_python_core() {
         # Try to build the container
         log "INFO" "Building Python container..." "python"
         if ! $HOME/.devenv/bin/devenv-container build python; then
-            log "ERROR" "Failed to build Python container, falling back to virtual environment" "python"
+            log "WARN" "Failed to build Python container, falling back to virtual environment" "python"
             goto_venv_setup
             return $?
         fi
@@ -430,7 +429,7 @@ install_python_core() {
         # Start the container
         log "INFO" "Starting Python container..." "python"
         if ! $HOME/.devenv/bin/devenv-container start python; then
-            log "ERROR" "Failed to start Python container, falling back to virtual environment" "python"
+            log "WARN" "Failed to start Python container, falling back to virtual environment" "python"
             goto_venv_setup
             return $?
         fi
@@ -438,7 +437,7 @@ install_python_core() {
         log "INFO" "Python container setup complete" "python"
         return 0
     else
-        # For non-containerized Python, use virtual environment
+        log "INFO" "Docker not available or containerization not enabled, using virtual environment" "python"
         goto_venv_setup
         return $?
     fi
@@ -450,14 +449,21 @@ goto_venv_setup() {
     
     # Make sure Python is installed
     if ! command -v python3 &>/dev/null; then
-        log "INFO" "Installing Python using apt..." "python"
+        log "INFO" "Installing Python using system package manager..." "python"
         if command -v apt-get &>/dev/null; then
-            sudo apt-get update
-            sudo apt-get install -y python3 python3-pip python3-venv python3-dev
+            log "INFO" "Running: sudo apt-get update && sudo apt-get install -y python3 python3-pip python3-venv python3-dev" "python"
+            sudo apt-get update && sudo apt-get install -y python3 python3-pip python3-venv python3-dev
         elif command -v dnf &>/dev/null; then
+            log "INFO" "Running: sudo dnf install -y python3 python3-pip python3-devel" "python"
             sudo dnf install -y python3 python3-pip python3-devel
         else
             log "ERROR" "Unsupported package manager" "python"
+            return 1
+        fi
+        
+        # Verify Python installation
+        if ! command -v python3 &>/dev/null; then
+            log "ERROR" "Failed to install Python3" "python"
             return 1
         fi
     fi
@@ -469,21 +475,22 @@ goto_venv_setup() {
     # Create virtual environment if it doesn't exist
     if [[ ! -d "$venv_dir" ]]; then
         log "INFO" "Creating Python virtual environment in $venv_dir" "python"
+        mkdir -p "$(dirname "$venv_dir")"
         python3 -m venv "$venv_dir"
     fi
     
     # Verify the virtual environment was created
     if [[ ! -f "$venv_dir/bin/activate" ]]; then
-        log "ERROR" "Failed to create virtual environment" "python"
+        log "ERROR" "Failed to create virtual environment at $venv_dir" "python"
         return 1
     fi
     
     # Activate and update the virtual environment
+    log "INFO" "Activating virtual environment and updating pip" "python"
     source "$venv_dir/bin/activate"
-    log "INFO" "Updating pip in virtual environment..." "python"
     "$venv_dir/bin/pip" install --upgrade pip setuptools wheel
     
-    log "INFO" "Python virtual environment setup complete" "python"
+    log "INFO" "Python virtual environment setup complete at $venv_dir" "python"
     return 0
 }
 
