@@ -578,15 +578,15 @@ try {
         }
         'install' {
             $success = Install-Module
-            exit ($success ? 0 : 1)
+            if ($success) { exit 0 } else { exit 1 }
         }
         'remove' {
             $success = Remove-Module
-            exit ($success ? 0 : 1)
+            if ($success) { exit 0 } else { exit 1 }
         }
         'verify' {
             $success = Test-ModuleVerification
-            exit ($success ? 0 : 1)
+            if ($success) { exit 0 } else { exit 1 }
         }
         'info' {
             Show-ModuleInfo
