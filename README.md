@@ -1,237 +1,207 @@
-# DevEnv - Development Environment Manager 🛠️
+# DevEnv - Hermetic Development Environment 🛠️
 
-A comprehensive, modular development environment manager that automates the setup and configuration of development tools and services.
+> *A collaboration between human vision and AI precision*
 
-## Features 🌟
+DevEnv is a **hermetic, portable, container-aware development environment manager** born from a collaboration with Claude AI to create the ultimate reproducible development setup. This system embodies the philosophy that development environments should be predictable, isolated, and effortlessly portable across any platform.
 
-- **Modular Architecture**: Each tool/service is a self-contained module
-- **State Management**: Tracks installation state and ensures idempotent operations
-- **Backup Support**: Automatic backup of existing configurations
-- **Shell Integration**: ZSH configuration with custom aliases and functions
-- **Logging**: Detailed logging with different verbosity levels
-- **JSON Configuration**: Flexible, extensible configuration system
+## 🌟 Vision & Philosophy
 
-## Included Modules 📦
+**Hermetic by Design**: Every tool, configuration, and dependency is containerized and isolated, ensuring your development environment remains consistent regardless of the host system's state.
 
-- **Python** 🐍
-  - Complete Python development environment
-  - IPython, Jupyter, and development tools
-  - Code quality tools (Black, Pylint, Flake8)
-  - Common data science packages
+**Portable Across Worlds**: Whether you're on Windows with WSL, native Linux, macOS, or jumping between cloud instances, your entire development ecosystem travels with you.
 
-- **ZSH** 💻
-  - Oh My ZSH framework
-  - Powerlevel10k theme
-  - Curated plugin selection
-  - Custom aliases and functions
+**Container-Native**: Built with containerization as a first-class citizen, not an afterthought. Every module can run in isolation while maintaining seamless integration.
 
-- **Git** 🔄
-  - SSH key management
-  - GitHub integration
-  - Custom aliases
-  - Best practice configurations
+## 🚀 What Makes DevEnv Special
 
-- **VSCode** 📝
-  - Extension management
-  - Optimized settings
-  - Language-specific configurations
-  - Debugging profiles
+### 🔒 True Hermeticity
+- **Isolated Environments**: Each development tool runs in its own container or virtualized space
+- **No System Pollution**: Zero impact on your host system's configuration
+- **Reproducible Builds**: Identical environments across all platforms and team members
+- **State Management**: Every component's state is tracked and can be restored
 
-- **Docker** 🐳
-  - Docker Engine CE
-  - Docker Compose
-  - Resource management
-  - Helper functions
+### 🌍 Universal Portability
+- **Cross-Platform Core**: Native support for Windows, Linux, and macOS
+- **WSL Intelligent**: Seamless Windows Subsystem for Linux integration
+- **Cloud Ready**: Deploy your exact environment to any cloud instance
+- **Team Synchronization**: Share complete environments through configuration
 
-- **Conda** 🐍
-  - Miniconda installation
-  - Environment management
-  - Channel configuration
-  - IDE integration
+### 🐳 Container Intelligence
+- **Hybrid Architecture**: Seamlessly blend containerized and native tools
+- **Smart Fallbacks**: Automatic degradation from container → WSL → native
+- **Resource Optimization**: Intelligent container lifecycle management
+- **Docker Desktop Integration**: First-class Windows Docker Desktop support
 
-## Requirements 📋
+## 🏗️ Architecture
 
-- Linux-based operating system (Ubuntu/Debian or RHEL/CentOS/AlmaLinux)
-- Bash shell
-- Internet connection for package downloads
-- sudo privileges
+DevEnv employs a sophisticated **modular architecture** where each development tool is a self-contained module with:
 
-## Installation 🚀
+```
+DevEnv/
+├── Cross-Platform Entry Point (devenv)
+├── Platform Executors (devenv.sh, devenv.ps1)
+├── Module Ecosystem/
+│   ├── Core Tools (git, docker, vscode)
+│   ├── Languages (python, nodejs, go, rust)
+│   ├── Shells (zsh, powershell)
+│   └── Specialized (tiled, ldtk, phaser)
+├── Container Orchestra (devenv-container)
+├── State & Backup System
+└── Configuration Management
+```
 
-1. Clone the repository:
+## 🎯 Key Features
+
+### 🔧 **Intelligent Module System**
+- **State-Aware Installation**: Only install what's missing, verify what exists
+- **Dependency Resolution**: Automatic dependency management between modules
+- **Backup Integration**: Automatic configuration backup before changes
+- **Component Verification**: Health checks for every installed component
+
+### 🐋 **Container Excellence**
+- **Smart Execution**: Automatically choose container vs native execution
+- **Volume Management**: Persistent data and configuration mounting
+- **Network Intelligence**: Proper container networking and port management
+- **WSL Docker Integration**: Seamless Docker Desktop WSL2 backend support
+
+### 🖥️ **Platform Mastery**
+- **Windows Native**: PowerShell modules with admin privilege management
+- **WSL Aware**: Intelligent WSL distribution detection and configuration
+- **Linux Optimized**: Native package manager integration
+- **macOS Ready**: Homebrew and system integration
+
+### ⚙️ **Developer Experience**
+- **Zero Configuration**: Sensible defaults that just work
+- **Incremental Setup**: Install only what you need, when you need it
+- **Rich Aliases**: Productivity-enhancing command shortcuts
+- **Integrated Tooling**: VSCode, terminals, and development tools pre-configured
+
+## 🚀 Quick Start
+
+### One-Command Environment
 ```bash
-git clone https://github.com/yourusername/devenv.git
-cd devenv
+# Clone and initialize your hermetic development environment
+git clone <your-repo> devenv && cd devenv
+./devenv install
 ```
 
-2. Install all modules:
+### Selective Installation
 ```bash
-./devenv.sh install
+# Install specific development stacks
+./devenv install python docker vscode    # Data science ready
+./devenv install nodejs react git        # Web development ready
+./devenv install zsh git powershell      # Shell power user setup
 ```
 
-Or install specific modules:
+### Container-First Development
 ```bash
-./devenv.sh install python
-./devenv.sh install zsh
+# Use containerized Python without system installation
+./devenv install python --use-containers
+devenv-container start python
+devenv-container shell python
 ```
 
-## Usage 💡
+## 🧩 Available Modules
 
-### Basic Commands
+### 🛠️ **Core Development**
+- **git** - Enhanced Git with SSH management and ZSH integration
+- **docker** - Container orchestration with WSL integration
+- **vscode** - Full IDE setup with extensions and configurations
+- **python** - Scientific Python stack (containerized or virtual env)
+- **nodejs** - Modern Node.js with package management
 
+### 🐚 **Shell Environments**
+- **zsh** - Powerful shell with vi-mode and minimal configuration
+- **powershell** - Enhanced PowerShell with modules and profile
+
+### 🎮 **Game Development**
+- **phaser** - Web game development with TypeScript
+- **tiled** - Level editor with Docker support
+- **ldtk** - Modern level design tools
+
+### 📦 **Package Management**
+- **conda** - Scientific package management
+- **winget** - Windows package automation
+- **npm/yarn** - JavaScript ecosystem
+
+## 🌟 The Claude Collaboration
+
+This project represents a unique collaboration between human developer intuition and AI systematic thinking:
+
+- **Human Vision**: The desire for a truly portable, hermetic development environment
+- **AI Precision**: Systematic implementation of cross-platform compatibility
+- **Collaborative Design**: Iterative refinement of architecture and user experience
+- **Shared Problem-Solving**: Complex challenges like WSL Docker integration solved together
+
+## 🔮 Advanced Usage
+
+### Environment Templates
 ```bash
-# Install modules
-./devenv.sh install [module]        # Install all or specific module
-./devenv.sh install [module] --force # Force reinstallation
-
-# Remove modules
-./devenv.sh remove [module]         # Remove module configuration
-
-# Verify installation
-./devenv.sh verify [module]         # Verify module installation
-
-# Show module information
-./devenv.sh info [module]           # Display module details
+# Pre-configured development stacks
+./devenv install --template web_development     # React + Node.js + Docker
+./devenv install --template data_science        # Python + Jupyter + GPU support
+./devenv install --template game_development    # Phaser + Tiled + Asset pipeline
 ```
 
-### Module Management
-
+### Container Orchestration
 ```bash
-# Create new module
-./generate.sh mymodule             # Generate new module template
-
-# Backup configurations
-./devenv.sh backup [module]        # Create backup of module configs
-
-# Restore configurations
-./devenv.sh restore [module]       # Restore from latest backup
+# Manage your development containers
+devenv-container list                           # Show all containers
+devenv-container build python                   # Build Python environment
+devenv-container exec python jupyter lab        # Run Jupyter in container
 ```
 
-## Configuration 📝
-
-### Global Configuration
-
-Located at `config.json`:
-```json
-{
-    "version": "1.0.0",
-    "paths": {
-        "root": "$HOME/.devenv",
-        "logs": "$HOME/.devenv/logs",
-        "backups": "$HOME/.devenv/backups",
-        "state": "$HOME/.devenv/state",
-        "modules": "$HOME/.devenv/modules"
-    }
-}
-```
-
-### Module Configuration
-
-Each module has its own `config.json` in its directory:
-```json
-{
-    "enabled": true,
-    "runlevel": 1,
-    "backup": {
-        "paths": []
-    },
-    "shell": {
-        "paths": {},
-        "aliases": {}
-    }
-}
-```
-
-## Directory Structure 📁
-
-```
-devenv/
-├── config.json           # Global configuration
-├── devenv.sh            # Main script
-├── generate.sh          # Module generator
-├── lib/                 # Core utilities
-│   ├── logging.sh
-│   ├── json.sh
-│   ├── module.sh
-│   ├── backup.sh
-│   └── alias.sh
-└── modules/             # Module implementations
-    ├── python/
-    ├── zsh/
-    ├── git/
-    ├── vscode/
-    ├── docker/
-    └── conda/
-```
-
-## Creating New Modules 🔧
-
-1. Generate module template:
+### Cross-Platform Synchronization
 ```bash
-./generate.sh mymodule
+# Backup your entire environment
+./devenv backup
+# Restore on a new machine
+./devenv restore --from-backup
 ```
 
-2. Edit module configuration:
-```bash
-vim modules/mymodule/config.json
-```
+## 🎯 Use Cases
 
-3. Implement module functionality:
-```bash
-vim modules/mymodule/mymodule.sh
-```
+### **🌐 Distributed Teams**
+Ensure every team member has an identical development environment regardless of their host OS.
 
-## Best Practices 🎯
+### **☁️ Cloud Development**
+Spin up your complete development environment on any cloud instance in minutes.
 
-1. **Always Backup**: Use the backup system before making changes
-2. **State Management**: Track component states properly
-3. **Idempotency**: Ensure operations can be repeated safely
-4. **Error Handling**: Use the logging system effectively
-5. **Configuration**: Keep sensitive data out of configs
+### **🔒 Security-Conscious Development**
+Isolate development tools from your host system while maintaining full functionality.
 
-## Troubleshooting 🔍
+### **🚀 Rapid Prototyping**
+Quickly bootstrap new projects with pre-configured toolchains.
 
-### Common Issues
+### **📚 Education & Training**
+Provide students with consistent, reproducible development environments.
 
-1. **Permission Errors**
-   - Ensure proper sudo privileges
-   - Check file permissions in ~/.devenv
+## 🤝 Contributing
 
-2. **Module Dependencies**
-   - Verify all required packages are available
-   - Check network connectivity
+DevEnv thrives on community contributions! Whether you're:
 
-3. **State Inconsistencies**
-   - Clear state with `rm ~/.devenv/state/*`
-   - Reinstall module with --force
+- Adding new modules for emerging tools
+- Improving cross-platform compatibility
+- Enhancing container integration
+- Documenting best practices
 
-### Logging
+Your contributions help make development environments more hermetic and portable for everyone.
 
-- Check logs in `~/.devenv/logs/`
-- Use `LOG_LEVEL=DEBUG` for verbose output
+## 📜 Philosophy
 
-## Contributing 🤝
+> *"A development environment should be a precise instrument, not a collection of accidents."*
 
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open Pull Request
+DevEnv embodies the principle that development environments should be:
+- **Intentional**: Every component serves a purpose
+- **Reproducible**: Same environment, every time, everywhere
+- **Isolated**: No interference between projects or tools
+- **Portable**: Your environment follows you across platforms
 
-## License 📄
+## 🙏 Acknowledgments
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project exists thanks to the collaborative relationship between human creativity and AI assistance, proving that the best tools emerge when human vision meets systematic implementation.
 
-## Credits 👏
+---
 
-- Original implementation by Ivan Calderon
-- Inspired by various dotfile managers and development environment tools
-
-## Support 💪
-
-For support, please:
-1. Check the documentation
-2. Review closed issues
-3. Open new issue with detailed information
-
-Remember to include logs and system information when reporting issues.
+**Built with ❤️ through Human-AI Collaboration**  
+*Where human intuition meets AI precision*
