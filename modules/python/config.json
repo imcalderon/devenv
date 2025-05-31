@@ -5,232 +5,267 @@
         "docker"
     ],
     "backup": {
-      "paths": [
-        "${DEVENV_DATA_DIR}/python/config/pylintrc",
-        "${DEVENV_DATA_DIR}/python/config/pyproject.toml",
-        "${DEVENV_DATA_DIR}/python/config/flake8",
-        "${DEVENV_DATA_DIR}/python/venv"
-      ],
-      "retention_days": 30
+        "paths": [
+            "${DEVENV_PYTHON_DIR}/config/pylintrc",
+            "${DEVENV_PYTHON_DIR}/config/pyproject.toml",
+            "${DEVENV_PYTHON_DIR}/config/flake8",
+            "${DEVENV_PYTHON_DIR}/venv"
+        ],
+        "retention_days": 30
     },
     "shell": {
-      "paths": {
-        "config_dir": "${DEVENV_DATA_DIR}/python/config",
-        "bin_dir": "${DEVENV_DATA_DIR}/python/bin",
-        "venv_dir": "${DEVENV_DATA_DIR}/python/venv",
-        "projects_dir": "${HOME}/Projects/python"
-      },
-      "aliases": {
-        "python": {
-          "py": "python3",
-          "ipy": "ipython",
-          "pylab": "ipython --pylab",
-          "jlab": "jupyter lab"
+        "paths": {
+            "config_dir": "${DEVENV_PYTHON_DIR}/config",
+            "bin_dir": "${DEVENV_PYTHON_DIR}/bin",
+            "venv_dir": "${DEVENV_PYTHON_DIR}/venv",
+            "projects_dir": "${DEVENV_DATA_DIR}/projects/python",
+            "cache_dir": "${DEVENV_PYTHON_DIR}/cache",
+            "pip_cache": "${DEVENV_PYTHON_DIR}/cache/pip",
+            "jupyter_dir": "${DEVENV_PYTHON_DIR}/jupyter"
         },
-        "tools": {
-          "lint": "pylint",
-          "fmt": "black",
-          "mypy": "mypy",
-          "pytest": "pytest -v"
-        },
-        "venv": {
-          "venv-create": "python3 -m venv",
-          "venv-activate": "source"
+        "aliases": {
+            "python": {
+                "py": "python3",
+                "ipy": "ipython",
+                "pylab": "ipython --pylab",
+                "jlab": "jupyter lab",
+                "pyvenv": "${DEVENV_PYTHON_DIR}/venv/Scripts/python.exe"
+            },
+            "tools": {
+                "lint": "pylint",
+                "fmt": "black",
+                "mypy": "mypy",
+                "pytest": "pytest -v"
+            },
+            "venv": {
+                "venv-create": "python3 -m venv",
+                "venv-activate": "${DEVENV_PYTHON_DIR}/venv/Scripts/Activate.ps1"
+            }
         }
-      }
     },
     "python": {
-      "version": "3.10",
-      "packages": {
-        "development": [
-          "ipython",
-          "jupyter",
-          "jupyterlab",
-          "notebook"
-        ],
-        "build": [
-          "build",
-          "twine",
-          "setuptools",
-          "wheel",
-          "pip"
-        ],
-        "linting": [
-          "black",
-          "pylint",
-          "flake8",
-          "mypy",
-          "isort",
-          "bandit"
-        ],
-        "testing": [
-          "pytest",
-          "pytest-cov",
-          "pytest-benchmark",
-          "tox"
-        ],
-        "utils": {
-          "data_processing": {
-            "packages": [
-              "numpy",
-              "pandas",
-              "scipy"
+        "version": "3.11",
+        "packages": {
+            "development": [
+                "ipython",
+                "jupyter",
+                "jupyterlab",
+                "notebook"
             ],
-            "optional": [
-              "matplotlib",
-              "seaborn"
-            ]
-          },
-          "web": {
-            "packages": [
-              "requests",
-              "httpx",
-              "beautifulsoup4"
-            ]
-          }
-        }
-      },
-      "config": {
-        "pylint": {
-          "disable": [
-            "C0111",
-            "C0103"
-          ],
-          "max-line-length": 100,
-          "good-names": [
-            "i",
-            "j",
-            "k",
-            "ex",
-            "Run",
-            "_"
-          ]
+            "build": [
+                "build",
+                "twine",
+                "setuptools",
+                "wheel",
+                "pip"
+            ],
+            "linting": [
+                "black",
+                "pylint",
+                "flake8",
+                "mypy",
+                "isort",
+                "bandit"
+            ],
+            "testing": [
+                "pytest",
+                "pytest-cov",
+                "pytest-benchmark",
+                "tox"
+            ],
+            "utils": {
+                "data_processing": {
+                    "packages": [
+                        "numpy",
+                        "pandas",
+                        "scipy"
+                    ],
+                    "optional": [
+                        "matplotlib",
+                        "seaborn"
+                    ]
+                },
+                "web": {
+                    "packages": [
+                        "requests",
+                        "httpx",
+                        "beautifulsoup4"
+                    ]
+                }
+            }
         },
-        "black": {
-          "line-length": 100,
-          "target-version": [
-            "py310"
-          ]
-        },
-        "flake8": {
-          "max-line-length": 100,
-          "ignore": [
-            "E203",
-            "W503"
-          ]
+        "config": {
+            "pylint": {
+                "disable": [
+                    "C0111",
+                    "C0103"
+                ],
+                "max-line-length": 100,
+                "good-names": [
+                    "i",
+                    "j",
+                    "k",
+                    "ex",
+                    "Run",
+                    "_"
+                ]
+            },
+            "black": {
+                "line-length": 100,
+                "target-version": [
+                    "py311"
+                ]
+            },
+            "flake8": {
+                "max-line-length": 100,
+                "ignore": [
+                    "E203",
+                    "W503"
+                ]
+            }
         }
-      }
     },
     "platforms": {
-      "linux": {
-        "enabled": true,
-        "package": {
-          "manager": "apt",
-          "name": "python3",
-          "packages": [
-            "python3",
-            "python3-pip",
-            "python3-venv",
-            "python3-dev"
-          ]
+        "linux": {
+            "enabled": true,
+            "package": {
+                "manager": "apt",
+                "name": "python3",
+                "packages": [
+                    "python3",
+                    "python3-pip",
+                    "python3-venv",
+                    "python3-dev"
+                ]
+            },
+            "shell": {
+                "paths": {
+                    "system_python": "/usr/bin/python3",
+                    "system_pip": "/usr/bin/pip3"
+                }
+            }
         },
-        "shell": {
-          "paths": {
-            "system_python": "/usr/bin/python3",
-            "system_pip": "/usr/bin/pip3"
-          }
+        "darwin": {
+            "enabled": true,
+            "package": {
+                "manager": "brew",
+                "name": "python@3.11",
+                "packages": [
+                    "python@3.11"
+                ]
+            },
+            "shell": {
+                "paths": {
+                    "system_python": "/usr/local/bin/python3",
+                    "system_pip": "/usr/local/bin/pip3"
+                }
+            }
+        },
+        "windows": {
+            "enabled": true,
+            "package": {
+                "manager": "winget",
+                "name": "Python.Python.3.11",
+                "packages": [
+                    "Python.Python.3.11"
+                ]
+            },
+            "shell": {
+                "paths": {
+                    "system_python": "python.exe",
+                    "system_pip": "pip.exe",
+                    "venv_python": "${DEVENV_PYTHON_DIR}/venv/Scripts/python.exe",
+                    "venv_pip": "${DEVENV_PYTHON_DIR}/venv/Scripts/pip.exe"
+                }
+            },
+            "wsl": {
+                "enabled": true,
+                "distribution": "Ubuntu-22.04"
+            }
         }
-      },
-      "darwin": {
-        "enabled": true,
-        "package": {
-          "manager": "brew",
-          "name": "python@3.10",
-          "packages": [
-            "python@3.10"
-          ]
-        },
-        "shell": {
-          "paths": {
-            "system_python": "/usr/local/bin/python3",
-            "system_pip": "/usr/local/bin/pip3"
-          }
-        }
-      },
-      "windows": {
-        "enabled": true,
-        "package": {
-          "manager": "choco",
-          "name": "python",
-          "packages": [
-            "python3"
-          ]
-        },
-        "shell": {
-          "paths": {
-            "system_python": "C:\\Python310\\python.exe",
-            "system_pip": "C:\\Python310\\Scripts\\pip.exe"
-          }
-        },
-        "wsl": {
-          "enabled": true,
-          "distribution": "Ubuntu-20.04"
-        }
-      }
     },
     "container": {
-      "enabled": true,
-      "image": "python:3.10-slim",
-      "workdir": "/app",
-      "volumes": [
-        "${DEVENV_DATA_DIR}/python:/config",
-        "${HOME}/Projects:/projects"
-      ],
-      "environment": {
-        "PYTHONPATH": "/app",
-        "PYTHONUSERBASE": "/config",
-        "PIP_CONFIG_FILE": "/config/pip.conf"
-      },
-      "cmd": "python3",
-      "jupyter": {
-        "image": "jupyter/minimal-notebook",
-        "port": 8888,
-        "volumes": [
-          "${DEVENV_DATA_DIR}/jupyter:/home/jovyan/.jupyter",
-          "${HOME}/Projects:/home/jovyan/work"
-        ]
-      },
-      "vscode": {
         "enabled": true,
-        "devcontainer": {
-          "dockerfile": "${DEVENV_DATA_DIR}/python/Dockerfile.dev",
-          "extensions": [
-            "ms-python.python",
-            "ms-python.vscode-pylance",
-            "ms-toolsai.jupyter"
-          ]
+        "image": "python:3.11-slim",
+        "workdir": "/home/user/workspace",
+        "volumes": [
+            "${DEVENV_PYTHON_DIR}:/home/user/.local",
+            "${DEVENV_DATA_DIR}/projects:/home/user/workspace",
+            "${DEVENV_PYTHON_DIR}/jupyter:/home/user/.jupyter"
+        ],
+        "environment": {
+            "PYTHONPATH": "/home/user/workspace",
+            "PYTHONUSERBASE": "/home/user/.local",
+            "PIP_CACHE_DIR": "/home/user/.local/cache/pip",
+            "JUPYTER_CONFIG_DIR": "/home/user/.jupyter"
+        },
+        "ports": [
+            "8888:8888"
+        ],
+        "cmd": "python3",
+        "jupyter": {
+            "image": "jupyter/minimal-notebook",
+            "port": 8888,
+            "volumes": [
+                "${DEVENV_PYTHON_DIR}/jupyter:/home/jovyan/.jupyter",
+                "${DEVENV_DATA_DIR}/projects:/home/jovyan/work"
+            ]
+        },
+        "vscode": {
+            "enabled": true,
+            "devcontainer": {
+                "dockerfile": "${DEVENV_PYTHON_DIR}/Dockerfile.dev",
+                "extensions": [
+                    "ms-python.python",
+                    "ms-python.vscode-pylance",
+                    "ms-toolsai.jupyter"
+                ]
+            }
         }
-      }
     },
     "vscode": {
-      "extensions": [
-        "ms-python.python",
-        "ms-python.vscode-pylance",
-        "ms-toolsai.jupyter",
-        "njpwerner.autodocstring"
-      ],
-      "settings": {
-        "python.linting.enabled": true,
-        "python.linting.pylintEnabled": true,
-        "python.linting.flake8Enabled": true,
-        "python.linting.mypyEnabled": true,
-        "python.formatting.provider": "black",
-        "python.formatting.blackArgs": [
-          "--line-length",
-          "100"
+        "extensions": [
+            "ms-python.python",
+            "ms-python.vscode-pylance",
+            "ms-toolsai.jupyter",
+            "njpwerner.autodocstring"
         ],
-        "editor.formatOnSave": true,
-        "python.analysis.typeCheckingMode": "basic"
-      }
+        "settings": {
+            "python.defaultInterpreterPath": "${DEVENV_PYTHON_DIR}/venv/Scripts/python.exe",
+            "python.venvPath": "${DEVENV_PYTHON_DIR}",
+            "python.linting.enabled": true,
+            "python.linting.pylintEnabled": true,
+            "python.linting.pylintPath": "${DEVENV_PYTHON_DIR}/venv/Scripts/pylint.exe",
+            "python.linting.flake8Enabled": true,
+            "python.linting.flake8Path": "${DEVENV_PYTHON_DIR}/venv/Scripts/flake8.exe",
+            "python.linting.mypyEnabled": true,
+            "python.linting.mypyPath": "${DEVENV_PYTHON_DIR}/venv/Scripts/mypy.exe",
+            "python.formatting.provider": "black",
+            "python.formatting.blackPath": "${DEVENV_PYTHON_DIR}/venv/Scripts/black.exe",
+            "python.formatting.blackArgs": [
+                "--line-length",
+                "100",
+                "--config",
+                "${DEVENV_PYTHON_DIR}/config/pyproject.toml"
+            ],
+            "editor.formatOnSave": true,
+            "python.analysis.typeCheckingMode": "basic",
+            "jupyter.jupyterServerType": "local",
+            "jupyter.notebookFileRoot": "${DEVENV_DATA_DIR}/projects"
+        }
+    },
+    "hermetic": {
+        "description": "Complete Python isolation within environment data directory",
+        "isolation_level": "complete",
+        "data_directories": [
+            "venv",
+            "config", 
+            "cache",
+            "jupyter",
+            "bin"
+        ],
+        "no_system_pollution": true,
+        "portable": true,
+        "shareable": true
     }
 }
