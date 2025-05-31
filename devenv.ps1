@@ -258,8 +258,11 @@ function Initialize-Environment {
     Write-DevEnvLog "  Docker Available: $($script:DockerAvailable)" -Level Verbose
     
     # Set up environment variables with explicit machine scope to ensure inheritance
+    # IMPORTANT: Use the same variable names that the utility libraries expect
     $envVars = @{
-        'DEVENV_ROOT' = $RootDirectory
+        'ROOT_DIR' = $RootDirectory  # This is what lib/windows/*.ps1 utilities expect
+        'DEVENV_ROOT' = $RootDirectory  # Keep for compatibility
+        'CONFIG_FILE' = Join-Path $RootDirectory "config.json"
         'DEVENV_DATA_DIR' = Join-Path $env:USERPROFILE ".devenv"
         'DEVENV_CONFIG_DIR' = Join-Path $RootDirectory "config"
         'DEVENV_MODULES_DIR' = Join-Path $RootDirectory "modules"
@@ -497,8 +500,16 @@ function Invoke-NativeModule {
         
         if (-not $script:DryRun) {
             # Create a new PowerShell process with inherited environment to ensure proper variable inheritance
+            # Include BOTH the old and new variable names for compatibility
             $envArgs = @()
-            foreach ($envVar in @('DEVENV_ROOT', 'DEVENV_DATA_DIR', 'DEVENV_MODULES_DIR', 'DEVENV_STATE_DIR', 'DEVENV_LOGS_DIR', 'DEVENV_BACKUPS_DIR', 'DEVENV_PLATFORM', 'DEVENV_EXECUTION_MODE', 'DEVENV_PREFER_CONTAINERS')) {
+            $envVarsToPass = @(
+                'ROOT_DIR', 'CONFIG_FILE',  # What utilities expect
+                'DEVENV_ROOT', 'DEVENV_DATA_DIR', 'DEVENV_MODULES_DIR',  # What main script sets
+                'DEVENV_STATE_DIR', 'DEVENV_LOGS_DIR', 'DEVENV_BACKUPS_DIR',
+                'DEVENV_PLATFORM', 'DEVENV_EXECUTION_MODE', 'DEVENV_PREFER_CONTAINERS'
+            )
+            
+            foreach ($envVar in $envVarsToPass) {
                 $value = [System.Environment]::GetEnvironmentVariable($envVar)
                 if ($value) {
                     $envArgs += "`$env:$envVar = '$value';"

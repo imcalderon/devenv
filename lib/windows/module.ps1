@@ -1,6 +1,6 @@
 # lib/windows/module.ps1 - PowerShell module utilities
 
-# Get module configuration
+# Get module configuration with robust path resolution
 function Get-ModuleConfig {
     param (
         [string]$Module,
@@ -9,7 +9,31 @@ function Get-ModuleConfig {
         [string]$Platform = "windows"
     )
     
-    $configFile = "$env:ROOT_DIR\modules\$Module\config.json"
+    # Try multiple environment variable names for compatibility
+    $rootDir = $env:ROOT_DIR
+    if (-not $rootDir) {
+        $rootDir = $env:DEVENV_ROOT
+    }
+    if (-not $rootDir) {
+        # Fallback to script location
+        $rootDir = $PSScriptRoot
+        if ($rootDir) {
+            # Navigate up to find the root directory (assuming we're in lib/windows)
+            $rootDir = Split-Path (Split-Path $rootDir -Parent) -Parent
+        }
+    }
+    
+    if (-not $rootDir) {
+        Write-LogError "Cannot determine DevEnv root directory. Please ensure ROOT_DIR or DEVENV_ROOT environment variable is set." $Module
+        return $Default
+    }
+    
+    $configFile = Join-Path $rootDir "modules\$Module\config.json"
+    
+    if (-not (Test-Path $configFile)) {
+        Write-LogError "Module configuration not found: $configFile" $Module
+        return $Default
+    }
     
     # Get platform-specific or global configuration
     $value = Get-ConfigValue $configFile $Key $Default $Platform $Module
@@ -77,16 +101,27 @@ function Test-Module {
         [string]$Module
     )
     
-    $configFile = "$env:ROOT_DIR\modules\$Module\config.json"
-    
-    # Check for required files
-    if (-not (Test-Path $configFile)) {
-        Write-LogError "Module configuration not found" $Module
+    # Try multiple environment variable names for compatibility
+    $rootDir = $env:ROOT_DIR
+    if (-not $rootDir) {
+        $rootDir = $env:DEVENV_ROOT
+    }
+    if (-not $rootDir) {
+        Write-LogError "Cannot determine DevEnv root directory" $Module
         return $false
     }
     
-    if (-not (Test-Path "$env:ROOT_DIR\modules\$Module\$Module.ps1")) {
-        Write-LogError "Module script not found" $Module
+    $configFile = Join-Path $rootDir "modules\$Module\config.json"
+    
+    # Check for required files
+    if (-not (Test-Path $configFile)) {
+        Write-LogError "Module configuration not found: $configFile" $Module
+        return $false
+    }
+    
+    $moduleScript = Join-Path $rootDir "modules\$Module\$Module.ps1"
+    if (-not (Test-Path $moduleScript)) {
+        Write-LogError "Module script not found: $moduleScript" $Module
         return $false
     }
     
@@ -116,10 +151,15 @@ function Initialize-Module {
     $env:LOG_LEVEL = $currentLogLevel
     Initialize-Logging $Module
     
-    # Export module context variables
+    # Export module context variables with robust path resolution
+    $rootDir = $env:ROOT_DIR
+    if (-not $rootDir) {
+        $rootDir = $env:DEVENV_ROOT
+    }
+    
     $env:MODULE_NAME = $Module
-    $env:MODULE_DIR = "$env:ROOT_DIR\modules\$Module"
-    $env:MODULE_CONFIG = "$env:MODULE_DIR\config.json"
+    $env:MODULE_DIR = Join-Path $rootDir "modules\$Module"
+    $env:MODULE_CONFIG = Join-Path $env:MODULE_DIR "config.json"
     
     return $true
 }
