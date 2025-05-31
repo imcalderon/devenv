@@ -1,6 +1,11 @@
 {
     "enabled": true,
     "runlevel": 2,
+    "platforms": {
+        "windows": {
+        "enabled": true
+        }
+    },
     "backup": {
         "paths": [
             "$HOME/.gitconfig",

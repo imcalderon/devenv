@@ -488,54 +488,54 @@ function Test-ModuleVerification {
 }
 
 function Show-ModuleInfo {
-    $header = @"
-
-⚡ PowerShell Development Environment
-===================================
-
-Description:
------------
-Enhanced PowerShell environment with modern modules, improved prompt,
-and integrated development tools for Windows.
-
-Benefits:
---------
-✓ Enhanced Command Line - PSReadLine with prediction and history
-✓ Git Integration - posh-git for repository status in prompt  
-✓ Modern Modules - Latest PowerShell modules for development
-✓ Custom Aliases - Convenient shortcuts for common tasks
-✓ Profile Management - Automated profile setup and maintenance
-
-Components:
-----------
-1. Core PowerShell
-   - PowerShell 7+ (if available)
-   - Execution policy configuration
-   - Module path management
-
-2. Essential Modules
-   - PSReadLine for enhanced editing
-   - posh-git for Git integration
-   - Terminal-Icons for file type icons
-   - PowerShellGet for module management
-
-3. Enhanced Profile
-   - Custom prompt with Git status
-   - Key bindings and shortcuts
-   - Auto-import commonly used modules
-   - History and prediction settings
-
-Quick Commands:
---------------
-Get-Help about_*     # PowerShell help topics
-Get-Module           # List loaded modules
-Get-Command          # Find commands
-Get-History          # Command history
-
-"@
-
-    Write-Host $header -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "PowerShell Development Environment" -ForegroundColor Cyan
+    Write-Host "=================================" -ForegroundColor Cyan
+    Write-Host ""
     
+    Write-Host "Description:" -ForegroundColor Yellow
+    Write-Host "-----------" -ForegroundColor Yellow
+    Write-Host "Enhanced PowerShell environment with modern modules, improved prompt,"
+    Write-Host "and integrated development tools for Windows."
+    Write-Host ""
+    
+    Write-Host "Benefits:" -ForegroundColor Yellow
+    Write-Host "--------" -ForegroundColor Yellow
+    Write-Host "+ Enhanced Command Line - PSReadLine with prediction and history" -ForegroundColor Green
+    Write-Host "+ Git Integration - posh-git for repository status in prompt" -ForegroundColor Green
+    Write-Host "+ Modern Modules - Latest PowerShell modules for development" -ForegroundColor Green
+    Write-Host "+ Custom Aliases - Convenient shortcuts for common tasks" -ForegroundColor Green
+    Write-Host "+ Profile Management - Automated profile setup and maintenance" -ForegroundColor Green
+    Write-Host ""
+    
+    Write-Host "Components:" -ForegroundColor Yellow
+    Write-Host "----------" -ForegroundColor Yellow
+    Write-Host "1. Core PowerShell"
+    Write-Host "   - PowerShell 7+ (if available)"
+    Write-Host "   - Execution policy configuration"
+    Write-Host "   - Module path management"
+    Write-Host ""
+    Write-Host "2. Essential Modules"
+    Write-Host "   - PSReadLine for enhanced editing"
+    Write-Host "   - posh-git for Git integration"
+    Write-Host "   - Terminal-Icons for file type icons"
+    Write-Host "   - PowerShellGet for module management"
+    Write-Host ""
+    Write-Host "3. Enhanced Profile"
+    Write-Host "   - Custom prompt with Git status"
+    Write-Host "   - Key bindings and shortcuts"
+    Write-Host "   - Auto-import commonly used modules"
+    Write-Host "   - History and prediction settings"
+    Write-Host ""
+    
+    Write-Host "Quick Commands:" -ForegroundColor Yellow
+    Write-Host "--------------" -ForegroundColor Yellow
+    Write-Host "Get-Help about_*     # PowerShell help topics"
+    Write-Host "Get-Module           # List loaded modules"
+    Write-Host "Get-Command          # Find commands"
+    Write-Host "Get-History          # Command history"
+    Write-Host ""
+
     # Show current installation status
     Write-Host "Current Status:" -ForegroundColor Yellow
     Write-Host "-------------" -ForegroundColor Yellow
@@ -545,16 +545,17 @@ Get-History          # Command history
         $isVerified = Test-Component $component
         
         if ($isInstalled -and $isVerified) {
-            Write-Host "✓ $component`: Installed and verified" -ForegroundColor Green
+            Write-Host "[OK] $component`: Installed and verified" -ForegroundColor Green
         } elseif ($isInstalled) {
-            Write-Host "⚠ $component`: Installed but not verified" -ForegroundColor Yellow
+            Write-Host "[WARN] $component`: Installed but not verified" -ForegroundColor Yellow
         } else {
-            Write-Host "✗ $component`: Not installed" -ForegroundColor Red
+            Write-Host "[MISSING] $component`: Not installed" -ForegroundColor Red
         }
     }
     
     # Show PowerShell version info
-    Write-Host "`nPowerShell Information:" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "PowerShell Information:" -ForegroundColor Yellow
     Write-Host "  Version: $($PSVersionTable.PSVersion)" -ForegroundColor Gray
     Write-Host "  Edition: $($PSVersionTable.PSEdition)" -ForegroundColor Gray
     Write-Host "  Execution Policy: $(Get-ExecutionPolicy -Scope CurrentUser)" -ForegroundColor Gray

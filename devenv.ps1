@@ -132,10 +132,16 @@ function Write-DevEnvLog {
             Write-Host $output -ForegroundColor $color
         }
         
-        # Also write to log file if available
-        $logFile = Join-Path $env:DEVENV_LOGS_DIR "devenv_$(Get-Date -Format 'yyyyMMdd').log" -ErrorAction SilentlyContinue
-        if ($logFile -and (Test-Path (Split-Path $logFile -Parent) -ErrorAction SilentlyContinue)) {
-            Add-Content -Path $logFile -Value $output -ErrorAction SilentlyContinue
+        # Also write to log file if available (with null check)
+        if ($env:DEVENV_LOGS_DIR) {
+            try {
+                $logFile = Join-Path $env:DEVENV_LOGS_DIR "devenv_$(Get-Date -Format 'yyyyMMdd').log"
+                if (Test-Path (Split-Path $logFile -Parent)) {
+                    Add-Content -Path $logFile -Value $output -ErrorAction SilentlyContinue
+                }
+            } catch {
+                # Silently ignore logging errors during initialization
+            }
         }
     }
 }
