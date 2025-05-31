@@ -385,15 +385,15 @@ function Show-GuidedSetup {
     # Benefits section
     Write-Host "Why Use DevEnv?" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "• " -NoNewline -ForegroundColor Green
+    Write-Host "* " -NoNewline -ForegroundColor Green
     Write-Host "Hermetic: Each environment is completely isolated" -ForegroundColor White
-    Write-Host "• " -NoNewline -ForegroundColor Green
+    Write-Host "* " -NoNewline -ForegroundColor Green
     Write-Host "Portable: Copy the .devenv folder = copy the entire environment" -ForegroundColor White
-    Write-Host "• " -NoNewline -ForegroundColor Green
+    Write-Host "* " -NoNewline -ForegroundColor Green
     Write-Host "Clean: No system pollution - everything can be removed cleanly" -ForegroundColor White
-    Write-Host "• " -NoNewline -ForegroundColor Green
+    Write-Host "* " -NoNewline -ForegroundColor Green
     Write-Host "Team-Friendly: Share identical environments across your team" -ForegroundColor White
-    Write-Host "• " -NoNewline -ForegroundColor Green
+    Write-Host "* " -NoNewline -ForegroundColor Green
     Write-Host "Container-Ready: Uses Docker containers when available for maximum isolation" -ForegroundColor White
     Write-Host ""
 }
@@ -498,7 +498,7 @@ function Test-HasAnyEnvironments {
         return $false
     }
     
-    $envFiles = Get-ChildItem $envRoot -Filter "*.json" -ErrorAction SilentlyContinue
+    $envFiles = @(Get-ChildItem $envRoot -Filter "*.json" -ErrorAction SilentlyContinue)
     return ($envFiles.Count -gt 0)
 }
 #endregion
