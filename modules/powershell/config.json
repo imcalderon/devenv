@@ -1,0 +1,221 @@
+{
+    "enabled": true,
+    "runlevel": 1,
+    "description": "Enhanced PowerShell environment with modern modules and development tools",
+    "backup": {
+        "paths": [
+            "${env:USERPROFILE}/Documents/PowerShell/Microsoft.PowerShell_profile.ps1",
+            "${env:USERPROFILE}/Documents/PowerShell/profile.ps1",
+            "${env:USERPROFILE}/Documents/WindowsPowerShell/Microsoft.PowerShell_profile.ps1",
+            "${DEVENV_DATA_DIR}/powershell/config"
+        ],
+        "retention_days": 30
+    },
+    "shell": {
+        "paths": {
+            "profile_dir": "${env:USERPROFILE}/Documents/PowerShell",
+            "modules_dir": "${env:USERPROFILE}/Documents/PowerShell/Modules",
+            "config_dir": "${DEVENV_DATA_DIR}/powershell/config",
+            "scripts_dir": "${DEVENV_DATA_DIR}/powershell/scripts",
+            "cache_dir": "${env:LOCALAPPDATA}/PowerShell/Cache"
+        },
+        "aliases": {
+            "shell": {
+                "ll": "Get-ChildItem -Force",
+                "la": "Get-ChildItem -Force -Hidden",
+                "ls": "Get-ChildItem",
+                "grep": "Select-String",
+                "which": "Get-Command",
+                "cat": "Get-Content",
+                "touch": "New-Item -ItemType File",
+                "mkdir": "New-Item -ItemType Directory",
+                "rm": "Remove-Item",
+                "cp": "Copy-Item",
+                "mv": "Move-Item"
+            },
+            "git": {
+                "g": "git",
+                "gst": "git status",
+                "gco": "git checkout",
+                "gcm": "git commit -m",
+                "gp": "git push",
+                "gpl": "git pull",
+                "ga": "git add",
+                "gb": "git branch",
+                "gd": "git diff"
+            },
+            "docker": {
+                "d": "docker",
+                "dc": "docker-compose",
+                "dps": "docker ps",
+                "di": "docker images",
+                "dex": "docker exec -it"
+            },
+            "development": {
+                "code.": "code .",
+                "explorer.": "explorer .",
+                "pwsh": "pwsh.exe",
+                "admin": "Start-Process powershell -Verb RunAs"
+            }
+        }
+    },
+    "powershell": {
+        "version": "7.3.0",
+        "edition": "Core",
+        "modules": [
+            "PSReadLine",
+            "posh-git", 
+            "Terminal-Icons",
+            "PowerShellGet",
+            "PackageManagement",
+            "Microsoft.PowerShell.Archive",
+            "Microsoft.PowerShell.Utility"
+        ],
+        "optional_modules": [
+            "Az",
+            "ImportExcel",
+            "PSWindowsUpdate",
+            "PowerShellForGitHub"
+        ],
+        "profile": {
+            "auto_import_modules": true,
+            "prediction_source": "History",
+            "prediction_view": "ListView",
+            "edit_mode": "Windows",
+            "history_save_style": "SaveIncrementally",
+            "colors": {
+                "command": "Yellow",
+                "parameter": "Cyan", 
+                "string": "Green",
+                "variable": "Magenta"
+            }
+        },
+        "execution_policy": {
+            "current_user": "RemoteSigned",
+            "require_signature": false
+        },
+        "prompt": {
+            "show_git": true,
+            "show_time": false,
+            "show_user": false,
+            "show_computer": false,
+            "compact_path": true,
+            "colors": {
+                "path": "Yellow",
+                "git_branch": "Magenta",
+                "git_status": "Red",
+                "prompt": "Green"
+            }
+        }
+    },
+    "windows": {
+        "terminal": {
+            "install": true,
+            "default_profile": "PowerShell",
+            "themes": ["One Half Dark", "Campbell Powershell"],
+            "fonts": ["Cascadia Code", "Fira Code"],
+            "settings": {
+                "defaultProfile": "{574e775e-4f2a-5b96-ac1e-a2962a402336}",
+                "copyOnSelect": true,
+                "copyFormatting": false,
+                "wordDelimiters": " /\\()\"'-.,:;<>~!@#$%^&*|+=[]{}~?\u2502",
+                "profiles": {
+                    "defaults": {
+                        "fontFace": "Cascadia Code",
+                        "fontSize": 12,
+                        "fontWeight": "normal",
+                        "cursorShape": "bar",
+                        "colorScheme": "One Half Dark"
+                    }
+                }
+            }
+        },
+        "registry": {
+            "context_menu": {
+                "open_powershell": true,
+                "open_terminal": true
+            },
+            "file_associations": {
+                ".ps1": "PowerShell",
+                ".psm1": "PowerShell"
+            }
+        },
+        "features": {
+            "developer_mode": true,
+            "windows_terminal": true,
+            "wsl": false
+        }
+    },
+    "integrations": {
+        "vscode": {
+            "enabled": true,
+            "extensions": [
+                "ms-vscode.powershell",
+                "ms-vscode.powershell-preview"
+            ],
+            "settings": {
+                "powershell.integratedConsole.showOnStartup": false,
+                "powershell.powerShellDefaultVersion": "PowerShell (x64)",
+                "powershell.enableProfileLoading": true
+            }
+        },
+        "git": {
+            "enabled": true,
+            "credential_manager": "manager-core",
+            "autocrlf": "true"
+        },
+        "docker": {
+            "enabled": true,
+            "completion": true
+        }
+    },
+    "security": {
+        "execution_policy": "RemoteSigned",
+        "constrained_language": false,
+        "script_block_logging": false,
+        "transcription": false,
+        "antimalware_scan": true
+    },
+    "performance": {
+        "startup_optimization": true,
+        "module_autoloading": true,
+        "history_size": 4096,
+        "prediction_cache": true
+    },
+    "tools": {
+        "winget": {
+            "enabled": true,
+            "packages": [
+                "Microsoft.PowerShell",
+                "Microsoft.WindowsTerminal",
+                "Git.Git",
+                "Microsoft.VisualStudioCode"
+            ]
+        },
+        "chocolatey": {
+            "enabled": false,
+            "packages": []
+        },
+        "psget": {
+            "repositories": [
+                {
+                    "name": "PSGallery",
+                    "source": "https://www.powershellgallery.com/api/v2",
+                    "trusted": true
+                }
+            ]
+        }
+    },
+    "platforms": {
+        "windows": {
+            "enabled": true,
+            "native_only": true,
+            "minimum_version": "10.0.0.0",
+            "features": {
+                "containers": false,
+                "wsl": false,
+                "hyper_v": false
+            }
+        }
+    }
+}

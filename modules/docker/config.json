@@ -4,15 +4,14 @@
     "backup": {
       "paths": [
         "/etc/docker/daemon.json",
-        "${DEVENV_ROOT}/data/docker",
-        "${DEVENV_ROOT}/data/bin/devenv-container"
+        "${DEVENV_DATA_DIR}/docker",
+        "${DEVENV_DATA_DIR}/bin/devenv-container"
       ]
     },
     "shell": {
       "paths": {
-        "data_dir": "${DEVENV_ROOT}/data/docker",
-        "container_dir": "${DEVENV_ROOT}/data/containers",
-        "bin_dir": "${DEVENV_ROOT}/data/bin"
+        "container_dir": "${DEVENV_DATA_DIR}/containers",
+        "bin_dir": "${DEVENV_DATA_DIR}/bin"
       },
       "aliases": {
         "basic": {

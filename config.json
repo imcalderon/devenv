@@ -1,179 +1,373 @@
 {
-    "version": "2.0.0",
-    "global": {
-      "paths": {
-        "data_dir": "${DEVENV_DATA_DIR}",
-        "logs_dir": "${DEVEDEVENV_DATA_DIRNV_ROOT}/logs",
-        "backups_dir": "${DEVENV_DATA_DIR}/backups",
-        "state_dir": "${DEVENV_DATA_DIR}/state",
-        "modules_dir": "${DEVENV_ROOT}/modules"
+  "version": "3.0.0",
+  "metadata": {
+    "name": "DevEnv Configuration",
+    "description": "Cross-platform development environment with native Windows, WSL, and container support",
+    "author": "Ivan Calderon",
+    "created": "2025-01-01",
+    "schema_version": "3.0"
+  },
+  "global": {
+    "paths": {
+      "data_dir": "${DEVENV_DATA_DIR}",
+      "logs_dir": "${DEVENV_DATA_DIR}/logs",
+      "backups_dir": "${DEVENV_DATA_DIR}/backups",
+      "state_dir": "${DEVENV_DATA_DIR}/state",
+      "modules_dir": "${DEVENV_ROOT}/modules",
+      "cache_dir": "${DEVENV_DATA_DIR}/cache",
+      "temp_dir": "${DEVENV_DATA_DIR}/temp"
+    },
+    "modules": {
+      "order": [
+        "powershell",
+        "winget",
+        "git",
+        "docker",
+        "python",
+        "nodejs",
+        "vscode",
+        "containers"
+      ],
+      "execution_strategy": {
+        "prefer_containers": true,
+        "fallback_to_native": true,
+        "wsl_modules": ["zsh", "git", "python", "nodejs"],
+        "native_only": ["powershell", "winget", "registry", "iis"],
+        "container_preferred": ["python", "nodejs", "java", "rust", "go"]
+      }
+    },
+    "defaults": {
+      "backup": {
+        "enabled": true,
+        "retention_days": 30,
+        "auto_backup": true,
+        "compression": true
+      },
+      "logging": {
+        "level": "Information",
+        "rotation_days": 7,
+        "max_size": "50MB",
+        "console_output": true,
+        "file_output": true
+      },
+      "security": {
+        "require_admin": false,
+        "validate_signatures": true,
+        "sandbox_containers": true
+      }
+    },
+    "container": {
+      "enabled": true,
+      "strategy": "hybrid",
+      "engine": "docker",
+      "mount_paths": {
+        "home": "${env:USERPROFILE}:/home/user",
+        "devenv_root": "${DEVENV_ROOT}:/devenv",
+        "projects": "${env:USERPROFILE}/Projects:/home/user/projects",
+        "data": "${DEVENV_DATA_DIR}:/devenv/data",
+        "cache": "${DEVENV_DATA_DIR}/cache:/home/user/.cache"
+      },
+      "network": "bridge",
+      "resource_limits": {
+        "memory": "2GB",
+        "cpu": "2",
+        "disk": "10GB"
       },
       "modules": {
-        "order": [
-          "zsh",
-          "git",
-          "docker",
-          "python"
-        ],
-        "defaults": {
-          "backup": {
-            "enabled": true,
-            "retention_days": 30
-          },
-          "logging": {
-            "level": "INFO",
-            "rotation_days": 7,
-            "max_size": "10M"
-          },
-          "container": {
-            "enabled": false
+        "powershell": {
+          "containerize": false,
+          "reason": "Native Windows shell required"
+        },
+        "winget": {
+          "containerize": false,
+          "reason": "Windows package manager requires native access"
+        },
+        "git": {
+          "containerize": false,
+          "reason": "SSH keys and credential management"
+        },
+        "docker": {
+          "containerize": false,
+          "reason": "Docker daemon access required"
+        },
+        "python": {
+          "containerize": true,
+          "image": "python:3.11-slim",
+          "extra_mounts": [
+            "${env:USERPROFILE}/.config/pip:/home/user/.config/pip"
+          ],
+          "ports": ["8888:8888"],
+          "environment": {
+            "PYTHONPATH": "/home/user/projects",
+            "PIP_CACHE_DIR": "/home/user/.cache/pip"
           }
+        },
+        "nodejs": {
+          "containerize": true,
+          "image": "node:18-alpine",
+          "extra_mounts": [
+            "${env:USERPROFILE}/.npmrc:/home/user/.npmrc",
+            "${env:USERPROFILE}/.config/npm:/home/user/.config/npm"
+          ],
+          "ports": ["3000:3000", "8080:8080"],
+          "environment": {
+            "NPM_CACHE_DIR": "/home/user/.cache/npm"
+          }
+        },
+        "vscode": {
+          "containerize": true,
+          "image": "codercom/code-server:latest",
+          "extra_args": "--network=host",
+          "ports": ["8443:8443"],
+          "environment": {
+            "PASSWORD": "devenv123"
+          }
+        },
+        "java": {
+          "containerize": true,
+          "image": "openjdk:17-jdk-slim",
+          "extra_mounts": [
+            "${env:USERPROFILE}/.m2:/home/user/.m2",
+            "${env:USERPROFILE}/.gradle:/home/user/.gradle"
+          ]
+        }
+      }
+    }
+  },
+  "platforms": {
+    "windows": {
+      "script": "devenv.ps1",
+      "shell": "powershell",
+      "execution_modes": {
+        "native": {
+          "enabled": true,
+          "shell": "powershell.exe",
+          "required_version": "5.1"
+        },
+        "wsl": {
+          "enabled": true,
+          "distribution": "Ubuntu-22.04",
+          "auto_install": true,
+          "docker_socket": "/var/run/docker-desktop.sock"
+        },
+        "container": {
+          "enabled": true,
+          "engine": "docker",
+          "prefer_windows_containers": false
         }
       },
-      "container": {
-        "enabled": true,
-        "strategy": "selective",
-        "mount_paths": {
-          "home": "${HOME}:/home/user",
-          "dotfiles": "${DEVENV_ROOT}:/devenv",
-          "projects": "${DEVENV_ROOT}/..:/home/user/projects",
-          "data": "${DEVENV_DATA_DIR}:/devenv/data"
+      "paths": {
+        "script_dir": "${DEVENV_ROOT}/lib/windows",
+        "program_files": "${env:ProgramFiles}",
+        "program_files_x86": "${env:ProgramFiles(x86)}",
+        "user_profile": "${env:USERPROFILE}",
+        "app_data": "${env:APPDATA}",
+        "local_app_data": "${env:LOCALAPPDATA}",
+        "temp": "${env:TEMP}"
+      },
+      "package_managers": {
+        "winget": {
+          "enabled": true,
+          "auto_update": true,
+          "source": "msstore"
         },
-        "network": "bridge",
-        "modules": {
-          "zsh": { 
-            "containerize": false, 
-            "reason": "shell interface, better as host interface" 
+        "chocolatey": {
+          "enabled": true,
+          "auto_update": false,
+          "allow_global": true
+        },
+        "scoop": {
+          "enabled": false,
+          "buckets": ["main", "extras"]
+        }
+      },
+      "features": {
+        "windows_terminal": true,
+        "wsl": true,
+        "containers": true,
+        "hyper_v": true,
+        "developer_mode": true
+      },
+      "security": {
+        "execution_policy": "RemoteSigned",
+        "require_signed_modules": false,
+        "uac_prompt": true
+      },
+      "modules": {
+        "overrides": {
+          "powershell": {
+            "enabled": true,
+            "native_only": true,
+            "shell": {
+              "paths": {
+                "profile_dir": "${env:USERPROFILE}/Documents/PowerShell",
+                "modules_dir": "${env:USERPROFILE}/Documents/PowerShell/Modules"
+              }
+            }
           },
-          "git": { 
-            "containerize": false, 
-            "reason": "authentication workflow and SSH keys" 
+          "git": {
+            "enabled": true,
+            "prefer_wsl": false,
+            "shell": {
+              "paths": {
+                "config_dir": "${env:USERPROFILE}/.gitconfig",
+                "ssh_dir": "${env:USERPROFILE}/.ssh"
+              }
+            }
           },
-          "docker": { 
-            "containerize": false, 
-            "reason": "docker daemon access required" 
+          "vscode": {
+            "enabled": true,
+            "container_support": true,
+            "shell": {
+              "paths": {
+                "config_dir": "${env:APPDATA}/Code/User",
+                "extensions_dir": "${env:USERPROFILE}/.vscode/extensions"
+              }
+            }
           },
-          "vscode": { 
-            "containerize": true, 
-            "image": "vscode-server",
-            "extra_args": "--network=host" 
-          },
-          "python": { 
-            "containerize": true, 
-            "image": "python:3.10-slim",
-            "extra_mounts": [
-              "${HOME}/.config/pip:/home/user/.config/pip"
-            ]
-          },
-          "nodejs": { 
-            "containerize": true, 
-            "image": "node:18-alpine",
-            "extra_mounts": [
-              "${HOME}/.npmrc:/home/user/.npmrc"
-            ]
-          },
-          "conda": { 
-            "containerize": true, 
-            "image": "continuumio/miniconda3:latest",
-            "extra_mounts": [
-              "${HOME}/.condarc:/home/user/.condarc"
-            ]
+          "docker": {
+            "enabled": true,
+            "native_only": true,
+            "docker_desktop": {
+              "wsl_integration": true,
+              "kubernetes": false,
+              "experimental": true
+            }
           }
         }
       }
     },
-    "platforms": {
-      "linux": {
-        "script": "devenv.sh",
-        "shell": "/bin/bash",
-        "paths": {
-          "script_dir": "${DEVENV_ROOT}/lib"
-        },
-        "wsl": {
-          "enabled": false,
-          "docker_socket": "/var/run/docker.sock"
-        },
-        "modules": {
-          "overrides": {
-            "zsh": {
-              "enabled": true,
-              "shell": {
-                "paths": {
-                  "config_dir": "${DEVENV_DATA_DIR}/zsh"
-                }
-              }
-            },
-            "vscode": {
-              "enabled": true,
-              "shell": {
-                "paths": {
-                  "config_dir": "${DEVENV_DATA_DIR}/vscode"
-                }
-              }
-            }
-          }
-        }
+    "linux": {
+      "script": "devenv.sh",
+      "shell": "/bin/bash",
+      "paths": {
+        "script_dir": "${DEVENV_ROOT}/lib"
       },
-      "darwin": {
-        "script": "devenv.sh",
-        "shell": "/bin/bash",
-        "paths": {
-          "script_dir": "${DEVENV_ROOT}/lib"
-        },
-        "modules": {
-          "overrides": {
-            "zsh": {
-              "enabled": true,
-              "shell": {
-                "paths": {
-                  "config_dir": "${DEVENV_DATA_DIR}/zsh"
-                }
-              }
-            },
-            "vscode": {
-              "enabled": true,
-              "shell": {
-                "paths": {
-                  "config_dir": "${DEVENV_DATA_DIR}/vscode"
-                }
-              }
-            }
-          }
-        }
+      "wsl": {
+        "enabled": true,
+        "docker_socket": "/var/run/docker.sock",
+        "systemd": true
       },
-      "windows": {
-        "script": "devenv.ps1",
-        "shell": "powershell",
-        "wsl": {
-          "enabled": true,
-          "distribution": "Ubuntu-20.04",
-          "use_wsl": true,
-          "docker_socket": "/var/run/docker-desktop.sock",
-          "mount_paths": {
-            "data_dir": "${DEVENV_DATA_DIR}"
-          }
-        },
-        "paths": {
-          "script_dir": "${DEVENV_ROOT}/lib/windows",
-          "vscode": {
-            "config_dir": "${DEVENV_DATA_DIR}/vscode"
-          }
-        },
-        "modules": {
-          "overrides": {
-            "zsh": {
-              "enabled": false
-            },
-            "powershell": {
-              "enabled": true,
-              "shell": {
-                "paths": {
-                  "profile_dir": "${DEVENV_DATA_DIR}/powershell"
-                }
+      "modules": {
+        "overrides": {
+          "zsh": {
+            "enabled": true,
+            "shell": {
+              "paths": {
+                "config_dir": "${HOME}/.config/zsh"
               }
             }
           }
         }
       }
+    },
+    "darwin": {
+      "script": "devenv.sh",
+      "shell": "/bin/bash",
+      "paths": {
+        "script_dir": "${DEVENV_ROOT}/lib"
+      },
+      "package_managers": {
+        "homebrew": {
+          "enabled": true,
+          "auto_update": true
+        }
+      }
     }
+  },
+  "environments": {
+    "development": {
+      "container_strategy": "prefer",
+      "resource_limits": {
+        "memory": "4GB",
+        "cpu": "4"
+      }
+    },
+    "production": {
+      "container_strategy": "required",
+      "resource_limits": {
+        "memory": "8GB",
+        "cpu": "8"
+      },
+      "security": {
+        "require_signed_modules": true,
+        "sandbox_containers": true
+      }
+    },
+    "minimal": {
+      "container_strategy": "disabled",
+      "modules": {
+        "order": ["powershell", "git", "vscode"]
+      }
+    }
+  },
+  "templates": {
+    "web_development": {
+      "modules": ["powershell", "git", "nodejs", "vscode", "docker"],
+      "containers": {
+        "frontend": {
+          "image": "node:18-alpine",
+          "ports": ["3000:3000"]
+        },
+        "backend": {
+          "image": "node:18-alpine",
+          "ports": ["8000:8000"]
+        }
+      }
+    },
+    "data_science": {
+      "modules": ["powershell", "git", "python", "vscode", "docker"],
+      "containers": {
+        "jupyter": {
+          "image": "jupyter/datascience-notebook",
+          "ports": ["8888:8888"]
+        },
+        "database": {
+          "image": "postgres:14",
+          "ports": ["5432:5432"]
+        }
+      }
+    },
+    "game_development": {
+      "modules": ["powershell", "git", "nodejs", "vscode", "docker"],
+      "containers": {
+        "phaser": {
+          "image": "node:18-alpine",
+          "ports": ["8080:8080"],
+          "extra_mounts": ["${env:USERPROFILE}/Projects/games:/home/user/games"]
+        }
+      }
+    }
+  },
+  "integrations": {
+    "github": {
+      "enabled": true,
+      "auto_ssh_setup": true,
+      "codespaces_support": true
+    },
+    "azure": {
+      "enabled": false,
+      "devops_integration": false,
+      "container_registry": ""
+    },
+    "aws": {
+      "enabled": false,
+      "ecr_integration": false,
+      "cloud9_support": false
+    }
+  },
+  "experimental": {
+    "features": {
+      "auto_updates": false,
+      "telemetry": false,
+      "ai_assistance": false,
+      "cloud_sync": false
+    },
+    "preview_modules": [
+      "rust",
+      "go",
+      "kotlin",
+      "terraform"
+    ]
   }
+}

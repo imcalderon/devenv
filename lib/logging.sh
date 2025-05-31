@@ -2,7 +2,7 @@
 # lib/logging.sh - Logging utilities
 
 # Default configurations
-DEFAULT_LOG_LEVEL="INFO"
+DEFAULT_LOG_LEVEL="DEBUG"
 DEFAULT_LOG_DIR="$HOME/.devenv/logs"
 
 # Initialize logging
