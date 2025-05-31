@@ -52,8 +52,8 @@ verify_docker_wsl_integration() {
         return 1
     fi
     
-    # Try to connect to Docker with timeout (increased from 5 to 10 seconds)
-    if ! timeout 10 docker info &>/dev/null; then
+    # Try to connect to Docker with timeout 
+    if ! timeout 20 docker info &>/dev/null; then
         log "DEBUG" "Docker daemon not accessible within timeout" "docker"
         return 1
     fi

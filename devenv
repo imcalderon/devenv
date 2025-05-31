@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # devenv - Cross-platform development environment entry point
-
+set -ex 
 # Detect platform
 detect_platform() {
     local platform="unknown"

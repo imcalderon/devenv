@@ -1,0 +1,192 @@
+{
+    "enabled": true,
+    "runlevel": 5,
+    "description": "Safe Windows Registry management with backup and developer optimizations",
+    "backup": {
+        "paths": [
+            "${DEVENV_DATA_DIR}/registry/backups",
+            "${DEVENV_DATA_DIR}/registry/config"
+        ],
+        "retention_days": 90
+    },
+    "shell": {
+        "paths": {
+            "backup_dir": "${DEVENV_DATA_DIR}/registry/backups",
+            "tools_dir": "${DEVENV_DATA_DIR}/registry/tools",
+            "config_dir": "${DEVENV_DATA_DIR}/registry/config"
+        },
+        "aliases": {
+            "registry": {
+                "reg-backup": "powershell -Command \"& '${DEVENV_DATA_DIR}/registry/backups/backup_registry.ps1'\"",
+                "reg-restore": "powershell -Command \"Import-RegistryFile\"",
+                "reg-search": "powershell -Command \"Find-RegistryValue\"",
+                "reg-info": "powershell -Command \"Get-RegistryKeyInfo\"",
+                "reg-export": "powershell -Command \"Export-RegistryBranch\"",
+                "reg-import": "powershell -Command \"Import-RegistryFile\""
+            },
+            "tools": {
+                "regedit": "regedit.exe",
+                "reg": "reg.exe",
+                "regini": "regini.exe"
+            }
+        }
+    },
+    "registry": {
+        "backup_keys": [
+            "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer",
+            "HKEY_CURRENT_USER\\Software\\Classes",
+            "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall",
+            "HKEY_CURRENT_USER\\Software\\Microsoft\\VisualStudio",
+            "HKEY_CURRENT_USER\\Software\\Microsoft\\VSCode"
+        ],
+        "developer_settings": {
+            "show_hidden_files": {
+                "path": "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+                "name": "Hidden",
+                "value": 1,
+                "type": "DWord",
+                "description": "Show hidden files and folders"
+            },
+            "show_file_extensions": {
+                "path": "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+                "name": "HideFileExt",
+                "value": 0,
+                "type": "DWord",
+                "description": "Show file extensions for known file types"
+            },
+            "show_system_files": {
+                "path": "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+                "name": "ShowSuperHidden",
+                "value": 1,
+                "type": "DWord",
+                "description": "Show protected operating system files"
+            },
+            "disable_sticky_keys": {
+                "path": "HKEY_CURRENT_USER\\Control Panel\\Accessibility\\StickyKeys",
+                "name": "Flags",
+                "value": "506",
+                "type": "String",
+                "description": "Disable sticky keys dialog"
+            },
+            "enable_long_paths": {
+                "path": "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\FileSystem",
+                "name": "LongPathsEnabled",
+                "value": 1,
+                "type": "DWord",
+                "description": "Enable Win32 long paths (requires admin)"
+            },
+            "disable_windows_defender_realtime": {
+                "path": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\Real-Time Protection",
+                "name": "DisableRealtimeMonitoring",
+                "value": 1,
+                "type": "DWord",
+                "description": "Disable Windows Defender real-time protection (requires admin)"
+            },
+            "developer_mode": {
+                "path": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock",
+                "name": "AllowDevelopmentWithoutDevLicense",
+                "value": 1,
+                "type": "DWord",
+                "description": "Enable Windows Developer Mode (requires admin)"
+            },
+            "powershell_execution_policy": {
+                "path": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\PowerShell\\1\\ShellIds\\Microsoft.PowerShell",
+                "name": "ExecutionPolicy",
+                "value": "RemoteSigned",
+                "type": "String",
+                "description": "Set PowerShell execution policy (requires admin)"
+            }
+        },
+        "context_menus": {
+            "powershell_here": {
+                "path": "HKEY_CLASSES_ROOT\\Directory\\Background\\shell\\PowerShell",
+                "display_name": "Open PowerShell here",
+                "command": "powershell.exe -NoExit -Command \"Set-Location '%V'\"",
+                "icon": "powershell.exe,0"
+            },
+            "cmd_here": {
+                "path": "HKEY_CLASSES_ROOT\\Directory\\Background\\shell\\cmd",
+                "display_name": "Open Command Prompt here",
+                "command": "cmd.exe /k \"cd /d %V\"",
+                "icon": "cmd.exe,0"
+            },
+            "vscode_here": {
+                "path": "HKEY_CLASSES_ROOT\\Directory\\Background\\shell\\VSCode",
+                "display_name": "Open with Code",
+                "command": "\"C:\\Program Files\\Microsoft VS Code\\Code.exe\" \"%V\"",
+                "icon": "\"C:\\Program Files\\Microsoft VS Code\\Code.exe\",0"
+            },
+            "windows_terminal_here": {
+                "path": "HKEY_CLASSES_ROOT\\Directory\\Background\\shell\\wt",
+                "display_name": "Open in Windows Terminal",
+                "command": "wt.exe -d \"%V\"",
+                "icon": "\"C:\\Program Files\\WindowsApps\\Microsoft.WindowsTerminal_1.18.3181.0_x64__8wekyb3d8bbwe\\wt.exe\",0"
+            }
+        },
+        "file_associations": {
+            ".ps1": {
+                "description": "PowerShell Script",
+                "icon": "powershell.exe,1",
+                "open_command": "powershell.exe -File \"%1\"",
+                "edit_command": "\"C:\\Program Files\\Microsoft VS Code\\Code.exe\" \"%1\""
+            },
+            ".reg": {
+                "description": "Registry File", 
+                "icon": "regedit.exe,0",
+                "open_command": "regedit.exe \"%1\"",
+                "edit_command": "notepad.exe \"%1\""
+            },
+            ".json": {
+                "description": "JSON File",
+                "icon": "\"C:\\Program Files\\Microsoft VS Code\\Code.exe\",0",
+                "open_command": "\"C:\\Program Files\\Microsoft VS Code\\Code.exe\" \"%1\""
+            }
+        },
+        "security": {
+            "require_backup": true,
+            "require_admin_for_hklm": true,
+            "confirm_destructive_operations": true,
+            "max_backup_age_days": 30
+        }
+    },
+    "tools": {
+        "registry_editor": {
+            "enabled": true,
+            "path": "regedit.exe",
+            "enhanced_features": false
+        },
+        "reg_command": {
+            "enabled": true,
+            "path": "reg.exe",
+            "default_options": ["/f"]
+        },
+        "powershell_provider": {
+            "enabled": true,
+            "hklm_drive": "HKLM:",
+            "hkcu_drive": "HKCU:",
+            "hkcr_drive": "HKCR:"
+        }
+    },
+    "monitoring": {
+        "track_changes": false,
+        "log_modifications": true,
+        "audit_access": false
+    },
+    "platforms": {
+        "windows": {
+            "enabled": true,
+            "native_only": true,
+            "minimum_version": "10.0.0.0",
+            "features": {
+                "backup_system": true,
+                "context_menus": true,
+                "developer_settings": true,
+                "file_associations": true
+            },
+            "requirements": {
+                "registry_access": true,
+                "file_system_access": true
+            }
+        }
+    }
+}

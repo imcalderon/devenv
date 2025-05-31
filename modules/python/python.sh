@@ -1,6 +1,7 @@
 #!/bin/bash
 # modules/python/python.sh - Python module implementation with container support
 
+set -euox pipefail
 # Load required utilities
 source "$SCRIPT_DIR/logging.sh"
 source "$SCRIPT_DIR/json.sh"
@@ -230,56 +231,231 @@ check_container_functions() {
         return 1
     fi
     
-    # Special check for WSL2 with timeout to prevent hanging
-    if grep -q "microsoft" /proc/version 2>/dev/null; then
-        log "INFO" "WSL2 environment detected, checking Docker Desktop connection..." "python"
-        
-        # Check for Docker Desktop socket with timeout
-        if [[ -e "/var/run/docker.sock" ]]; then
-            # Test Docker connectivity with timeout
-            if timeout 5 docker info >/dev/null 2>&1; then
-                log "INFO" "Successfully connected to Docker via /var/run/docker.sock" "python"
-                return 0
-            else
-                log "WARN" "Docker socket exists but connection failed or timed out." "python"
-                log "INFO" "Attempting to fix Docker permissions..." "python"
-                
-                # Try to fix permissions if docker group exists
-                if getent group docker &>/dev/null; then
-                    log "INFO" "Adding current user to docker group..." "python"
-                    sudo usermod -aG docker $USER || true
-                    
-                    # Fix socket permissions
-                    sudo chown root:docker /var/run/docker.sock || true
-                    sudo chmod 660 /var/run/docker.sock || true
-                    
-                    # Try again with fixed permissions
-                    if timeout 5 docker info >/dev/null 2>&1; then
-                        log "INFO" "Docker permissions fixed, connection successful" "python"
-                        return 0
-                    else
-                        log "WARN" "Still unable to connect to Docker, using virtual environment" "python"
-                        log "INFO" "You may need to log out and back in for group changes to take effect" "python"
-                    fi
-                fi
-                
-                log "WARN" "Falling back to virtual environment" "python"
+    # Use Docker module's WSL verification function if available
+    if type verify_docker_wsl_integration >/dev/null 2>&1; then
+        # Check if function is available and running in WSL
+        if type is_wsl >/dev/null 2>&1 && is_wsl; then
+            log "INFO" "WSL environment detected, verifying Docker integration..." "python"
+            
+            # Test Docker connectivity using the Docker module's verification function
+            if ! verify_docker_wsl_integration; then
+                log "WARN" "Docker not properly configured in WSL. Using virtual environment instead." "python"
+                log "INFO" "To fix Docker in WSL, run 'devenv.sh install docker' first." "python"
                 return 1
+            else
+                log "INFO" "Docker in WSL is properly configured." "python"
             fi
-        else
-            log "WARN" "No Docker socket found in WSL2. Make sure Docker Desktop is running with WSL2 integration enabled" "python"
+        fi
+    else
+        # Fallback to basic Docker connectivity check with timeout
+        if ! timeout 5 docker info >/dev/null 2>&1; then
+            log "WARN" "Docker is not running or not accessible, using virtual environment" "python"
             return 1
         fi
     fi
     
-    # Standard Docker test for non-WSL environments with timeout
-    if ! timeout 5 docker info >/dev/null 2>&1; then
-        log "WARN" "Docker is not running or not accessible, using virtual environment" "python"
-        return 1
+    return 0
+
+# Install specific component
+install_component() {
+    local component=$1
+    if check_state "$component" && verify_component "$component"; then
+        log "INFO" "Component $component already installed and verified" "python"
+        return 0
     fi
+    
+    case "$component" in
+        "core")
+            if install_python_core; then
+                save_state "core" "installed"
+                return 0
+            fi
+            ;;
+        "venv")
+            # venv is included in core Python or handled by container
+            save_state "venv" "installed"
+            return 0
+            ;;
+        "packages")
+            if install_python_packages; then
+                save_state "packages" "installed"
+                return 0
+            fi
+            ;;
+        "linting")
+            # Linting tools are included in packages
+            save_state "linting" "installed"
+            return 0
+            ;;
+        "config")
+            if configure_python_tools && create_python_wrappers; then
+                save_state "config" "installed"
+                return 0
+            fi
+            ;;
+        "container")
+            if setup_python_container; then
+                save_state "container" "installed"
+                return 0
+            fi
+            ;;
+    esac
+    return 1
+}
+
+# Check if Python is already installed and configured
+grovel_python() {
+    local status=0
+    
+    for component in "${COMPONENTS[@]}"; do
+        if ! check_state "$component" || ! verify_component "$component"; then
+            log "INFO" "Component $component needs installation" "python"
+            status=1
+        fi
+    done
+    
+    return $status
+}
+
+# Install Python with all components
+install_python() {
+    local force=${1:-false}
+    
+    if [[ "$force" == "true" ]] || ! grovel_python &>/dev/null; then
+        create_backup
+    fi
+    
+    # Create necessary directories
+    create_directories || return 1
+    
+    for component in "${COMPONENTS[@]}"; do
+        if [[ "$force" == "true" ]] || ! check_state "$component" || ! verify_component "$component"; then
+            log "INFO" "Installing component: $component" "python"
+            if ! install_component "$component"; then
+                log "ERROR" "Failed to install component: $component" "python"
+                return 1
+            fi
+        else
+            log "INFO" "Skipping already installed and verified component: $component" "python"
+        fi
+    done
+    
+    # Show module information after successful installation
+    show_module_info
     
     return 0
 }
+
+# Verify Python installation
+verify_python() {
+    log "INFO" "Verifying Python installation..." "python"
+    local status=0
+    
+    for component in "${COMPONENTS[@]}"; do
+        if ! verify_component "$component"; then
+            log "ERROR" "Verification failed for component: $component" "python"
+            status=1
+        fi
+    done
+    
+    if [ $status -eq 0 ]; then
+        log "INFO" "Python verification completed successfully" "python"
+        
+        # Show Python version
+        if should_use_container "python"; then
+            if docker ps -q --filter "name=devenv-python" &>/dev/null; then
+                log "INFO" "Python version: $(docker exec devenv-python python3 --version)" "python"
+            else
+                log "INFO" "Python container not running" "python"
+            fi
+        else
+            # Virtual environment approach
+            local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
+            venv_dir=$(eval echo "$venv_dir")
+            if [[ -f "$venv_dir/bin/python" ]]; then
+                log "INFO" "Python version: $("$venv_dir/bin/python" --version)" "python"
+            else
+                log "INFO" "Python virtual environment not activated" "python"
+            fi
+        fi
+    fi
+    
+    return $status
+}
+
+# Remove Python configuration
+remove_python() {
+    log "INFO" "Removing Python configuration..." "python"
+    
+    # Stop and remove container if containerized
+    if should_use_container "python"; then
+        log "INFO" "Stopping and removing Python container..." "python"
+        
+        if command -v $HOME/.devenv/bin/devenv-container &>/dev/null; then
+            $HOME/.devenv/bin/devenv-container stop python
+            docker rm -f devenv-python 2>/dev/null
+        fi
+    fi
+    
+    # Remove virtual environment
+    local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
+    venv_dir=$(eval echo "$venv_dir")
+    if [[ -d "$venv_dir" ]]; then
+        log "INFO" "Removing Python virtual environment..." "python"
+        rm -rf "$venv_dir"
+    fi
+    
+    # Remove configuration files
+    local config_dir=$(get_module_config "python" ".shell.paths.config_dir")
+    config_dir=$(eval echo "$config_dir")
+    rm -rf "$config_dir"
+    
+    # Remove command wrappers
+    local bin_dir=$(get_module_config "python" ".shell.paths.bin_dir")
+    bin_dir=$(eval echo "$bin_dir")
+    rm -f "$bin_dir/py"
+    rm -f "$bin_dir/py-pip"
+    rm -f "$bin_dir/py-venv"
+    rm -f "$bin_dir/py-ipython"
+    rm -f "$bin_dir/py-jupyter"
+    rm -f "$bin_dir/py-fmt"
+    rm -f "$bin_dir/py-lint"
+    rm -f "$bin_dir/py-mypy"
+    rm -f "$bin_dir/py-test"
+    
+    # Remove state file
+    rm -f "$STATE_FILE"
+    
+    log "INFO" "Python configuration removed" "python"
+    log "WARN" "Python system packages were preserved. Use system package manager to remove if needed." "python"
+    return 0
+}
+
+# Execute requested action
+case "${1:-}" in
+    grovel)
+        grovel_python
+        ;;
+    install)
+        install_python "${2:-false}"  # Optional force parameter
+        ;;
+    verify)
+        verify_python
+        ;;
+    info)
+        show_module_info
+        ;;
+    remove)
+        remove_python
+        ;;
+    *)
+        log "ERROR" "Unknown action: ${1:-}" "python"
+        log "ERROR" "Usage: $0 {install|remove|verify|info} [--force]"
+        exit 1
+        ;;
+esac
+}
+
 # Safe version of should_containerize
 should_use_container() {
     local module=$1
@@ -408,7 +584,7 @@ install_python_core() {
     log "INFO" "Installing Python core..." "python"
     
     # Check if Docker module has been installed and is functional
-    if command -v docker &>/dev/null && docker info &>/dev/null && should_use_container "python"; then
+    if command -v docker &>/dev/null && should_use_container "python"; then
         log "INFO" "Using containerized Python..." "python"
         
         # Check for container management tool

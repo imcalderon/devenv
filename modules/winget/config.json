@@ -1,0 +1,156 @@
+{
+    "enabled": true,
+    "runlevel": 2,
+    "description": "Windows Package Manager (WinGet) for automated application installation",
+    "backup": {
+        "paths": [
+            "${env:LOCALAPPDATA}/Packages/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe/LocalState/settings.json",
+            "${DEVENV_DATA_DIR}/winget/config"
+        ],
+        "retention_days": 30
+    },
+    "shell": {
+        "paths": {
+            "config_dir": "${DEVENV_DATA_DIR}/winget/config",
+            "cache_dir": "${env:LOCALAPPDATA}/Microsoft/WinGet/Cache",
+            "logs_dir": "${env:LOCALAPPDATA}/Microsoft/WinGet/Logs"
+        },
+        "aliases": {
+            "winget": {
+                "wg": "winget",
+                "wgi": "winget install",
+                "wgu": "winget uninstall", 
+                "wgs": "winget search",
+                "wgl": "winget list",
+                "wgup": "winget upgrade",
+                "wgupall": "winget upgrade --all"
+            },
+            "package": {
+                "pkg-install": "winget install --exact --id",
+                "pkg-search": "winget search",
+                "pkg-info": "winget show",
+                "pkg-update": "winget upgrade --exact --id",
+                "pkg-remove": "winget uninstall --exact --id"
+            }
+        }
+    },
+    "winget": {
+        "version": "latest",
+        "auto_update": true,
+        "sources": [
+            {
+                "name": "winget",
+                "type": "Microsoft.PreIndexed.Package",
+                "arg": "https://cdn.winget.microsoft.com/cache",
+                "enabled": true
+            },
+            {
+                "name": "msstore",
+                "type": "Microsoft.REST",
+                "arg": "https://storeedgefd.dsx.mp.microsoft.com/v9.0",
+                "enabled": true
+            }
+        ],
+        "packages": {
+            "development": [
+                "Microsoft.VisualStudioCode",
+                "Git.Git",
+                "Microsoft.PowerShell",
+                "Microsoft.WindowsTerminal",
+                "Docker.DockerDesktop",
+                "Microsoft.DotNet.SDK.8",
+                "OpenJS.NodeJS",
+                "Python.Python.3.11"
+            ],
+            "tools": [
+                "7zip.7zip",
+                "Microsoft.PowerToys",
+                "Notepad++.Notepad++",
+                "WinSCP.WinSCP",
+                "PuTTY.PuTTY",
+                "Wireshark.Wireshark"
+            ],
+            "optional": [
+                "Mozilla.Firefox",
+                "Google.Chrome",
+                "Microsoft.Teams",
+                "Slack.Slack",
+                "Postman.Postman",
+                "JetBrains.IntelliJIDEA.Community"
+            ],
+            "gaming": [
+                "Valve.Steam",
+                "EpicGames.EpicGamesLauncher"
+            ]
+        },
+        "settings": {
+            "visual": {
+                "progressBar": "accent",
+                "anonymizePathForTelemetry": true
+            },
+            "installBehavior": {
+                "preferences": {
+                    "scope": "user",
+                    "locale": "en-US",
+                    "architecturePreference": ["x64", "x86"],
+                    "installerTypePreference": ["msix", "msi", "exe"]
+                },
+                "requirements": {
+                    "minimumOSVersion": "10.0.0.0"
+                }
+            },
+            "source": {
+                "autoUpdateIntervalInMinutes": 1440
+            },
+            "telemetry": {
+                "disable": true
+            },
+            "network": {
+                "downloader": "wininet",
+                "doProgressTimeoutInSeconds": 60
+            },
+            "experimentalFeatures": {
+                "experimentalCmd": false,
+                "experimentalArg": false
+            }
+        },
+        "upgrade": {
+            "auto_upgrade": false,
+            "exclude_packages": [
+                "Microsoft.VisualStudioCode.Insiders"
+            ],
+            "schedule": {
+                "enabled": false,
+                "frequency": "weekly"
+            }
+        }
+    },
+    "integration": {
+        "powershell": {
+            "completion": true,
+            "import_module": true
+        },
+        "windows_terminal": {
+            "context_menu": true
+        },
+        "chocolatey": {
+            "compatibility": true,
+            "migration": false
+        }
+    },
+    "platforms": {
+        "windows": {
+            "enabled": true,
+            "native_only": true,
+            "minimum_version": "10.0.17763.0",
+            "features": {
+                "app_installer": true,
+                "developer_mode": false
+            },
+            "requirements": {
+                "store_access": true,
+                "internet_connection": true
+            }
+        }
+    }
+}

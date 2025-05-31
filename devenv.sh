@@ -1,7 +1,7 @@
 #!/bin/bash
 # devenv.sh - Development environment setup with cross-platform support
 
-set -euo pipefail
+set -euox pipefail
 
 # Get absolute paths if not already set
 if [[ -z "${ROOT_DIR:-}" ]]; then
