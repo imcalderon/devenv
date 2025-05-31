@@ -5,31 +5,6 @@
 .DESCRIPTION
     Cross-platform development environment setup with native Windows and WSL support,
     emphasizing containerization for reproducible development environments.
-.PARAMETER Action
-    The action to perform: install, remove, verify, info, backup, restore, update, status
-.PARAMETER Module
-    Specific module to target (optional, defaults to all modules)
-.PARAMETER Force
-    Force operation even if already installed/configured
-.PARAMETER UseWSL
-    Force use of WSL even when native Windows is available
-.PARAMETER NoWSL
-    Disable WSL usage, use only native Windows
-.PARAMETER UseContainers
-    Prefer containerized implementations where available
-.PARAMETER LogLevel
-    Logging verbosity level
-.PARAMETER DryRun
-    Show what would be done without actually doing it
-.EXAMPLE
-    .\devenv.ps1 install
-    Install all enabled modules
-.EXAMPLE
-    .\devenv.ps1 install python -Force
-    Force reinstall the Python module
-.EXAMPLE
-    .\devenv.ps1 install -UseContainers -NoWSL
-    Install using containers on native Windows only
 #>
 
 [CmdletBinding(DefaultParameterSetName = 'Default')]
@@ -262,6 +237,14 @@ function Initialize-Environment {
     
     Write-DevEnvLog "Initializing DevEnv environment..." -Level Information
     
+    # Ensure RootDirectory is properly formatted and absolute
+    if (-not [System.IO.Path]::IsPathRooted($RootDirectory)) {
+        $RootDirectory = Join-Path (Get-Location) $RootDirectory
+    }
+    $RootDirectory = [System.IO.Path]::GetFullPath($RootDirectory)
+    
+    Write-DevEnvLog "Root Directory: $RootDirectory" -Level Debug
+    
     # Detect system capabilities
     $script:IsElevated = Test-Administrator
     $script:WindowsVersion = Get-WindowsVersion
@@ -274,31 +257,46 @@ function Initialize-Environment {
     Write-DevEnvLog "  WSL Available: $($script:WSLAvailable)" -Level Verbose
     Write-DevEnvLog "  Docker Available: $($script:DockerAvailable)" -Level Verbose
     
-    # Set up environment variables
-    $env:DEVENV_ROOT = $RootDirectory
-    $env:DEVENV_DATA_DIR = Join-Path $RootDirectory "data"
-    $env:DEVENV_CONFIG_DIR = Join-Path $RootDirectory "config"
-    $env:DEVENV_MODULES_DIR = Join-Path $RootDirectory "modules"
-    $env:DEVENV_STATE_DIR = Join-Path $env:DEVENV_DATA_DIR "state"
-    $env:DEVENV_LOGS_DIR = Join-Path $env:DEVENV_DATA_DIR "logs"
-    $env:DEVENV_BACKUPS_DIR = Join-Path $env:DEVENV_DATA_DIR "backups"
-    
-    # Platform-specific paths
-    $env:DEVENV_PLATFORM = "windows"
-    if ($UseWSL -and $script:WSLAvailable) {
-        $env:DEVENV_EXECUTION_MODE = "wsl"
-    } elseif ($NoWSL -or -not $script:WSLAvailable) {
-        $env:DEVENV_EXECUTION_MODE = "native"
-    } else {
-        $env:DEVENV_EXECUTION_MODE = "hybrid"
+    # Set up environment variables with explicit machine scope to ensure inheritance
+    $envVars = @{
+        'DEVENV_ROOT' = $RootDirectory
+        'DEVENV_DATA_DIR' = Join-Path $env:USERPROFILE ".devenv"
+        'DEVENV_CONFIG_DIR' = Join-Path $RootDirectory "config"
+        'DEVENV_MODULES_DIR' = Join-Path $RootDirectory "modules"
     }
+    
+    # Set derived paths
+    $envVars['DEVENV_STATE_DIR'] = Join-Path $envVars['DEVENV_DATA_DIR'] "state"
+    $envVars['DEVENV_LOGS_DIR'] = Join-Path $envVars['DEVENV_DATA_DIR'] "logs"
+    $envVars['DEVENV_BACKUPS_DIR'] = Join-Path $envVars['DEVENV_DATA_DIR'] "backups"
+    
+    # Set all environment variables in the current process
+    foreach ($var in $envVars.GetEnumerator()) {
+        [System.Environment]::SetEnvironmentVariable($var.Key, $var.Value, [System.EnvironmentVariableTarget]::Process)
+        # Also set in the $env: scope for immediate availability
+        Set-Item -Path "env:$($var.Key)" -Value $var.Value
+        Write-DevEnvLog "Set environment variable: $($var.Key) = $($var.Value)" -Level Debug
+    }
+    
+    # Platform-specific environment setup
+    [System.Environment]::SetEnvironmentVariable('DEVENV_PLATFORM', 'windows', [System.EnvironmentVariableTarget]::Process)
+    Set-Item -Path "env:DEVENV_PLATFORM" -Value 'windows'
+    
+    if ($UseWSL -and $script:WSLAvailable) {
+        $executionMode = "wsl"
+    } elseif ($NoWSL -or -not $script:WSLAvailable) {
+        $executionMode = "native"
+    } else {
+        $executionMode = "hybrid"
+    }
+    
+    [System.Environment]::SetEnvironmentVariable('DEVENV_EXECUTION_MODE', $executionMode, [System.EnvironmentVariableTarget]::Process)
+    Set-Item -Path "env:DEVENV_EXECUTION_MODE" -Value $executionMode
     
     # Container preference
-    if ($UseContainers -and (Test-ContainerSupport)) {
-        $env:DEVENV_PREFER_CONTAINERS = "true"
-    } else {
-        $env:DEVENV_PREFER_CONTAINERS = "false"
-    }
+    $containerPreference = if ($UseContainers -and (Test-ContainerSupport)) { "true" } else { "false" }
+    [System.Environment]::SetEnvironmentVariable('DEVENV_PREFER_CONTAINERS', $containerPreference, [System.EnvironmentVariableTarget]::Process)
+    Set-Item -Path "env:DEVENV_PREFER_CONTAINERS" -Value $containerPreference
     
     # Create required directories
     $directories = @(
@@ -326,6 +324,16 @@ function Initialize-Environment {
     }
     
     Write-DevEnvLog "Environment initialized (Mode: $env:DEVENV_EXECUTION_MODE, Containers: $env:DEVENV_PREFER_CONTAINERS)" -Level Information
+    
+    # Verify environment variables are properly set
+    Write-DevEnvLog "Environment verification:" -Level Debug
+    foreach ($var in $envVars.GetEnumerator()) {
+        $actualValue = [System.Environment]::GetEnvironmentVariable($var.Key)
+        Write-DevEnvLog "  $($var.Key): $actualValue" -Level Debug
+        if ($actualValue -ne $var.Value) {
+            Write-DevEnvLog "WARNING: Environment variable $($var.Key) mismatch!" -Level Warning
+        }
+    }
 }
 
 function Get-ConfigurationFile {
@@ -488,12 +496,34 @@ function Invoke-NativeModule {
         Write-DevEnvLog "Running native PowerShell module: $moduleScript" -Level Verbose -Module $ModuleName
         
         if (-not $script:DryRun) {
-            $params = @{
-                Action = $Action
-                Force = $Force.IsPresent
+            # Create a new PowerShell process with inherited environment to ensure proper variable inheritance
+            $envArgs = @()
+            foreach ($envVar in @('DEVENV_ROOT', 'DEVENV_DATA_DIR', 'DEVENV_MODULES_DIR', 'DEVENV_STATE_DIR', 'DEVENV_LOGS_DIR', 'DEVENV_BACKUPS_DIR', 'DEVENV_PLATFORM', 'DEVENV_EXECUTION_MODE', 'DEVENV_PREFER_CONTAINERS')) {
+                $value = [System.Environment]::GetEnvironmentVariable($envVar)
+                if ($value) {
+                    $envArgs += "`$env:$envVar = '$value';"
+                }
             }
             
-            & $moduleScript @params
+            $forceParam = if ($Force) { '-Force' } else { '' }
+            $command = ($envArgs -join ' ') + " & '$moduleScript' '$Action' $forceParam"
+            
+            Write-DevEnvLog "Executing command: $command" -Level Debug -Module $ModuleName
+            
+            # Use PowerShell.exe to execute with a fresh environment that inherits our variables
+            $processArgs = @{
+                FilePath = 'powershell.exe'
+                ArgumentList = @('-ExecutionPolicy', 'Bypass', '-Command', $command)
+                Wait = $true
+                PassThru = $true
+                NoNewWindow = $true
+            }
+            
+            $process = Start-Process @processArgs
+            
+            if ($process.ExitCode -ne 0) {
+                throw "Module execution failed with exit code: $($process.ExitCode)"
+            }
         } else {
             Write-DevEnvLog "DRY RUN: Would execute $moduleScript $Action" -Level Information -Module $ModuleName
         }
