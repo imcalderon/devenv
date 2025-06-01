@@ -59,7 +59,6 @@ function Get-ExecutionMode {
     )
     
     $scriptDir = Split-Path $ScriptPath -Parent
-    $scriptName = Split-Path $ScriptPath -Leaf
     
     Write-Verbose "Script path: $ScriptPath"
     Write-Verbose "Script directory: $scriptDir"
@@ -400,7 +399,7 @@ function Test-ModuleInstallation {
             return $false
         }
         
-        $result = & $Module.Script "grovel" 2>$null
+        & $Module.Script "grovel" *>$null
         return $LASTEXITCODE -eq 0
     } catch {
         return $false

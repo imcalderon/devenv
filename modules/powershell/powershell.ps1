@@ -133,7 +133,19 @@ function Test-Component {
         'config' {
             # Verify configuration files exist
             $configDir = Get-ModuleConfig $script:ModuleName ".shell.paths.config_dir"
+            
+            if ([string]::IsNullOrWhiteSpace($configDir)) {
+                Write-LogWarning "Configuration directory path is empty or null" $script:ModuleName
+                return $false
+            }
+            
             $configDir = [System.Environment]::ExpandEnvironmentVariables($configDir)
+            
+            if ([string]::IsNullOrWhiteSpace($configDir)) {
+                Write-LogWarning "Configuration directory path is empty after environment variable expansion" $script:ModuleName
+                return $false
+            }
+            
             return (Test-Path $configDir)
         }
         default {
