@@ -1,0 +1,224 @@
+{
+    "enabled": true,
+    "runlevel": 0,
+    "description": "Windows Terminal - Modern terminal application for Windows development",
+    "backup": {
+        "paths": [
+            "${env:LOCALAPPDATA}/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json",
+            "${DEVENV_DATA_DIR}/windows-terminal/config"
+        ],
+        "retention_days": 30
+    },
+    "shell": {
+        "paths": {
+            "config_dir": "${DEVENV_DATA_DIR}/windows-terminal/config",
+            "settings_path": "${env:LOCALAPPDATA}/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json",
+            "themes_dir": "${DEVENV_DATA_DIR}/windows-terminal/themes"
+        },
+        "aliases": {
+            "terminal": {
+                "wt": "wt.exe",
+                "wt-here": "wt.exe -d .",
+                "wt-admin": "wt.exe --elevate",
+                "wt-settings": "wt.exe --settings"
+            }
+        }
+    },
+    "windows_terminal": {
+        "version": "latest",
+        "auto_update": true,
+        "installation": {
+            "method": "winget",
+            "package_id": "Microsoft.WindowsTerminal",
+            "fallback_method": "msstore"
+        },
+        "settings": {
+            "defaultProfile": "{574e775e-4f2a-5b96-ac1e-a2962a402336}",
+            "copyOnSelect": true,
+            "copyFormatting": false,
+            "wordDelimiters": " /\\()\"'-.,:;<>~!@#$%^&*|+=[]{}~?\u2502",
+            "confirmCloseAllTabs": true,
+            "largePasteWarning": true,
+            "multiLinePasteWarning": true,
+            "snapToGridOnResize": true,
+            "startOnUserLogin": false,
+            "theme": "dark",
+            "showTabsInTitlebar": true,
+            "useAcrylicInTabRow": false,
+            "profiles": {
+                "defaults": {
+                    "fontFace": "Cascadia Code",
+                    "fontSize": 12,
+                    "fontWeight": "normal",
+                    "cursorShape": "bar",
+                    "colorScheme": "One Half Dark",
+                    "useAcrylic": false,
+                    "acrylicOpacity": 0.8,
+                    "scrollbarState": "visible",
+                    "snapOnInput": true,
+                    "historySize": 9001,
+                    "bellStyle": "none",
+                    "antialiasingMode": "grayscale"
+                },
+                "list": [
+                    {
+                        "guid": "{574e775e-4f2a-5b96-ac1e-a2962a402336}",
+                        "name": "PowerShell",
+                        "commandline": "powershell.exe",
+                        "icon": "ms-appx:///ProfileIcons/{574e775e-4f2a-5b96-ac1e-a2962a402336}.png",
+                        "colorScheme": "One Half Dark",
+                        "startingDirectory": "%USERPROFILE%"
+                    },
+                    {
+                        "guid": "{51855cb2-8cce-5362-8f54-464b92b32386}",
+                        "name": "PowerShell 7",
+                        "commandline": "pwsh.exe",
+                        "icon": "ms-appx:///ProfileIcons/{574e775e-4f2a-5b96-ac1e-a2962a402336}.png",
+                        "colorScheme": "One Half Dark",
+                        "startingDirectory": "%USERPROFILE%"
+                    },
+                    {
+                        "guid": "{2c4de342-38b7-51cf-b940-2309a097f518}",
+                        "name": "Ubuntu",
+                        "commandline": "wsl.exe -d Ubuntu",
+                        "icon": "ms-appx:///ProfileIcons/{9acb9455-ca41-5af7-950f-6bca1bc9722f}.png",
+                        "colorScheme": "One Half Dark",
+                        "startingDirectory": "//wsl$/Ubuntu/home/%USERNAME%"
+                    }
+                ]
+            },
+            "schemes": [
+                {
+                    "name": "One Half Dark",
+                    "black": "#282C34",
+                    "red": "#E06C75",
+                    "green": "#98C379",
+                    "yellow": "#E5C07B",
+                    "blue": "#61AFEF",
+                    "purple": "#C678DD",
+                    "cyan": "#56B6C2",
+                    "white": "#DCDFE4",
+                    "brightBlack": "#5A6374",
+                    "brightRed": "#E06C75",
+                    "brightGreen": "#98C379",
+                    "brightYellow": "#E5C07B",
+                    "brightBlue": "#61AFEF",
+                    "brightPurple": "#C678DD",
+                    "brightCyan": "#56B6C2",
+                    "brightWhite": "#DCDFE4",
+                    "background": "#282C34",
+                    "foreground": "#DCDFE4",
+                    "selectionBackground": "#3E4451",
+                    "cursorColor": "#DCDFE4"
+                },
+                {
+                    "name": "DevEnv Dark",
+                    "black": "#1e1e1e",
+                    "red": "#f44747",
+                    "green": "#608b4e",
+                    "yellow": "#dcdcaa",
+                    "blue": "#569cd6",
+                    "purple": "#c586c0",
+                    "cyan": "#4ec9b0",
+                    "white": "#d4d4d4",
+                    "brightBlack": "#808080",
+                    "brightRed": "#f44747",
+                    "brightGreen": "#608b4e",
+                    "brightYellow": "#dcdcaa",
+                    "brightBlue": "#569cd6",
+                    "brightPurple": "#c586c0",
+                    "brightCyan": "#4ec9b0",
+                    "brightWhite": "#d4d4d4",
+                    "background": "#1e1e1e",
+                    "foreground": "#d4d4d4",
+                    "selectionBackground": "#264f78",
+                    "cursorColor": "#d4d4d4"
+                }
+            ],
+            "actions": [
+                {
+                    "command": {
+                        "action": "copy",
+                        "singleLine": false
+                    },
+                    "keys": "ctrl+c"
+                },
+                {
+                    "command": "paste",
+                    "keys": "ctrl+v"
+                },
+                {
+                    "command": "find",
+                    "keys": "ctrl+shift+f"
+                },
+                {
+                    "command": {
+                        "action": "splitPane",
+                        "split": "auto",
+                        "splitMode": "duplicate"
+                    },
+                    "keys": "alt+shift+d"
+                },
+                {
+                    "command": "toggleFullscreen",
+                    "keys": "f11"
+                },
+                {
+                    "command": {
+                        "action": "newTab"
+                    },
+                    "keys": "ctrl+shift+t"
+                }
+            ]
+        },
+        "features": {
+            "experimental_features": true,
+            "developer_mode": false,
+            "focus_follows_mouse": false,
+            "force_full_repaint_rendering": false,
+            "software_rendering": false
+        }
+    },
+    "integration": {
+        "context_menu": {
+            "enabled": true,
+            "registry_keys": [
+                {
+                    "path": "HKEY_CLASSES_ROOT\\Directory\\Background\\shell\\wt",
+                    "name": "Open in Terminal",
+                    "command": "wt.exe -d \"%V\""
+                },
+                {
+                    "path": "HKEY_CLASSES_ROOT\\Directory\\shell\\wt",
+                    "name": "Open in Terminal",
+                    "command": "wt.exe -d \"%1\""
+                }
+            ]
+        },
+        "taskbar": {
+            "pin_to_taskbar": true,
+            "jump_list": true
+        },
+        "startup": {
+            "add_to_startup": false,
+            "start_minimized": false
+        }
+    },
+    "platforms": {
+        "windows": {
+            "enabled": true,
+            "native_only": true,
+            "minimum_version": "10.0.18362.0",
+            "features": {
+                "winget_support": true,
+                "msstore_fallback": true,
+                "registry_integration": true
+            },
+            "requirements": {
+                "windows_version": "Windows 10 1903+",
+                "architecture": "x64",
+                "store_access": true
+            }
+        }
+    }
+}
