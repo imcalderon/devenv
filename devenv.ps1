@@ -1,636 +1,699 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    DevEnv - Hermetic Development Environment Manager for Windows
+    DevEnv - Dual-Mode Hermetic Development Environment Manager
 .DESCRIPTION
-    Cross-platform development environment setup with configurable data directories
-    for complete environment isolation and portability.
+    Enhanced version with mode detection and dual-mode operation support
 #>
 
-[CmdletBinding(DefaultParameterSetName = 'Default')]
+[CmdletBinding()]
 param (
-    [Parameter(Position = 0, Mandatory = $false)]
-    [ValidateSet('install', 'remove', 'verify', 'info', 'backup', 'restore', 'update', 'status', 'list',
-                 'list-environments', 'create-environment', 'switch-environment', 'remove-environment')]
+    [Parameter(Position = 0)]
+    [ValidateSet('install', 'remove', 'verify', 'info', 'status', 'create-project', 'list', 'backup', 'restore')]
     [string]$Action = 'info',
     
     [Parameter(Position = 1)]
-    [string]$Module,
+    [string[]]$Modules,
     
     [Parameter()]
-    [string]$ConfigFile,
+    [string]$Template,
     
     [Parameter()]
-    [string]$RootDir,
+    [string]$Name,
     
     [Parameter()]
     [string]$DataDir,
     
     [Parameter()]
-    [string]$Environment,
-    
-    [Parameter()]
     [switch]$Force,
     
     [Parameter()]
-    [switch]$UseWSL,
-    
-    [Parameter()]
-    [switch]$NoWSL,
-    
-    [Parameter()]
-    [switch]$UseContainers,
-    
-    [Parameter()]
     [ValidateSet('Silent', 'Error', 'Warning', 'Information', 'Verbose', 'Debug')]
-    [string]$LogLevel = 'Information',
-    
-    [Parameter()]
-    [switch]$DryRun,
-    
-    [Parameter()]
-    [switch]$ShowHelp
+    [string]$LogLevel = 'Information'
 )
 
-# Set strict mode and error handling
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$ProgressPreference = 'SilentlyContinue'
 
-#region Global Variables
-$script:Config = $null
-$script:IsElevated = $false
-$script:WindowsVersion = $null
-$script:WSLAvailable = $false
-$script:DockerAvailable = $false
-$script:LogLevel = $LogLevel
-$script:DryRun = $DryRun.IsPresent
-$script:DataDirectory = $null
-#endregion
+# Get script path at script level (not inside functions)
+$script:ScriptPath = if ($PSCommandPath) { 
+    $PSCommandPath 
+} elseif ($MyInvocation.MyCommand.Path) { 
+    $MyInvocation.MyCommand.Path 
+} else { 
+    $PSScriptRoot + '\' + $MyInvocation.MyCommand.Name 
+}
+$script:ScriptDir = Split-Path $script:ScriptPath -Parent
 
-#region Logging Functions
-function Write-DevEnvLog {
-    [CmdletBinding()]
+#region Core Mode Detection
+function Get-ExecutionMode {
+    <#
+    .SYNOPSIS
+        Detects whether DevEnv is running in Global or Project mode
+    .DESCRIPTION
+        Uses path analysis and file existence to determine execution context
+    #>
     param(
         [Parameter(Mandatory)]
-        [string]$Message,
-        
-        [ValidateSet('Error', 'Warning', 'Information', 'Verbose', 'Debug')]
-        [string]$Level = 'Information',
-        
-        [string]$Module = 'DevEnv',
-        
-        [switch]$NoNewline
+        [string]$ScriptPath
     )
     
-    $levelPriority = @{
-        'Silent' = 0
-        'Error' = 1
-        'Warning' = 2
-        'Information' = 3
-        'Verbose' = 4
-        'Debug' = 5
+    $scriptDir = Split-Path $ScriptPath -Parent
+    $scriptName = Split-Path $ScriptPath -Leaf
+    
+    Write-Verbose "Script path: $ScriptPath"
+    Write-Verbose "Script directory: $scriptDir"
+    
+    # Case 1: Project Mode Detection
+    # Check if we're in a project's bin directory with a symlink/copy
+    if ($scriptDir -match '\\bin$' -or $scriptDir -match '/bin$') {
+        $projectRoot = Split-Path $scriptDir -Parent
+        $projectConfigFile = Join-Path $projectRoot "devenv.json"
+        
+        Write-Verbose "Checking for project mode..."
+        Write-Verbose "Potential project root: $projectRoot"
+        Write-Verbose "Looking for config: $projectConfigFile"
+        
+        if (Test-Path $projectConfigFile) {
+            # Determine if this is a symlink or copy
+            $isSymlink = $false
+            $globalDevEnvPath = $null
+            
+            try {
+                $item = Get-Item $ScriptPath -ErrorAction SilentlyContinue
+                if ($item.LinkType -eq 'SymbolicLink') {
+                    $isSymlink = $true
+                    $globalDevEnvPath = $item.Target
+                }
+            } catch {
+                $isSymlink = $false
+            }
+            
+            return @{
+                Mode = "Project"
+                ProjectRoot = $projectRoot
+                DataDir = Join-Path $projectRoot ".devenv"
+                ConfigFile = $projectConfigFile
+                ScriptPath = $ScriptPath
+                IsSymlink = $isSymlink
+                GlobalDevEnvPath = $globalDevEnvPath
+            }
+        }
     }
     
-    if ($levelPriority[$Level] -le $levelPriority[$script:LogLevel]) {
-        $color = switch ($Level) {
-            'Error' { 'Red' }
-            'Warning' { 'Yellow' }
-            'Information' { 'Green' }
-            'Verbose' { 'Cyan' }
-            'Debug' { 'Magenta' }
-        }
-        
-        if ($NoNewline) {
-            Write-Host $Message -ForegroundColor $color -NoNewline
-        } else {
-            Write-Host $Message -ForegroundColor $color
-        }
-    }
-}
-#endregion
-
-#region System Detection Functions
-function Test-Administrator {
-    try {
-        $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
-        $principal = [Security.Principal.WindowsPrincipal]$currentUser
-        return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    }
-    catch {
-        return $false
-    }
-}
-
-function Get-WindowsVersion {
-    try {
-        $version = [System.Environment]::OSVersion.Version
-        $build = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").CurrentBuildNumber
-        
+    # Case 2: Global Mode Detection
+    # Check if we're in the DevEnv repository root
+    $globalConfigFile = Join-Path $scriptDir "config.json"
+    
+    Write-Verbose "Checking for global mode..."
+    Write-Verbose "Looking for global config: $globalConfigFile"
+    
+    if (Test-Path $globalConfigFile) {
         return @{
-            Major = $version.Major
-            Minor = $version.Minor
-            Build = [int]$build
-            IsWindows10OrLater = ($version.Major -eq 10 -and [int]$build -ge 10240) -or $version.Major -gt 10
-            IsWindows11OrLater = ($version.Major -eq 10 -and [int]$build -ge 22000) -or $version.Major -gt 10
+            Mode = "Global"
+            ProjectRoot = $null
+            DataDir = Join-Path $env:USERPROFILE ".devenv"
+            ConfigFile = $globalConfigFile
+            ScriptPath = $ScriptPath
+            IsSymlink = $false
+            GlobalDevEnvPath = $ScriptPath
         }
     }
-    catch {
-        Write-DevEnvLog "Failed to detect Windows version: $_" -Level Warning
-        return @{ Major = 0; Minor = 0; Build = 0; IsWindows10OrLater = $false; IsWindows11OrLater = $false }
-    }
+    
+    # Case 3: Error - Cannot determine mode
+    throw @"
+Cannot determine DevEnv execution mode.
+
+Expected one of:
+1. Global Mode: Running from DevEnv repository with config.json present
+2. Project Mode: Running from project/bin/ directory with ../devenv.json present
+
+Current location: $scriptDir
+Script: $ScriptPath
+
+Please ensure you're running DevEnv from the correct location.
+"@
 }
 
-function Test-WSLAvailable {
-    try {
-        $wslVersion = wsl.exe --version 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            $distributions = wsl.exe --list --quiet 2>$null
-            return ($distributions -and $distributions.Count -gt 0)
+function Initialize-ExecutionEnvironment {
+    <#
+    .SYNOPSIS
+        Sets up environment variables and directories for the detected mode
+    #>
+    param([hashtable]$DevEnvContext)
+    
+    # Set core environment variables
+    $env:DEVENV_MODE = $DevEnvContext.Mode
+    $env:DEVENV_DATA_DIR = $DevEnvContext.DataDir
+    $env:DEVENV_CONFIG_FILE = $DevEnvContext.ConfigFile
+    $env:DEVENV_ROOT = if ($DevEnvContext.Mode -eq "Global") { 
+        Split-Path $DevEnvContext.ScriptPath -Parent 
+    } else { 
+        if ($DevEnvContext.GlobalDevEnvPath) {
+            Split-Path $DevEnvContext.GlobalDevEnvPath -Parent 
+        } else {
+            # Fallback: assume DevEnv is in PATH or use current directory
+            Split-Path $DevEnvContext.ScriptPath -Parent
         }
-        return $false
     }
-    catch {
-        return $false
-    }
-}
-
-function Test-DockerAvailable {
-    try {
-        $null = docker.exe version 2>$null
-        return $LASTEXITCODE -eq 0
-    }
-    catch {
-        return $false
-    }
-}
-
-function Test-GitAvailable {
-    try {
-        $null = git.exe --version 2>$null
-        return $LASTEXITCODE -eq 0
-    }
-    catch {
-        return $false
-    }
-}
-
-function Test-NodeAvailable {
-    try {
-        $null = node.exe --version 2>$null
-        return $LASTEXITCODE -eq 0
-    }
-    catch {
-        return $false
-    }
-}
-
-function Test-PythonAvailable {
-    try {
-        $null = python.exe --version 2>$null
-        return $LASTEXITCODE -eq 0
-    }
-    catch {
-        return $false
-    }
-}
-
-function Test-VSCodeAvailable {
-    try {
-        $null = code.exe --version 2>$null
-        return $LASTEXITCODE -eq 0
-    }
-    catch {
-        return $false
-    }
-}
-#endregion
-
-#region Enhanced System Status and Guidance
-function Show-WelcomeMessage {
-    Write-Host ""
-    Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host "  DevEnv - Hermetic Development Setup  " -ForegroundColor Cyan
-    Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "Welcome to DevEnv! Let's analyze your system and get you started." -ForegroundColor White
-    Write-Host ""
-}
-
-function Show-SystemAnalysis {
-    Write-Host "System Analysis" -ForegroundColor Yellow
-    Write-Host "---------------" -ForegroundColor Yellow
     
-    # Basic system info
-    Write-Host "Platform: " -NoNewline
-    Write-Host "Windows $($script:WindowsVersion.Major).$($script:WindowsVersion.Minor) (Build $($script:WindowsVersion.Build))" -ForegroundColor Green
-    
-    Write-Host "PowerShell: " -NoNewline
-    Write-Host "$($PSVersionTable.PSVersion)" -ForegroundColor Green
-    
-    Write-Host "Administrator: " -NoNewline
-    if ($script:IsElevated) {
-        Write-Host "Yes" -ForegroundColor Green
+    # Mode-specific setup
+    if ($DevEnvContext.Mode -eq "Project") {
+        $env:DEVENV_PROJECT_ROOT = $DevEnvContext.ProjectRoot
+        $env:DEVENV_PROJECT_MODE = "true"
+        
+        Write-Host "[PROJ] " -NoNewline -ForegroundColor Blue
+        Write-Host "DevEnv Project Mode" -ForegroundColor Cyan
+        Write-Host "   Project: " -NoNewline -ForegroundColor Gray
+        Write-Host (Split-Path $DevEnvContext.ProjectRoot -Leaf) -ForegroundColor White
+        Write-Host "   Data Dir: " -NoNewline -ForegroundColor Gray
+        Write-Host $DevEnvContext.DataDir -ForegroundColor Yellow
+        
+        if ($DevEnvContext.IsSymlink) {
+            Write-Host "   Symlink: " -NoNewline -ForegroundColor Gray
+            Write-Host "OK" -ForegroundColor Green
+        } else {
+            Write-Host "   Type: " -NoNewline -ForegroundColor Gray
+            Write-Host "Copy" -ForegroundColor Yellow
+        }
     } else {
-        Write-Host "No" -ForegroundColor Yellow
-        Write-Host "  Note: Some modules may require administrator privileges for installation" -ForegroundColor Gray
+        $env:DEVENV_PROJECT_MODE = "false"
+        
+        Write-Host "[GLOBAL] " -NoNewline -ForegroundColor Blue
+        Write-Host "DevEnv Global Mode" -ForegroundColor Green
+        Write-Host "   Data Dir: " -NoNewline -ForegroundColor Gray
+        Write-Host $DevEnvContext.DataDir -ForegroundColor Yellow
     }
     
     Write-Host ""
-    Write-Host "Development Capabilities" -ForegroundColor Yellow
-    Write-Host "------------------------" -ForegroundColor Yellow
     
-    # WSL Status
-    Write-Host "WSL (Windows Subsystem for Linux): " -NoNewline
-    if ($script:WSLAvailable) {
-        Write-Host "Available" -ForegroundColor Green
-        try {
-            $wslDistros = wsl.exe --list --quiet 2>$null | Where-Object { $_.Trim() -ne "" }
-            Write-Host "  Distributions: $($wslDistros -join ', ')" -ForegroundColor Gray
-        } catch {}
-    } else {
-        Write-Host "Not Available" -ForegroundColor Red
-        Write-Host "  Tip: Install WSL2 for enhanced Linux compatibility" -ForegroundColor Gray
-    }
-    
-    # Docker Status
-    Write-Host "Docker: " -NoNewline
-    if ($script:DockerAvailable) {
-        Write-Host "Available" -ForegroundColor Green
-        try {
-            $dockerVersion = docker.exe --version 2>$null
-            Write-Host "  Version: $dockerVersion" -ForegroundColor Gray
-        } catch {}
-    } else {
-        Write-Host "Not Available" -ForegroundColor Red
-        Write-Host "  Tip: Install Docker Desktop for containerized development" -ForegroundColor Gray
-    }
-    
-    Write-Host ""
-    Write-Host "Installed Development Tools" -ForegroundColor Yellow
-    Write-Host "---------------------------" -ForegroundColor Yellow
-    
-    # Check common development tools
-    $tools = @(
-        @{ Name = "Git"; Check = { Test-GitAvailable } },
-        @{ Name = "Node.js"; Check = { Test-NodeAvailable } },
-        @{ Name = "Python"; Check = { Test-PythonAvailable } },
-        @{ Name = "VS Code"; Check = { Test-VSCodeAvailable } }
+    # Create required data directories
+    $requiredDirs = @(
+        $DevEnvContext.DataDir,
+        (Join-Path $DevEnvContext.DataDir "state"),
+        (Join-Path $DevEnvContext.DataDir "tools"),
+        (Join-Path $DevEnvContext.DataDir "config"),
+        (Join-Path $DevEnvContext.DataDir "logs"),
+        (Join-Path $DevEnvContext.DataDir "backups")
     )
     
-    foreach ($tool in $tools) {
-        Write-Host "$($tool.Name): " -NoNewline
-        if (& $tool.Check) {
-            Write-Host "Installed" -ForegroundColor Green
-        } else {
-            Write-Host "Not Installed" -ForegroundColor Red
+    foreach ($dir in $requiredDirs) {
+        if (-not (Test-Path $dir)) {
+            New-Item -Path $dir -ItemType Directory -Force | Out-Null
+            Write-Verbose "Created directory: $dir"
         }
     }
     
-    Write-Host ""
-}
-
-function Show-GuidedSetup {
-    Write-Host "Getting Started" -ForegroundColor Yellow
-    Write-Host "---------------" -ForegroundColor Yellow
-    Write-Host ""
-    
-    Write-Host "DevEnv creates isolated, portable development environments that don't pollute your system." -ForegroundColor White
-    Write-Host "Each project can have its own complete development setup that travels with your code." -ForegroundColor White
-    Write-Host ""
-    
-    Write-Host "Recommended Setup Steps:" -ForegroundColor Cyan
-    Write-Host ""
-    
-    # Step 1: Create project directory
-    Write-Host "1. Create a Project Environment" -ForegroundColor Green
-    Write-Host "   Choose where to set up your isolated development environment:" -ForegroundColor White
-    Write-Host ""
-    Write-Host "   For a specific project:" -ForegroundColor Gray
-    Write-Host "   PS> " -NoNewline -ForegroundColor DarkGray
-    Write-Host "cd C:\YourProject" -ForegroundColor White
-    Write-Host "   PS> " -NoNewline -ForegroundColor DarkGray
-    Write-Host ".\devenv.ps1 create-environment 'my-project' -DataDir '.\.devenv'" -ForegroundColor White
-    Write-Host ""
-    Write-Host "   For general development:" -ForegroundColor Gray
-    Write-Host "   PS> " -NoNewline -ForegroundColor DarkGray
-    Write-Host ".\devenv.ps1 create-environment 'dev-main' -DataDir 'C:\Dev\.devenv'" -ForegroundColor White
-    Write-Host ""
-    
-    # Step 2: Install tools
-    Write-Host "2. Install Development Tools" -ForegroundColor Green
-    Write-Host "   After creating an environment, install the tools you need:" -ForegroundColor White
-    Write-Host ""
-    
-    if (-not (Test-GitAvailable)) {
-        Write-Host "   Install Git (version control):" -ForegroundColor Gray
-        Write-Host "   PS> " -NoNewline -ForegroundColor DarkGray
-        Write-Host ".\devenv.ps1 install git" -ForegroundColor White
-        Write-Host ""
-    }
-    
-    if (-not (Test-VSCodeAvailable)) {
-        Write-Host "   Install VS Code (code editor):" -ForegroundColor Gray
-        Write-Host "   PS> " -NoNewline -ForegroundColor DarkGray
-        Write-Host ".\devenv.ps1 install vscode" -ForegroundColor White
-        Write-Host ""
-    }
-    
-    if (-not (Test-PythonAvailable)) {
-        Write-Host "   Install Python (programming language):" -ForegroundColor Gray
-        Write-Host "   PS> " -NoNewline -ForegroundColor DarkGray
-        Write-Host ".\devenv.ps1 install python" -ForegroundColor White
-        Write-Host ""
-    }
-    
-    if (-not (Test-NodeAvailable)) {
-        Write-Host "   Install Node.js (JavaScript runtime):" -ForegroundColor Gray
-        Write-Host "   PS> " -NoNewline -ForegroundColor DarkGray
-        Write-Host ".\devenv.ps1 install nodejs" -ForegroundColor White
-        Write-Host ""
-    }
-    
-    if (-not $script:DockerAvailable) {
-        Write-Host "   Install Docker (containerization):" -ForegroundColor Gray
-        Write-Host "   PS> " -NoNewline -ForegroundColor DarkGray
-        Write-Host ".\devenv.ps1 install docker" -ForegroundColor White
-        Write-Host ""
-    }
-    
-    Write-Host "   Install everything at once:" -ForegroundColor Gray
-    Write-Host "   PS> " -NoNewline -ForegroundColor DarkGray
-    Write-Host ".\devenv.ps1 install" -ForegroundColor White
-    Write-Host ""
-    
-    # Step 3: Additional commands
-    Write-Host "3. Useful Commands" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "   PS> " -NoNewline -ForegroundColor DarkGray
-    Write-Host ".\devenv.ps1 list" -ForegroundColor White
-    Write-Host "       Show all available modules" -ForegroundColor Gray
-    Write-Host ""
-    Write-Host "   PS> " -NoNewline -ForegroundColor DarkGray
-    Write-Host ".\devenv.ps1 status" -ForegroundColor White
-    Write-Host "       Show detailed system and environment status" -ForegroundColor Gray
-    Write-Host ""
-    Write-Host "   PS> " -NoNewline -ForegroundColor DarkGray
-    Write-Host ".\devenv.ps1 list-environments" -ForegroundColor White
-    Write-Host "       Show all your development environments" -ForegroundColor Gray
-    Write-Host ""
-    Write-Host "   PS> " -NoNewline -ForegroundColor DarkGray
-    Write-Host ".\devenv.ps1 verify" -ForegroundColor White
-    Write-Host "       Check that everything is working correctly" -ForegroundColor Gray
-    Write-Host ""
-    
-    # Benefits section
-    Write-Host "Why Use DevEnv?" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "* " -NoNewline -ForegroundColor Green
-    Write-Host "Hermetic: Each environment is completely isolated" -ForegroundColor White
-    Write-Host "* " -NoNewline -ForegroundColor Green
-    Write-Host "Portable: Copy the .devenv folder = copy the entire environment" -ForegroundColor White
-    Write-Host "* " -NoNewline -ForegroundColor Green
-    Write-Host "Clean: No system pollution - everything can be removed cleanly" -ForegroundColor White
-    Write-Host "* " -NoNewline -ForegroundColor Green
-    Write-Host "Team-Friendly: Share identical environments across your team" -ForegroundColor White
-    Write-Host "* " -NoNewline -ForegroundColor Green
-    Write-Host "Container-Ready: Uses Docker containers when available for maximum isolation" -ForegroundColor White
-    Write-Host ""
-}
-
-function Show-QuickStart {
-    Write-Host "Quick Start - No Environment Set" -ForegroundColor Yellow
-    Write-Host "=================================" -ForegroundColor Yellow
-    Write-Host ""
-    
-    Write-Host "You don't have any DevEnv environments set up yet." -ForegroundColor White
-    Write-Host "Let's create your first isolated development environment!" -ForegroundColor White
-    Write-Host ""
-    
-    $createNow = Read-Host "Would you like to create a development environment now? (Y/n)"
-    
-    if ($createNow -match '^[Nn]') {
-        Write-Host ""
-        Write-Host "No problem! When you're ready, use these commands:" -ForegroundColor Cyan
-        Write-Host ""
-        Write-Host "Create environment in current directory:" -ForegroundColor Gray
-        Write-Host "PS> " -NoNewline -ForegroundColor DarkGray
-        Write-Host ".\devenv.ps1 create-environment 'my-project' -DataDir '.\.devenv'" -ForegroundColor White
-        Write-Host ""
-        Write-Host "Create environment in a specific location:" -ForegroundColor Gray
-        Write-Host "PS> " -NoNewline -ForegroundColor DarkGray
-        Write-Host ".\devenv.ps1 create-environment 'dev-main' -DataDir 'C:\Dev\.devenv'" -ForegroundColor White
-        Write-Host ""
-        return
-    }
-    
-    Write-Host ""
-    Write-Host "Great! Let's set up your development environment." -ForegroundColor Green
-    Write-Host ""
-    
-    # Get environment name
-    $envName = Read-Host "Enter a name for your environment (e.g., 'my-project', 'main-dev')"
-    if (-not $envName) {
-        $envName = "main-dev"
-        Write-Host "Using default name: $envName" -ForegroundColor Yellow
-    }
-    
-    Write-Host ""
-    Write-Host "Where would you like to store your development environment?" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "Options:" -ForegroundColor White
-    Write-Host "1. Current directory ($(Get-Location)\.devenv)" -ForegroundColor Gray
-    Write-Host "2. Dedicated dev folder (C:\Dev\.devenv)" -ForegroundColor Gray
-    Write-Host "3. Custom location" -ForegroundColor Gray
-    Write-Host ""
-    
-    $locationChoice = Read-Host "Choose option (1/2/3) or press Enter for option 1"
-    
-    $dataDir = switch ($locationChoice) {
-        "2" { "C:\Dev\.devenv" }
-        "3" { 
-            $customPath = Read-Host "Enter the full path for your environment data"
-            if ($customPath) { $customPath } else { "$(Get-Location)\.devenv" }
+    # Load configuration
+    if (Test-Path $DevEnvContext.ConfigFile) {
+        try {
+            $script:Config = Get-Content $DevEnvContext.ConfigFile | ConvertFrom-Json
+            Write-Verbose "Loaded configuration from: $($DevEnvContext.ConfigFile)"
+        } catch {
+            Write-Warning "Failed to load configuration from $($DevEnvContext.ConfigFile): $_"
+            $script:Config = @{}
         }
-        default { "$(Get-Location)\.devenv" }
+    } else {
+        Write-Warning "Configuration file not found: $($DevEnvContext.ConfigFile)"
+        $script:Config = @{}
     }
     
-    Write-Host ""
-    $description = Read-Host "Enter a description for this environment (optional)"
+    return $DevEnvContext
+}
+#endregion
+
+#region Project Creation
+function New-DevEnvProject {
+    <#
+    .SYNOPSIS
+        Creates a new project with DevEnv integration
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$ProjectName,
+        
+        [string]$ProjectPath = (Get-Location),
+        
+        [string]$Template = "basic",
+        
+        [string]$Description = ""
+    )
     
+    if ($script:DevEnvContext.Mode -eq "Project") {
+        throw "Cannot create project from within project mode. Use global DevEnv instance."
+    }
+    
+    $projectDir = Join-Path $ProjectPath $ProjectName
+    
+    if (Test-Path $projectDir) {
+        if (-not $Force) {
+            throw "Project directory already exists: $projectDir. Use -Force to overwrite."
+        }
+        Write-Warning "Project directory exists, removing: $projectDir"
+        Remove-Item $projectDir -Recurse -Force
+    }
+    
+    Write-Host "Creating project: " -NoNewline
+    Write-Host $ProjectName -ForegroundColor Cyan
+    Write-Host "Location: " -NoNewline
+    Write-Host $projectDir -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "Creating environment '$envName' at: $dataDir" -ForegroundColor Green
+    
+    # Create project structure
+    $projectStructure = @(
+        "src",
+        "bin",
+        "docs",
+        "tests",
+        ".devenv"
+    )
+    
+    foreach ($dir in $projectStructure) {
+        $fullPath = Join-Path $projectDir $dir
+        New-Item -Path $fullPath -ItemType Directory -Force | Out-Null
+    }
+    
+    # Create project configuration
+    $projectConfig = @{
+        name = $ProjectName
+        version = "1.0.0"
+        description = if ($Description) { $Description } else { "DevEnv project: $ProjectName" }
+        template = $Template
+        created = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+        devenv = @{
+            version = "3.0.0"
+            mode = "project"
+            data_dir = ".devenv"
+        }
+        modules = @{
+            order = @("git", "vscode")
+        }
+    }
+    
+    $configPath = Join-Path $projectDir "devenv.json"
+    $projectConfig | ConvertTo-Json -Depth 5 | Set-Content -Path $configPath -Encoding UTF8
+    
+    # Create README
+    $readmeContent = @"
+# $ProjectName
+
+$($projectConfig.description)
+
+## DevEnv Setup
+
+This project uses DevEnv for isolated development environment management.
+
+### Quick Start
+
+1. Install development environment:
+   ``````powershell
+   .\bin\devenv.ps1 install
+   ``````
+
+2. Check status:
+   ``````powershell
+   .\bin\devenv.ps1 status
+   ``````
+
+3. Verify everything works:
+   ``````powershell
+   .\bin\devenv.ps1 verify
+   ``````
+
+### Available Commands
+
+- `.\bin\devenv.ps1 install [modules]` - Install development tools
+- `.\bin\devenv.ps1 status` - Show environment status
+- `.\bin\devenv.ps1 verify` - Verify installations
+- `.\bin\devenv.ps1 info` - Show detailed information
+
+### Data Directory
+
+All development tools and configurations are stored in `.devenv/` directory.
+This directory is gitignored and contains the complete isolated environment.
+
+Created: $((Get-Date).ToString("yyyy-MM-dd"))
+"@
+    
+    $readmePath = Join-Path $projectDir "README.md"
+    Set-Content -Path $readmePath -Value $readmeContent -Encoding UTF8
+    
+    # Create .gitignore
+    $gitignoreContent = @"
+# DevEnv data directory - contains isolated development environment
+.devenv/
+
+# Common build outputs
+bin/
+obj/
+build/
+dist/
+
+# IDE files
+.vs/
+.vscode/settings.json
+*.user
+*.suo
+
+# OS files
+Thumbs.db
+.DS_Store
+"@
+    
+    $gitignorePath = Join-Path $projectDir ".gitignore"
+    Set-Content -Path $gitignorePath -Value $gitignoreContent -Encoding UTF8
+    
+    # Create DevEnv symlink or copy
+    $globalDevEnvPath = $script:DevEnvContext.ScriptPath
+    $projectDevEnvPath = Join-Path $projectDir "bin\devenv.ps1"
     
     try {
-        # Create the environment (would call the actual creation function)
-        Write-Host "Environment '$envName' created successfully!" -ForegroundColor Green
-        Write-Host ""
-        Write-Host "Next steps:" -ForegroundColor Cyan
-        Write-Host "1. Switch to your new environment:" -ForegroundColor White
-        Write-Host "   PS> " -NoNewline -ForegroundColor DarkGray
-        Write-Host ".\devenv.ps1 switch-environment '$envName'" -ForegroundColor White
-        Write-Host ""
-        Write-Host "2. Install development tools:" -ForegroundColor White
-        Write-Host "   PS> " -NoNewline -ForegroundColor DarkGray
-        Write-Host ".\devenv.ps1 install git vscode python" -ForegroundColor White
-        Write-Host ""
-        Write-Host "3. Check everything is working:" -ForegroundColor White
-        Write-Host "   PS> " -NoNewline -ForegroundColor DarkGray
-        Write-Host ".\devenv.ps1 verify" -ForegroundColor White
-        Write-Host ""
-    }
-    catch {
-        Write-Host "Failed to create environment: $_" -ForegroundColor Red
-        Write-Host ""
-        Write-Host "Try creating it manually:" -ForegroundColor Yellow
-        Write-Host "PS> " -NoNewline -ForegroundColor DarkGray
-        Write-Host ".\devenv.ps1 create-environment '$envName' -DataDir '$dataDir'" -ForegroundColor White
-    }
-}
-
-function Get-DefaultEnvironmentsRoot {
-    return Join-Path $env:USERPROFILE ".devenv\environments"
-}
-
-function Test-HasAnyEnvironments {
-    $envRoot = Get-DefaultEnvironmentsRoot
-    if (-not (Test-Path $envRoot)) {
-        return $false
+        # Try to create symbolic link (requires admin or developer mode)
+        New-Item -ItemType SymbolicLink -Path $projectDevEnvPath -Target $globalDevEnvPath -Force | Out-Null
+        Write-Host "+ Created symlink: " -NoNewline -ForegroundColor Green
+        Write-Host "bin\devenv.ps1 -> $globalDevEnvPath" -ForegroundColor Gray
+        $linkType = "symlink"
+    } catch {
+        # Fall back to copying the file
+        Copy-Item -Path $globalDevEnvPath -Destination $projectDevEnvPath -Force
+        Write-Host "! Created copy: " -NoNewline -ForegroundColor Yellow
+        Write-Host "bin\devenv.ps1" -ForegroundColor Gray
+        Write-Host "  (Symlink failed - requires admin or developer mode)" -ForegroundColor Gray
+        $linkType = "copy"
     }
     
-    $envFiles = @(Get-ChildItem $envRoot -Filter "*.json" -ErrorAction SilentlyContinue)
-    return ($envFiles.Count -gt 0)
+    Write-Host ""
+    Write-Host "+ Project created successfully!" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "Next steps:" -ForegroundColor Cyan
+    Write-Host "1. cd $ProjectName" -ForegroundColor White
+    Write-Host "2. .\bin\devenv.ps1 install    # Set up development environment" -ForegroundColor White
+    Write-Host "3. .\bin\devenv.ps1 status     # Check environment status" -ForegroundColor White
+    Write-Host ""
+    
+    return @{
+        ProjectDir = $projectDir
+        ConfigFile = $configPath
+        LinkType = $linkType
+        DevEnvPath = $projectDevEnvPath
+    }
 }
 #endregion
 
-#region Environment Initialization
-function Get-ScriptDirectory {
-    if ($PSScriptRoot) {
-        return $PSScriptRoot
+#region Enhanced Status Display
+function Show-ModeAwareStatus {
+    <#
+    .SYNOPSIS
+        Shows status information appropriate for the current mode
+    #>
+    param([hashtable]$DevEnvContext)
+    
+    Write-Host ""
+    Write-Host "DevEnv Status Report" -ForegroundColor Cyan
+    Write-Host "====================" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Execution context
+    Write-Host "Execution Context" -ForegroundColor Yellow
+    Write-Host "-----------------" -ForegroundColor Yellow
+    Write-Host "Mode: " -NoNewline
+    
+    if ($DevEnvContext.Mode -eq "Project") {
+        Write-Host "Project-Specific" -ForegroundColor Magenta
+        Write-Host "Project Name: " -NoNewline
+        Write-Host (Split-Path $DevEnvContext.ProjectRoot -Leaf) -ForegroundColor White
+        Write-Host "Project Root: " -NoNewline
+        Write-Host $DevEnvContext.ProjectRoot -ForegroundColor Gray
+        Write-Host "Project Config: " -NoNewline
+        Write-Host $DevEnvContext.ConfigFile -ForegroundColor Gray
+        
+        if ($DevEnvContext.IsSymlink) {
+            Write-Host "DevEnv Link: " -NoNewline
+            Write-Host "Symlink OK" -ForegroundColor Green
+            Write-Host "Global DevEnv: " -NoNewline
+            Write-Host $DevEnvContext.GlobalDevEnvPath -ForegroundColor Gray
+        } else {
+            Write-Host "DevEnv Link: " -NoNewline
+            Write-Host "Copy" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "Global System-Wide" -ForegroundColor Green
+        Write-Host "DevEnv Root: " -NoNewline
+        Write-Host (Split-Path $DevEnvContext.ScriptPath -Parent) -ForegroundColor Gray
+        Write-Host "Global Config: " -NoNewline
+        Write-Host $DevEnvContext.ConfigFile -ForegroundColor Gray
     }
-    elseif ($MyInvocation.MyCommand.Path) {
-        return Split-Path $MyInvocation.MyCommand.Path -Parent
+    
+    Write-Host "Data Directory: " -NoNewline
+    Write-Host $DevEnvContext.DataDir -ForegroundColor Yellow
+    Write-Host ""
+    
+    # Configuration status
+    Write-Host "Configuration" -ForegroundColor Yellow
+    Write-Host "-------------" -ForegroundColor Yellow
+    
+    if (Test-Path $DevEnvContext.ConfigFile) {
+        Write-Host "Config File: " -NoNewline
+        Write-Host "Found OK" -ForegroundColor Green
+        
+        try {
+            $config = Get-Content $DevEnvContext.ConfigFile | ConvertFrom-Json
+            if ($config.modules -and $config.modules.order) {
+                Write-Host "Configured Modules: " -NoNewline
+                Write-Host ($config.modules.order -join ", ") -ForegroundColor Cyan
+            }
+        } catch {
+            Write-Host "Config Parse: " -NoNewline
+            Write-Host "Error" -ForegroundColor Red
+        }
+    } else {
+        Write-Host "Config File: " -NoNewline
+        Write-Host "Missing" -ForegroundColor Red
     }
-    else {
-        return Get-Location
+    
+    Write-Host ""
+    
+    # Data directory contents
+    Write-Host "Environment Data" -ForegroundColor Yellow
+    Write-Host "----------------" -ForegroundColor Yellow
+    
+    $dataDirs = @{
+        "State" = Join-Path $DevEnvContext.DataDir "state"
+        "Tools" = Join-Path $DevEnvContext.DataDir "tools" 
+        "Config" = Join-Path $DevEnvContext.DataDir "config"
+        "Logs" = Join-Path $DevEnvContext.DataDir "logs"
+        "Backups" = Join-Path $DevEnvContext.DataDir "backups"
     }
+    
+    foreach ($dir in $dataDirs.GetEnumerator()) {
+        Write-Host "$($dir.Key): " -NoNewline
+        if (Test-Path $dir.Value) {
+            $items = @(Get-ChildItem $dir.Value -ErrorAction SilentlyContinue)
+            Write-Host "$($items.Count) items" -ForegroundColor Green
+        } else {
+            Write-Host "Not created" -ForegroundColor Yellow
+        }
+    }
+    
+    Write-Host ""
+    
+    # Module status (simplified for now)
+    Write-Host "Module Status" -ForegroundColor Yellow
+    Write-Host "-------------" -ForegroundColor Yellow
+    
+    $stateDir = Join-Path $DevEnvContext.DataDir "state"
+    if (Test-Path $stateDir) {
+        $stateFiles = @(Get-ChildItem $stateDir -Filter "*.state" -ErrorAction SilentlyContinue)
+        if ($stateFiles.Count -gt 0) {
+            foreach ($stateFile in $stateFiles) {
+                $moduleName = $stateFile.BaseName
+                Write-Host "$moduleName`: " -NoNewline
+                Write-Host "Installed" -ForegroundColor Green
+            }
+        } else {
+            Write-Host "No modules installed" -ForegroundColor Gray
+        }
+    } else {
+        Write-Host "No state directory" -ForegroundColor Gray
+    }
+    
+    Write-Host ""
 }
 
-function Initialize-BasicEnvironment {
-    param([string]$RootDirectory)
+function Show-ModeAwareInfo {
+    <#
+    .SYNOPSIS
+        Shows information and guidance appropriate for the current mode
+    #>
+    param([hashtable]$DevEnvContext)
     
-    # Just basic initialization without creating data directories
-    if (-not [System.IO.Path]::IsPathRooted($RootDirectory)) {
-        $RootDirectory = Join-Path (Get-Location) $RootDirectory
+    if ($DevEnvContext.Mode -eq "Project") {
+        Write-Host ""
+        Write-Host "[PROJ] Project Environment Information" -ForegroundColor Cyan
+        Write-Host "=====================================" -ForegroundColor Cyan
+        Write-Host ""
+        
+        $projectName = Split-Path $DevEnvContext.ProjectRoot -Leaf
+        Write-Host "Project: " -NoNewline
+        Write-Host $projectName -ForegroundColor White
+        Write-Host ""
+        
+        # Load project config
+        if (Test-Path $DevEnvContext.ConfigFile) {
+            try {
+                $projectConfig = Get-Content $DevEnvContext.ConfigFile | ConvertFrom-Json
+                Write-Host "Description: " -NoNewline
+                Write-Host $projectConfig.description -ForegroundColor Gray
+                Write-Host "Template: " -NoNewline
+                Write-Host $projectConfig.template -ForegroundColor Cyan
+                Write-Host "Created: " -NoNewline
+                Write-Host $projectConfig.created -ForegroundColor Gray
+                Write-Host ""
+            } catch {
+                Write-Host "Could not read project configuration" -ForegroundColor Yellow
+            }
+        }
+        
+        Write-Host "Available Commands:" -ForegroundColor Yellow
+        Write-Host "- .\bin\devenv.ps1 install        # Install development tools" -ForegroundColor White
+        Write-Host "- .\bin\devenv.ps1 status         # Show environment status" -ForegroundColor White
+        Write-Host "- .\bin\devenv.ps1 verify         # Verify installations" -ForegroundColor White
+        Write-Host "- .\bin\devenv.ps1 list           # List available modules" -ForegroundColor White
+        Write-Host ""
+        
+        Write-Host "Project Structure:" -ForegroundColor Yellow
+        $items = Get-ChildItem $DevEnvContext.ProjectRoot | Sort-Object Name
+        foreach ($item in $items) {
+            if ($item.PSIsContainer) {
+                Write-Host "[DIR] $($item.Name)/" -ForegroundColor Blue
+            } else {
+                Write-Host "[FILE] $($item.Name)" -ForegroundColor Gray
+            }
+        }
+        
+    } else {
+        # Global mode - show system analysis and project creation guidance
+        Write-Host ""
+        Write-Host "[GLOBAL] DevEnv Global Mode" -ForegroundColor Cyan
+        Write-Host "===========================" -ForegroundColor Cyan
+        Write-Host ""
+        
+        Write-Host "Available Actions:" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "Project Management:" -ForegroundColor Cyan
+        Write-Host "- .\devenv.ps1 create-project -Name MyProject    # Create new project" -ForegroundColor White
+        Write-Host "- .\devenv.ps1 list                              # List available modules" -ForegroundColor White
+        Write-Host ""
+        Write-Host "Global Tools:" -ForegroundColor Cyan
+        Write-Host "- .\devenv.ps1 install git vscode               # Install global tools" -ForegroundColor White
+        Write-Host "- .\devenv.ps1 status                           # Show global status" -ForegroundColor White
+        Write-Host ""
+        
+        Write-Host "Quick Start:" -ForegroundColor Yellow
+        Write-Host "1. Create a new project:" -ForegroundColor White
+        Write-Host "   .\devenv.ps1 create-project -Name MyProject" -ForegroundColor Gray
+        Write-Host "2. Navigate to project:" -ForegroundColor White
+        Write-Host "   cd MyProject" -ForegroundColor Gray
+        Write-Host "3. Set up project environment:" -ForegroundColor White
+        Write-Host "   .\bin\devenv.ps1 install" -ForegroundColor Gray
+        Write-Host ""
     }
-    $RootDirectory = [System.IO.Path]::GetFullPath($RootDirectory)
-    
-    # Detect system capabilities
-    $script:IsElevated = Test-Administrator
-    $script:WindowsVersion = Get-WindowsVersion
-    $script:WSLAvailable = Test-WSLAvailable
-    $script:DockerAvailable = Test-DockerAvailable
-    
-    # Set minimal environment variables
-    $env:DEVENV_ROOT = $RootDirectory
-    $env:ROOT_DIR = $RootDirectory
-    $env:CONFIG_FILE = Join-Path $RootDirectory "config.json"
-    $env:DEVENV_PLATFORM = 'windows'
 }
 #endregion
 
-#region Help Function
-function Show-Help {
-    @"
-DevEnv - Hermetic Development Environment Manager for Windows
-
-USAGE:
-    devenv.ps1 [ACTION] [MODULE] [OPTIONS]
-
-ACTIONS:
-    install                 Install modules (default: all enabled modules)
-    remove                  Remove/uninstall modules  
-    verify                  Verify module installation and configuration
-    info                    Show system analysis and setup guidance (default)
-    backup                  Create backup of current configuration
-    restore                 Restore from backup
-    update                  Update modules to latest versions
-    status                  Show detailed system and environment status
-    list                    List all available modules
-
-ENVIRONMENT ACTIONS:
-    list-environments       List all available environments
-    create-environment      Create a new isolated environment
-    switch-environment      Switch to a different environment  
-    remove-environment      Remove an environment
-
-OPTIONS:
-    -Module <name>          Target specific module
-    -DataDir <path>         Specify data directory for this session
-    -Environment <name>     Use specific named environment
-    -Force                  Force operation even if already configured
-    -UseWSL                 Prefer WSL execution when available
-    -NoWSL                  Use only native Windows execution
-    -UseContainers          Prefer containerized execution
-    -LogLevel <level>       Set logging verbosity (Silent|Error|Warning|Information|Verbose|Debug)
-    -DryRun                 Show what would be done without executing
-    -ShowHelp               Show this help message
-
-EXAMPLES:
-    devenv.ps1                                    # Show system analysis and guidance
-    devenv.ps1 create-environment "my-project"   # Create isolated environment
-    devenv.ps1 install git python vscode         # Install development tools
-    devenv.ps1 status                           # Show detailed status
-    devenv.ps1 list-environments                # List all environments
-
-For more information, visit: https://github.com/your-repo/devenv
-"@
+#region Command Routing
+function Invoke-ModeAwareCommand {
+    <#
+    .SYNOPSIS
+        Routes commands based on execution mode
+    #>
+    param(
+        [string]$Action,
+        [string[]]$Modules,
+        [hashtable]$DevEnvContext
+    )
+    
+    Write-Host "Executing: " -NoNewline -ForegroundColor Gray
+    Write-Host $Action -NoNewline -ForegroundColor White
+    if ($Modules) {
+        Write-Host " [$($Modules -join ', ')]" -NoNewline -ForegroundColor Cyan
+    }
+    Write-Host " in $($DevEnvContext.Mode) mode" -ForegroundColor Gray
+    Write-Host ""
+    
+    switch ($Action) {
+        'info' {
+            Show-ModeAwareInfo $DevEnvContext
+        }
+        
+        'status' {
+            Show-ModeAwareStatus $DevEnvContext
+        }
+        
+        'create-project' {
+            if ($DevEnvContext.Mode -eq "Project") {
+                throw "Cannot create project from project mode. Use global DevEnv."
+            }
+            
+            if (-not $Name) {
+                $Name = Read-Host "Enter project name"
+            }
+            
+            New-DevEnvProject -ProjectName $Name -Template $Template
+        }
+        
+        'install' {
+            Write-Host "Module installation would happen here..." -ForegroundColor Yellow
+            Write-Host "Mode: $($DevEnvContext.Mode)" -ForegroundColor Gray
+            Write-Host "Data Dir: $($DevEnvContext.DataDir)" -ForegroundColor Gray
+            Write-Host "Modules: $($Modules -join ', ')" -ForegroundColor Gray
+            
+            # This is where we'd call the existing module installation logic
+            # with the appropriate data directory and configuration
+        }
+        
+        'list' {
+            Write-Host "Available Modules:" -ForegroundColor Yellow
+            @("git", "vscode", "python", "nodejs", "docker", "powershell", "winget") | ForEach-Object {
+                Write-Host "- $_" -ForegroundColor Cyan
+            }
+        }
+        
+        default {
+            Write-Host "Command '$Action' not yet implemented in dual-mode system" -ForegroundColor Yellow
+        }
+    }
 }
 #endregion
 
 #region Main Execution
 try {
-    # Show help if requested
-    if ($ShowHelp) {
-        Show-Help
-        exit 0
-    }
+    # Core mode detection and initialization
+    Write-Verbose "Starting DevEnv dual-mode execution..."
     
-    # Determine root directory
-    if (-not $RootDir) {
-        $RootDir = Get-ScriptDirectory
-    }
+    $script:DevEnvContext = Get-ExecutionMode -ScriptPath $script:ScriptPath
+    $script:DevEnvContext = Initialize-ExecutionEnvironment $script:DevEnvContext
     
-    # Initialize basic environment (no data directory creation)
-    Initialize-BasicEnvironment -RootDirectory $RootDir
+    Write-Verbose "Execution mode: $($script:DevEnvContext.Mode)"
+    Write-Verbose "Data directory: $($script:DevEnvContext.DataDir)"
+    Write-Verbose "Config file: $($script:DevEnvContext.ConfigFile)"
     
-    # Handle the default 'info' action with enhanced guidance
-    if ($Action -eq 'info' -and -not $Module -and -not $DataDir -and -not $Environment) {
-        Show-WelcomeMessage
-        Show-SystemAnalysis
+    # Route command based on mode and action
+    Invoke-ModeAwareCommand -Action $Action -Modules $Modules -DevEnvContext $script:DevEnvContext
+    
+} catch {
+    Write-Host ""
+    Write-Host "ERROR: DevEnv Error" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Yellow
+    Write-Host ""
+    
+    if ($_.Exception.Message -like "*Cannot determine*") {
+        Write-Host "Troubleshooting:" -ForegroundColor Cyan
+        Write-Host "- Ensure you're running from a DevEnv repository (global mode)" -ForegroundColor White
+        Write-Host "- Or from a project with bin/devenv.ps1 and devenv.json (project mode)" -ForegroundColor White
         Write-Host ""
-        
-        # Check if user has any environments
-        if (Test-HasAnyEnvironments) {
-            Show-GuidedSetup
-        } else {
-            Show-QuickStart
-        }
-        
-        exit 0
     }
     
-    # For all other actions, you would continue with the existing logic
-    # This is where the original devenv.ps1 logic would continue...
-    
-    Write-Host "Action '$Action' not yet implemented in this demo" -ForegroundColor Yellow
-    if ($Module) {
-        Write-Host "Target module: $Module" -ForegroundColor Information
-    }
-    
-}
-catch {
-    Write-DevEnvLog "DevEnv operation failed: $_" -Level Error
     exit 1
 }
 #endregion
