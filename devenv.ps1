@@ -333,6 +333,11 @@ function Get-ModuleExecutionOrder {
     
     $availableModules = Get-AvailableModules
     
+    # ensure we always have an array, even if empty
+    if (-not $RequestedModules) {
+        $RequestedModules = @()
+    }  
+    
     # If specific modules requested, filter to those
     if (@($RequestedModules).Count -gt 0) {
         $filteredModules = @()
@@ -351,8 +356,11 @@ function Get-ModuleExecutionOrder {
             $configOrder = $script:Config.global.modules.order
             $orderedModules = @()
             
+            # Ensure configOrder is treated as array
+            $configOrderArray = @($configOrder)
+
             # Add modules in configured order first
-            foreach ($moduleName in $configOrder) {
+            foreach ($moduleName in $configOrderArray) {
                 $module = $availableModules | Where-Object { $_.Name -eq $moduleName }
                 if ($module) {
                     $orderedModules += $module
@@ -373,7 +381,7 @@ function Get-ModuleExecutionOrder {
         }
     }
     
-    return $availableModules
+    return @($availableModules)
 }
 
 function Test-ModuleInstallation {
@@ -387,6 +395,11 @@ function Test-ModuleInstallation {
     )
     
     try {
+        # Ensure Module is not null and has Script property
+        if (-not $Module -or -not $Module.Script) {
+            return $false
+        }
+        
         $result = & $Module.Script "grovel" 2>$null
         return $LASTEXITCODE -eq 0
     } catch {
@@ -453,6 +466,11 @@ function Invoke-ModuleInstallation {
         [bool]$Force = $false,
         [hashtable]$DevEnvContext
     )
+
+    # Ensure RequestedModules is always an array
+    if (-not $RequestedModules) {
+        $RequestedModules = @()
+    }
     
     Write-Host ""
     Write-Host "DevEnv Module Installation" -ForegroundColor Cyan
@@ -464,9 +482,9 @@ function Invoke-ModuleInstallation {
         throw "Failed to initialize module system"
     }
     
-    # Get modules to install
-    $modulesToInstall = Get-ModuleExecutionOrder -RequestedModules $RequestedModules -DevEnvContext $DevEnvContext
-    
+    # Get modules to install - ensure we get an array back
+    $modulesToInstall = @(Get-ModuleExecutionOrder -RequestedModules $RequestedModules -DevEnvContext $DevEnvContext)
+   
     if (@($modulesToInstall).Count -eq 0) {
         if (@($RequestedModules).Count -gt 0) {
             Write-Host "No valid modules found in request: $($RequestedModules -join ', ')" -ForegroundColor Yellow
