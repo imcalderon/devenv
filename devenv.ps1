@@ -3,7 +3,7 @@
 .SYNOPSIS
     DevEnv - Dual-Mode Hermetic Development Environment Manager
 .DESCRIPTION
-    Enhanced version with mode detection and dual-mode operation support
+    Enhanced version with mode detection, dual-mode operation support, and full module installation
 #>
 
 [CmdletBinding()]
@@ -157,6 +157,12 @@ function Initialize-ExecutionEnvironment {
         }
     }
     
+    # Additional environment variables needed by module system
+    $env:DEVENV_STATE_DIR = Join-Path $DevEnvContext.DataDir "state"
+    $env:DEVENV_LOGS_DIR = Join-Path $DevEnvContext.DataDir "logs"
+    $env:DEVENV_BACKUPS_DIR = Join-Path $DevEnvContext.DataDir "backups"
+    $env:DEVENV_MODULES_DIR = Join-Path $env:DEVENV_ROOT "modules"
+    
     # Mode-specific setup
     if ($DevEnvContext.Mode -eq "Project") {
         $env:DEVENV_PROJECT_ROOT = $DevEnvContext.ProjectRoot
@@ -219,6 +225,328 @@ function Initialize-ExecutionEnvironment {
     }
     
     return $DevEnvContext
+}
+#endregion
+
+#region Module Management Integration
+function Initialize-ModuleSystem {
+    <#
+    .SYNOPSIS
+        Loads the DevEnv module management system
+    #>
+    param([hashtable]$DevEnvContext)
+    
+    $script:ROOT_DIR = $env:DEVENV_ROOT
+    $script:MODULES_DIR = Join-Path $script:ROOT_DIR "modules"
+    $script:LIB_DIR = Join-Path $script:ROOT_DIR "lib\windows"
+    
+    # Load Windows utilities
+    $requiredLibs = @(
+        'logging.ps1',
+        'json.ps1', 
+        'module.ps1',
+        'backup.ps1',
+        'alias.ps1'
+    )
+    
+    foreach ($lib in $requiredLibs) {
+        $libPath = Join-Path $script:LIB_DIR $lib
+        if (Test-Path $libPath) {
+            . $libPath
+            Write-Verbose "Loaded library: $lib"
+        } else {
+            Write-Warning "Required library not found: $libPath"
+            return $false
+        }
+    }
+    
+    # Initialize logging for DevEnv core
+    Initialize-Logging "devenv"
+    
+    return $true
+}
+
+function Get-AvailableModules {
+    <#
+    .SYNOPSIS
+        Gets list of available modules from the modules directory
+    #>
+    
+    $availableModules = @()
+    
+    if (Test-Path $script:MODULES_DIR) {
+        $moduleDirectories = Get-ChildItem $script:MODULES_DIR -Directory
+        
+        foreach ($moduleDir in $moduleDirectories) {
+            $moduleName = $moduleDir.Name
+            $moduleScript = Join-Path $moduleDir.FullName "$moduleName.ps1"
+            $moduleConfig = Join-Path $moduleDir.FullName "config.json"
+            
+            # Check if module has Windows PowerShell implementation
+            if (Test-Path $moduleScript) {
+                $isEnabled = $true
+                
+                # Check if module is enabled in config
+                if (Test-Path $moduleConfig) {
+                    try {
+                        $config = Get-Content $moduleConfig | ConvertFrom-Json
+                        $isEnabled = $config.enabled -eq $true
+                        
+                        # Check Windows platform support
+                        if ($config.platforms -and $config.platforms.windows) {
+                            $isEnabled = $isEnabled -and ($config.platforms.windows.enabled -eq $true)
+                        }
+                    } catch {
+                        Write-Warning "Failed to parse config for module: $moduleName"
+                    }
+                }
+                
+                if ($isEnabled) {
+                    $availableModules += @{
+                        Name = $moduleName
+                        Script = $moduleScript
+                        Config = $moduleConfig
+                        Runlevel = if (Test-Path $moduleConfig) { 
+                            try {
+                                $cfg = Get-Content $moduleConfig | ConvertFrom-Json
+                                if ($cfg.runlevel) { $cfg.runlevel } else { 999 }
+                            } catch { 999 }
+                        } else { 999 }
+                    }
+                }
+            }
+        }
+    }
+    
+    return $availableModules
+}
+
+function Get-ModuleExecutionOrder {
+    <#
+    .SYNOPSIS
+        Gets modules in proper execution order based on configuration and runlevels
+    #>
+    param(
+        [string[]]$RequestedModules = @(),
+        [hashtable]$DevEnvContext
+    )
+    
+    $availableModules = Get-AvailableModules
+    
+    # If specific modules requested, filter to those
+    if (@($RequestedModules).Count -gt 0) {
+        $filteredModules = @()
+        foreach ($requested in $RequestedModules) {
+            $module = $availableModules | Where-Object { $_.Name -eq $requested }
+            if ($module) {
+                $filteredModules += $module
+            } else {
+                Write-Warning "Module not found or not available: $requested"
+            }
+        }
+        $availableModules = $filteredModules
+    } else {
+        # Use configured order from config.json
+        if ($script:Config -and $script:Config.global -and $script:Config.global.modules -and $script:Config.global.modules.order) {
+            $configOrder = $script:Config.global.modules.order
+            $orderedModules = @()
+            
+            # Add modules in configured order first
+            foreach ($moduleName in $configOrder) {
+                $module = $availableModules | Where-Object { $_.Name -eq $moduleName }
+                if ($module) {
+                    $orderedModules += $module
+                }
+            }
+            
+            # Add any remaining modules not in the configured order
+            foreach ($module in $availableModules) {
+                if ($module.Name -notin $configOrder) {
+                    $orderedModules += $module
+                }
+            }
+            
+            $availableModules = $orderedModules
+        } else {
+            # Fall back to runlevel ordering
+            $availableModules = $availableModules | Sort-Object Runlevel, Name
+        }
+    }
+    
+    return $availableModules
+}
+
+function Test-ModuleInstallation {
+    <#
+    .SYNOPSIS
+        Checks if a module is already installed
+    #>
+    param(
+        [hashtable]$Module,
+        [hashtable]$DevEnvContext
+    )
+    
+    try {
+        $result = & $Module.Script "grovel" 2>$null
+        return $LASTEXITCODE -eq 0
+    } catch {
+        return $false
+    }
+}
+
+function Install-DevEnvModule {
+    <#
+    .SYNOPSIS
+        Installs a specific module
+    #>
+    param(
+        [hashtable]$Module,
+        [bool]$Force = $false,
+        [hashtable]$DevEnvContext
+    )
+    
+    $moduleName = $Module.Name
+    Write-Host "Installing module: " -NoNewline
+    Write-Host $moduleName -ForegroundColor Cyan
+    
+    try {
+        # Check if already installed (unless forcing)
+        if (-not $Force) {
+            if (Test-ModuleInstallation $Module $DevEnvContext) {
+                Write-Host "  Already installed and verified" -ForegroundColor Green
+                return $true
+            }
+        }
+        
+        # Execute module installation
+        $forceFlag = if ($Force) { "-Force" } else { "" }
+        
+        Write-Host "  Executing: $($Module.Script) install $forceFlag" -ForegroundColor Gray
+        
+        if ($Force) {
+            & $Module.Script "install" -Force
+        } else {
+            & $Module.Script "install"
+        }
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  Completed successfully" -ForegroundColor Green
+            return $true
+        } else {
+            Write-Host "  Failed with exit code: $LASTEXITCODE" -ForegroundColor Red
+            return $false
+        }
+        
+    } catch {
+        Write-Host "  Error: $_" -ForegroundColor Red
+        return $false
+    }
+}
+
+function Invoke-ModuleInstallation {
+    <#
+    .SYNOPSIS
+        Main module installation orchestration
+    #>
+    param(
+        [string[]]$RequestedModules = @(),
+        [bool]$Force = $false,
+        [hashtable]$DevEnvContext
+    )
+    
+    Write-Host ""
+    Write-Host "DevEnv Module Installation" -ForegroundColor Cyan
+    Write-Host "==========================" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Initialize module system
+    if (-not (Initialize-ModuleSystem $DevEnvContext)) {
+        throw "Failed to initialize module system"
+    }
+    
+    # Get modules to install
+    $modulesToInstall = Get-ModuleExecutionOrder -RequestedModules $RequestedModules -DevEnvContext $DevEnvContext
+    
+    if (@($modulesToInstall).Count -eq 0) {
+        if (@($RequestedModules).Count -gt 0) {
+            Write-Host "No valid modules found in request: $($RequestedModules -join ', ')" -ForegroundColor Yellow
+        } else {
+            Write-Host "No modules available for installation" -ForegroundColor Yellow
+        }
+        return
+    }
+    
+    Write-Host "Installation Plan:" -ForegroundColor Yellow
+    foreach ($module in $modulesToInstall) {
+        $status = if (Test-ModuleInstallation $module $DevEnvContext) { "Update" } else { "Install" }
+        $forceIndicator = if ($Force) { " (forced)" } else { "" }
+        Write-Host "  $($module.Name) - $status$forceIndicator" -ForegroundColor Gray
+    }
+    
+    Write-Host ""
+    Write-Host "Data Directory: " -NoNewline
+    Write-Host $DevEnvContext.DataDir -ForegroundColor Yellow
+    Write-Host ""
+    
+    # Confirm installation
+    if (-not $Force -and @($modulesToInstall).Count -gt 1) {
+        $response = Read-Host "Proceed with installation? (y/N)"
+        if ($response -notmatch "^[Yy]") {
+            Write-Host "Installation cancelled" -ForegroundColor Yellow
+            return
+        }
+        Write-Host ""
+    }
+    
+    # Execute installations
+    $successCount = 0
+    $failureCount = 0
+    $startTime = Get-Date
+    
+    foreach ($module in $modulesToInstall) {
+        $moduleStartTime = Get-Date
+        
+        if (Install-DevEnvModule -Module $module -Force $Force -DevEnvContext $DevEnvContext) {
+            $successCount++
+        } else {
+            $failureCount++
+        }
+        
+        $moduleEndTime = Get-Date
+        $moduleElapsed = $moduleEndTime - $moduleStartTime
+        Write-Host "  Time: $($moduleElapsed.TotalSeconds.ToString('F1'))s" -ForegroundColor Gray
+        Write-Host ""
+    }
+    
+    # Installation summary
+    $endTime = Get-Date
+    $totalElapsed = $endTime - $startTime
+    
+    Write-Host "Installation Summary" -ForegroundColor Cyan
+    Write-Host "====================" -ForegroundColor Cyan
+    Write-Host "Successful: " -NoNewline
+    Write-Host $successCount -ForegroundColor Green
+    Write-Host "Failed: " -NoNewline
+    Write-Host $failureCount -ForegroundColor Red
+    Write-Host "Total Time: " -NoNewline
+    Write-Host "$($totalElapsed.TotalSeconds.ToString('F1'))s" -ForegroundColor Yellow
+    Write-Host ""
+    
+    if ($failureCount -gt 0) {
+        Write-Host "Some modules failed to install. Check the output above for details." -ForegroundColor Yellow
+        Write-Host "You can retry failed modules individually or use -Force to retry all." -ForegroundColor Gray
+        exit 1
+    } else {
+        Write-Host "All modules installed successfully!" -ForegroundColor Green
+        
+        # Show next steps
+        Write-Host ""
+        Write-Host "Next Steps:" -ForegroundColor Cyan
+        Write-Host "- Run 'devenv.ps1 status' to verify your environment" -ForegroundColor White
+        Write-Host "- Run 'devenv.ps1 verify' to test all components" -ForegroundColor White
+        Write-Host "- Check individual module info with 'devenv.ps1 info <module>'" -ForegroundColor White
+        Write-Host ""
+    }
 }
 #endregion
 
@@ -489,7 +817,7 @@ function Show-ModeAwareStatus {
         Write-Host "$($dir.Key): " -NoNewline
         if (Test-Path $dir.Value) {
             $items = @(Get-ChildItem $dir.Value -ErrorAction SilentlyContinue)
-            Write-Host "$($items.Count) items" -ForegroundColor Green
+            Write-Host "$(@($items).Count) items" -ForegroundColor Green
         } else {
             Write-Host "Not created" -ForegroundColor Yellow
         }
@@ -504,7 +832,7 @@ function Show-ModeAwareStatus {
     $stateDir = Join-Path $DevEnvContext.DataDir "state"
     if (Test-Path $stateDir) {
         $stateFiles = @(Get-ChildItem $stateDir -Filter "*.state" -ErrorAction SilentlyContinue)
-        if ($stateFiles.Count -gt 0) {
+        if (@($stateFiles).Count -gt 0) {
             foreach ($stateFile in $stateFiles) {
                 $moduleName = $stateFile.BaseName
                 Write-Host "$moduleName`: " -NoNewline
@@ -623,7 +951,36 @@ function Invoke-ModeAwareCommand {
     
     switch ($Action) {
         'info' {
-            Show-ModeAwareInfo $DevEnvContext
+            # Check if specific module info requested
+            if ($Modules -and @($Modules).Count -eq 1) {
+                # Show specific module info
+                if (-not (Initialize-ModuleSystem $DevEnvContext)) {
+                    Write-Host "Failed to initialize module system" -ForegroundColor Red
+                    return
+                }
+                
+                $availableModules = Get-AvailableModules
+                $requestedModule = $availableModules | Where-Object { $_.Name -eq $Modules[0] }
+                
+                if ($requestedModule) {
+                    try {
+                        Write-Host ""
+                        Write-Host "Module: $($requestedModule.Name)" -ForegroundColor Cyan
+                        Write-Host "=======$('=' * $requestedModule.Name.Length)" -ForegroundColor Cyan
+                        
+                        # Execute module info command
+                        & $requestedModule.Script "info"
+                        
+                    } catch {
+                        Write-Host "Failed to get module information: $_" -ForegroundColor Red
+                    }
+                } else {
+                    Write-Host "Module not found: $($Modules[0])" -ForegroundColor Red
+                    Write-Host "Use 'devenv.ps1 list' to see available modules" -ForegroundColor Gray
+                }
+            } else {
+                Show-ModeAwareInfo $DevEnvContext
+            }
         }
         
         'status' {
@@ -643,19 +1000,116 @@ function Invoke-ModeAwareCommand {
         }
         
         'install' {
-            Write-Host "Module installation would happen here..." -ForegroundColor Yellow
-            Write-Host "Mode: $($DevEnvContext.Mode)" -ForegroundColor Gray
-            Write-Host "Data Dir: $($DevEnvContext.DataDir)" -ForegroundColor Gray
-            Write-Host "Modules: $($Modules -join ', ')" -ForegroundColor Gray
-            
-            # This is where we'd call the existing module installation logic
-            # with the appropriate data directory and configuration
+            try {
+                Invoke-ModuleInstallation -RequestedModules $Modules -Force $Force -DevEnvContext $DevEnvContext
+            } catch {
+                Write-Host ""
+                Write-Host "Installation failed: $_" -ForegroundColor Red
+                exit 1
+            }
         }
         
         'list' {
-            Write-Host "Available Modules:" -ForegroundColor Yellow
-            @("git", "vscode", "python", "nodejs", "docker", "powershell", "winget") | ForEach-Object {
-                Write-Host "- $_" -ForegroundColor Cyan
+            # Enhanced list showing available modules with status
+            if (-not (Initialize-ModuleSystem $DevEnvContext)) {
+                Write-Host "Failed to initialize module system" -ForegroundColor Red
+                return
+            }
+            
+            $availableModules = Get-AvailableModules
+            
+            Write-Host ""
+            Write-Host "Available Modules" -ForegroundColor Cyan
+            Write-Host "=================" -ForegroundColor Cyan
+            Write-Host ""
+
+            if (@($availableModules).Count -eq 0) {
+                Write-Host "No modules found" -ForegroundColor Yellow
+                return
+            }
+            
+            foreach ($module in ($availableModules | Sort-Object Runlevel, Name)) {
+                $isInstalled = Test-ModuleInstallation $module $DevEnvContext
+                $statusIcon = if ($isInstalled) { "[+]" } else { "[ ]" }
+                $statusColor = if ($isInstalled) { "Green" } else { "Gray" }
+                
+                Write-Host "$statusIcon " -NoNewline -ForegroundColor $statusColor
+                Write-Host $module.Name -NoNewline -ForegroundColor Cyan
+                Write-Host " (runlevel $($module.Runlevel))" -ForegroundColor Gray
+                
+                # Try to get description from module config
+                if (Test-Path $module.Config) {
+                    try {
+                        $config = Get-Content $module.Config | ConvertFrom-Json
+                        if ($config.description) {
+                            Write-Host "    $($config.description)" -ForegroundColor Gray
+                        }
+                    } catch {
+                        # Ignore config parsing errors for list
+                    }
+                }
+            }
+            
+            Write-Host ""
+            Write-Host "Legend: [+] Installed, [ ] Not installed" -ForegroundColor Gray
+            Write-Host ""
+            Write-Host "Usage:" -ForegroundColor Yellow
+            Write-Host "  devenv.ps1 install                    # Install all modules" -ForegroundColor White
+            Write-Host "  devenv.ps1 install git vscode         # Install specific modules" -ForegroundColor White
+            Write-Host "  devenv.ps1 install -Force             # Force reinstall all" -ForegroundColor White
+            Write-Host ""
+        }
+        
+        'verify' {
+            # Implementation for verify command
+            if (-not (Initialize-ModuleSystem $DevEnvContext)) {
+                Write-Host "Failed to initialize module system" -ForegroundColor Red
+                return
+            }
+            
+            $availableModules = Get-AvailableModules
+            $installedModules = $availableModules | Where-Object { Test-ModuleInstallation $_ $DevEnvContext }
+            
+            Write-Host ""
+            Write-Host "DevEnv Verification" -ForegroundColor Cyan
+            Write-Host "==================" -ForegroundColor Cyan
+            Write-Host ""
+
+            if (@($installedModules).Count -eq 0) {
+                Write-Host "No modules installed to verify" -ForegroundColor Yellow
+                return
+            }
+            
+            $verifyCount = 0
+            $failCount = 0
+            
+            foreach ($module in $installedModules) {
+                Write-Host "Verifying $($module.Name)... " -NoNewline
+                
+                try {
+                    & $module.Script "verify" *>$null
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Host "OK" -ForegroundColor Green
+                        $verifyCount++
+                    } else {
+                        Write-Host "FAILED" -ForegroundColor Red
+                        $failCount++
+                    }
+                } catch {
+                    Write-Host "ERROR" -ForegroundColor Red
+                    $failCount++
+                }
+            }
+            
+            Write-Host ""
+            Write-Host "Verification Summary:" -ForegroundColor Cyan
+            Write-Host "Passed: $verifyCount" -ForegroundColor Green
+            Write-Host "Failed: $failCount" -ForegroundColor Red
+            
+            if ($failCount -gt 0) {
+                Write-Host ""
+                Write-Host "Run 'devenv.ps1 install -Force' to repair failed modules" -ForegroundColor Yellow
+                exit 1
             }
         }
         
