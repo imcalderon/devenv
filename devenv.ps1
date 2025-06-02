@@ -351,8 +351,22 @@ function Get-ModuleExecutionOrder {
         $availableModules = $filteredModules
     } else {
         # Use configured order from config.json
-        if ($script:Config -and $script:Config.global -and $script:Config.global.modules -and $script:Config.global.modules.order) {
+        # First try platform-specific order
+        $configOrder = $null
+        $platform = "windows"  # Since this is the PowerShell version
+        
+        if ($script:Config -and $script:Config.platforms -and $script:Config.platforms.$platform -and 
+            $script:Config.platforms.$platform.modules -and $script:Config.platforms.$platform.modules.order) {
+            $configOrder = $script:Config.platforms.$platform.modules.order
+        }
+        
+        # Fallback to global order if it exists
+        if (-not $configOrder -and $script:Config -and $script:Config.global -and 
+            $script:Config.global.modules -and $script:Config.global.modules.order) {
             $configOrder = $script:Config.global.modules.order
+        }
+        
+        if ($configOrder) {
             $orderedModules = @()
             
             # Ensure configOrder is treated as array
@@ -368,7 +382,7 @@ function Get-ModuleExecutionOrder {
             
             # Add any remaining modules not in the configured order
             foreach ($module in $availableModules) {
-                if ($module.Name -notin $configOrder) {
+                if ($module.Name -notin $configOrderArray) {
                     $orderedModules += $module
                 }
             }

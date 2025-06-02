@@ -565,12 +565,12 @@ try {
     if (`$LASTEXITCODE -eq 0) {
         if (`$Jupyter) {
             Write-Host ""
-            Write-Host "🚀 Starting Jupyter Lab in container..." -ForegroundColor Green
+            Write-Host "Starting Jupyter Lab in container..." -ForegroundColor Green
             docker-compose exec python jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
         } else {
             Write-Host ""
-            Write-Host "🐍 Python container is running!" -ForegroundColor Green
-            Write-Host "📍 Container name: devenv-python" -ForegroundColor Cyan
+            Write-Host "Python container is running!" -ForegroundColor Green
+            Write-Host "Container name: devenv-python" -ForegroundColor Cyan
             Write-Host ""
             Write-Host "Quick commands:" -ForegroundColor White
             Write-Host "  docker exec -it devenv-python python" -ForegroundColor Gray
@@ -877,7 +877,7 @@ function Test-ModuleVerification {
 function Show-ModuleInfo {
     $header = @"
 
-🐍 Python Development Environment
+Python Development Environment
 ===============================
 
 Description:
@@ -887,11 +887,11 @@ and container support for reproducible development.
 
 Benefits:
 --------
-✓ Native Integration - Windows Python installation via winget
-✓ Virtual Environments - Isolated Python environments for projects
-✓ Container Option - Containerized Python with Jupyter support
-✓ Package Management - Pre-configured with essential development packages
-✓ Code Quality - Black, pylint, mypy, and other linting tools
++ Native Integration - Windows Python installation via winget
++ Virtual Environments - Isolated Python environments for projects
++ Container Option - Containerized Python with Jupyter support
++ Package Management - Pre-configured with essential development packages
++ Code Quality - Black, pylint, mypy, and other linting tools
 
 Components:
 ----------
@@ -942,7 +942,7 @@ Container Mode:
         $isVerified = Test-Component $component
         
         if ($isInstalled -and $isVerified) {
-            Write-Host "✓ $component`: Installed and verified" -ForegroundColor Green
+            Write-Host "+ $component`: Installed and verified" -ForegroundColor Green
             
             # Show additional info for specific components
             switch ($component) {
@@ -987,9 +987,9 @@ Container Mode:
                 }
             }
         } elseif ($isInstalled) {
-            Write-Host "⚠ $component`: Installed but not verified" -ForegroundColor Yellow
+            Write-Host "[WARN] $component`: Installed but not verified" -ForegroundColor Yellow
         } else {
-            Write-Host "✗ $component`: Not installed" -ForegroundColor Red
+            Write-Host "[ERROR] $component`: Not installed" -ForegroundColor Red
         }
     }
     
@@ -1001,19 +1001,19 @@ Container Mode:
 try {
     switch ($Action.ToLower()) {
         'grovel' {
-            exit (Test-ModuleInstallation ? 0 : 1)
+            if (Test-ModuleInstallations) { exit 0 } else { exit 1 }
         }
         'install' {
             $success = Install-Module
-            exit ($success ? 0 : 1)
+            if ($success) { exit 0 } else { exit 1 }
         }
         'remove' {
             $success = Remove-Module
-            exit ($success ? 0 : 1)
+            if ($success) { exit 0 } else { exit 1 }
         }
         'verify' {
             $success = Test-ModuleVerification
-            exit ($success ? 0 : 1)
+            if ($success) { exit 0 } else { exit 1 }
         }
         'info' {
             Show-ModuleInfo

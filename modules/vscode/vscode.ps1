@@ -418,9 +418,9 @@ try {
     
     if (`$LASTEXITCODE -eq 0) {
         Write-Host ""
-        Write-Host "🚀 VSCode Server is starting up!" -ForegroundColor Green
-        Write-Host "📍 URL: http://localhost:8443" -ForegroundColor Cyan
-        Write-Host "🔑 Password: devenv123" -ForegroundColor Yellow
+        Write-Host "VSCode Server is starting up!" -ForegroundColor Green
+        Write-Host "URL: http://localhost:8443" -ForegroundColor Cyan
+        Write-Host "Password: devenv123" -ForegroundColor Yellow
         Write-Host ""
         Write-Host "Give it a moment to start, then open the URL in your browser." -ForegroundColor White
     } else {
@@ -674,7 +674,7 @@ function Test-ModuleVerification {
 function Show-ModuleInfo {
     $header = @"
 
-💻 Visual Studio Code Development Environment
+Visual Studio Code Development Environment
 ==========================================
 
 Description:
@@ -684,11 +684,11 @@ Includes both native Windows installation and containerized code-server option.
 
 Benefits:
 --------
-✓ Native Integration - Full Windows VSCode with system integration
-✓ Container Option - Browser-based VSCode via code-server
-✓ Extension Management - Automated installation of development extensions
-✓ Optimized Settings - Pre-configured for development workflows
-✓ Font Installation - Popular coding fonts automatically installed
++ Native Integration - Full Windows VSCode with system integration
++ Container Option - Browser-based VSCode via code-server
++ Extension Management - Automated installation of development extensions
++ Optimized Settings - Pre-configured for development workflows
++ Font Installation - Popular coding fonts automatically installed
 
 Components:
 ----------
@@ -740,7 +740,7 @@ Container Mode:
         $isVerified = Test-Component $component
         
         if ($isInstalled -and $isVerified) {
-            Write-Host "✓ $component`: Installed and verified" -ForegroundColor Green
+            Write-Host "+ $component`: Installed and verified" -ForegroundColor Green
             
             # Show additional info for specific components
             switch ($component) {
@@ -775,9 +775,9 @@ Container Mode:
                 }
             }
         } elseif ($isInstalled) {
-            Write-Host "⚠ $component`: Installed but not verified" -ForegroundColor Yellow
+            Write-Host "[WARN] $component`: Installed but not verified" -ForegroundColor Yellow
         } else {
-            Write-Host "✗ $component`: Not installed" -ForegroundColor Red
+            Write-Host "[ERROR] $component`: Not installed" -ForegroundColor Red
         }
     }
     
@@ -793,15 +793,15 @@ try {
         }
         'install' {
             $success = Install-Module
-            exit ($success ? 0 : 1)
+            if ($success) { exit 0 } else { exit 1 }
         }
         'remove' {
             $success = Remove-Module
-            exit ($success ? 0 : 1)
+            if ($success) { exit 0 } else { exit 1 }
         }
         'verify' {
             $success = Test-ModuleVerification
-            exit ($success ? 0 : 1)
+            if ($success) { exit 0 } else { exit 1 }
         }
         'info' {
             Show-ModuleInfo
