@@ -619,7 +619,16 @@ install_python_core() {
     fi
 }
 
-# Setup Python virtual environment (used as fallback or primary approach)
+# Add this function to determine venv path
+get_venv_path() {
+    if [[ "$DEVENV_MODE" == "Global" ]]; then
+        echo "${DEVENV_PYTHON_DIR}/venv"
+    else
+        echo "${DEVENV_DATA_DIR}/python/venv"
+    fi
+}
+
+# Use it in the install functions
 goto_venv_setup() {
     log "INFO" "Setting up Python virtual environment..." "python"
     
@@ -645,8 +654,7 @@ goto_venv_setup() {
     fi
     
     # Create virtual environment
-    local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
-    venv_dir=$(eval echo "$venv_dir")
+    local venv_dir=$(get_venv_path)
     
     # Create virtual environment if it doesn't exist
     if [[ ! -d "$venv_dir" ]]; then

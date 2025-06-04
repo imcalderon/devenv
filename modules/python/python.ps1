@@ -99,15 +99,21 @@ function Test-Component {
         }
         'venv' {
             # Check if virtual environment exists
-            $venvPath = Get-ModuleConfig $script:ModuleName ".shell.paths.venv_dir"
-            $venvPath = [System.Environment]::ExpandEnvironmentVariables($venvPath)
+            if ($env:DEVENV_MODE -eq "Global") {
+                $venvPath = Join-Path $env:DEVENV_PYTHON_DIR "venv"
+            } else {
+                $venvPath = Join-Path $env:DEVENV_DATA_DIR "python\venv"
+            }
             $venvPython = Join-Path $venvPath "Scripts\python.exe"
             return (Test-Path $venvPython)
         }
         'packages' {
             # Check if essential packages are installed
-            $venvPath = Get-ModuleConfig $script:ModuleName ".shell.paths.venv_dir"
-            $venvPath = [System.Environment]::ExpandEnvironmentVariables($venvPath)
+            if ($env:DEVENV_MODE -eq "Global") {
+                $venvPath = Join-Path $env:DEVENV_PYTHON_DIR "venv"
+            } else {
+                $venvPath = Join-Path $env:DEVENV_DATA_DIR "python\venv"
+            }
             $venvPip = Join-Path $venvPath "Scripts\pip.exe"
             
             if (Test-Path $venvPip) {
@@ -287,13 +293,20 @@ function Install-PipComponent {
         return $false
     }
 }
-
 function Install-VenvComponent {
     Write-LogInfo "Creating Python virtual environment..." $script:ModuleName
     
     try {
-        $venvPath = Get-ModuleConfig $script:ModuleName ".shell.paths.venv_dir"
-        $venvPath = [System.Environment]::ExpandEnvironmentVariables($venvPath)
+        # Determine venv location based on mode
+        if ($env:DEVENV_MODE -eq "Global") {
+            # For global mode, create venv in the global data directory
+            $venvPath = Join-Path $env:DEVENV_PYTHON_DIR "venv"
+        } else {
+            # For project mode, create venv in the project's data directory
+            $venvPath = Join-Path $env:DEVENV_DATA_DIR "python\venv"
+        }
+        
+        Write-LogInfo "Virtual environment path: $venvPath" $script:ModuleName
         
         # Create virtual environment directory
         $venvParent = Split-Path $venvPath -Parent
@@ -599,8 +612,12 @@ function Install-ConfigComponent {
     Write-LogInfo "Installing Python configuration..." $script:ModuleName
     
     try {
-        $configPath = Get-ModuleConfig $script:ModuleName ".shell.paths.config_dir"
-        $configPath = [System.Environment]::ExpandEnvironmentVariables($configPath)
+        # Use mode-aware config path
+        if ($env:DEVENV_MODE -eq "Global") {
+            $configPath = Join-Path $env:DEVENV_PYTHON_DIR "config"
+        } else {
+            $configPath = Join-Path $env:DEVENV_DATA_DIR "python\config"
+        }
         
         if (-not (Test-Path $configPath)) {
             New-Item -Path $configPath -ItemType Directory -Force | Out-Null

@@ -162,6 +162,11 @@ function Initialize-ExecutionEnvironment {
     $env:DEVENV_BACKUPS_DIR = Join-Path $DevEnvContext.DataDir "backups"
     $env:DEVENV_MODULES_DIR = Join-Path $env:DEVENV_ROOT "modules"
     
+    # Module-specific data directories
+    $env:DEVENV_PYTHON_DIR = Join-Path $DevEnvContext.DataDir "python"
+    $env:DEVENV_NODEJS_DIR = Join-Path $DevEnvContext.DataDir "nodejs"
+    $env:DEVENV_GO_DIR = Join-Path $DevEnvContext.DataDir "go"
+    
     # Mode-specific setup
     if ($DevEnvContext.Mode -eq "Project") {
         $env:DEVENV_PROJECT_ROOT = $DevEnvContext.ProjectRoot
