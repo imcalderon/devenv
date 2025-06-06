@@ -50,6 +50,13 @@
             }
           }
         }
-      }
+      },
+      "windows": {
+        "enabled": true,
+        "package": {
+          "installer": "https://aka.ms/win32-x64-user-stable",
+          "installer_args": "/silent /mergetasks=!runcode"
+        }
+      }  
     }
   }

@@ -180,7 +180,14 @@ function Get-ConfigValue {
     }
     
     # Fall back to global value
-    $globalValue = Get-JsonValue $File ".global$Key" $Default $ModuleName
+    $globalValue = Get-JsonValue $File ".global$Key" $null $ModuleName
     
-    return $globalValue
+    if ($null -ne $globalValue) {
+        return $globalValue
+    }
+    
+    # NEW: Fall back to direct key lookup (for configs that don't use global/platform structure)
+    $directValue = Get-JsonValue $File $Key $Default $ModuleName
+    
+    return $directValue
 }

@@ -18,23 +18,18 @@
       "temp_dir": "${DEVENV_DATA_DIR}/temp"
     },
     "modules": {
-      "order": [
-        "powershell",
-        "winget",
-        "git",
-        "docker",
-        "python",
-        "nodejs",
-        "vscode",
-        "containers"
-      ],
       "execution_strategy": {
         "prefer_containers": true,
         "fallback_to_native": true,
-        "wsl_modules": ["zsh", "git", "python", "nodejs"],
-        "native_only": ["powershell", "winget", "registry", "iis"],
         "container_preferred": ["python", "nodejs", "java", "rust", "go"]
-      }
+      },
+      "cross_platform": [
+        "git",
+        "docker", 
+        "vscode",
+        "python",
+        "nodejs"
+      ]
     },
     "defaults": {
       "backup": {
@@ -74,22 +69,6 @@
         "disk": "10GB"
       },
       "modules": {
-        "powershell": {
-          "containerize": false,
-          "reason": "Native Windows shell required"
-        },
-        "winget": {
-          "containerize": false,
-          "reason": "Windows package manager requires native access"
-        },
-        "git": {
-          "containerize": false,
-          "reason": "SSH keys and credential management"
-        },
-        "docker": {
-          "containerize": false,
-          "reason": "Docker daemon access required"
-        },
         "python": {
           "containerize": true,
           "image": "python:3.11-slim",
@@ -138,6 +117,35 @@
     "windows": {
       "script": "devenv.ps1",
       "shell": "powershell",
+      "modules": {
+        "order": [
+          "terminal",
+          "powershell",
+          "winget",
+          "git",
+          "docker",
+          "python",
+          "nodejs",
+          "vscode"
+        ],
+        "available": [
+          "terminal",
+          "powershell", 
+          "winget",
+          "git",
+          "docker",
+          "python",
+          "nodejs",
+          "vscode",
+          "registry"
+        ],
+        "platform_specific": [
+          "terminal",
+          "powershell",
+          "winget", 
+          "registry"
+        ]
+      },
       "execution_modes": {
         "native": {
           "enabled": true,
@@ -148,7 +156,26 @@
           "enabled": true,
           "distribution": "Ubuntu-22.04",
           "auto_install": true,
-          "docker_socket": "/var/run/docker-desktop.sock"
+          "docker_socket": "/var/run/docker-desktop.sock",
+          "modules": {
+            "order": [
+              "zsh",
+              "git", 
+              "docker",
+              "python",
+              "nodejs",
+              "vscode"
+            ],
+            "available": [
+              "zsh",
+              "git",
+              "docker", 
+              "python",
+              "nodejs",
+              "vscode",
+              "conda"
+            ]
+          }
         },
         "container": {
           "enabled": true,
@@ -192,54 +219,35 @@
         "execution_policy": "RemoteSigned",
         "require_signed_modules": false,
         "uac_prompt": true
-      },
-      "modules": {
-        "overrides": {
-          "powershell": {
-            "enabled": true,
-            "native_only": true,
-            "shell": {
-              "paths": {
-                "profile_dir": "${env:USERPROFILE}/Documents/PowerShell",
-                "modules_dir": "${env:USERPROFILE}/Documents/PowerShell/Modules"
-              }
-            }
-          },
-          "git": {
-            "enabled": true,
-            "prefer_wsl": false,
-            "shell": {
-              "paths": {
-                "config_dir": "${env:USERPROFILE}/.gitconfig",
-                "ssh_dir": "${env:USERPROFILE}/.ssh"
-              }
-            }
-          },
-          "vscode": {
-            "enabled": true,
-            "container_support": true,
-            "shell": {
-              "paths": {
-                "config_dir": "${env:APPDATA}/Code/User",
-                "extensions_dir": "${env:USERPROFILE}/.vscode/extensions"
-              }
-            }
-          },
-          "docker": {
-            "enabled": true,
-            "native_only": true,
-            "docker_desktop": {
-              "wsl_integration": true,
-              "kubernetes": false,
-              "experimental": true
-            }
-          }
-        }
       }
     },
     "linux": {
       "script": "devenv.sh",
       "shell": "/bin/bash",
+      "modules": {
+        "order": [
+          "zsh",
+          "git",
+          "docker", 
+          "python",
+          "nodejs",
+          "vscode",
+          "conda"
+        ],
+        "available": [
+          "zsh",
+          "git",
+          "docker",
+          "python", 
+          "nodejs",
+          "vscode",
+          "conda",
+          "react"
+        ],
+        "platform_specific": [
+          "zsh"
+        ]
+      },
       "paths": {
         "script_dir": "${DEVENV_ROOT}/lib"
       },
@@ -248,22 +256,43 @@
         "docker_socket": "/var/run/docker.sock",
         "systemd": true
       },
-      "modules": {
-        "overrides": {
-          "zsh": {
-            "enabled": true,
-            "shell": {
-              "paths": {
-                "config_dir": "${HOME}/.config/zsh"
-              }
-            }
-          }
+      "package_managers": {
+        "apt": {
+          "enabled": true,
+          "auto_update": true
+        },
+        "snap": {
+          "enabled": false
         }
       }
     },
     "darwin": {
-      "script": "devenv.sh",
+      "script": "devenv.sh", 
       "shell": "/bin/bash",
+      "modules": {
+        "order": [
+          "zsh",
+          "git",
+          "docker",
+          "python",
+          "nodejs", 
+          "vscode",
+          "conda"
+        ],
+        "available": [
+          "zsh",
+          "git",
+          "docker",
+          "python",
+          "nodejs",
+          "vscode", 
+          "conda",
+          "react"
+        ],
+        "platform_specific": [
+          "zsh"
+        ]
+      },
       "paths": {
         "script_dir": "${DEVENV_ROOT}/lib"
       },
@@ -297,26 +326,36 @@
     "minimal": {
       "container_strategy": "disabled",
       "modules": {
-        "order": ["powershell", "git", "vscode"]
+        "windows": ["terminal", "powershell", "git", "vscode"],
+        "linux": ["zsh", "git", "vscode"],
+        "darwin": ["zsh", "git", "vscode"]
       }
     }
   },
   "templates": {
     "web_development": {
-      "modules": ["powershell", "git", "nodejs", "vscode", "docker"],
+      "modules": {
+        "windows": ["terminal", "powershell", "git", "nodejs", "vscode", "docker"],
+        "linux": ["zsh", "git", "nodejs", "vscode", "docker"],
+        "darwin": ["zsh", "git", "nodejs", "vscode", "docker"]
+      },
       "containers": {
         "frontend": {
           "image": "node:18-alpine",
           "ports": ["3000:3000"]
         },
         "backend": {
-          "image": "node:18-alpine",
+          "image": "node:18-alpine", 
           "ports": ["8000:8000"]
         }
       }
     },
     "data_science": {
-      "modules": ["powershell", "git", "python", "vscode", "docker"],
+      "modules": {
+        "windows": ["terminal", "powershell", "git", "python", "vscode", "docker"],
+        "linux": ["zsh", "git", "python", "vscode", "docker", "conda"],
+        "darwin": ["zsh", "git", "python", "vscode", "docker", "conda"]
+      },
       "containers": {
         "jupyter": {
           "image": "jupyter/datascience-notebook",
@@ -329,7 +368,11 @@
       }
     },
     "game_development": {
-      "modules": ["powershell", "git", "nodejs", "vscode", "docker"],
+      "modules": {
+        "windows": ["terminal", "powershell", "git", "nodejs", "vscode", "docker"],
+        "linux": ["zsh", "git", "nodejs", "vscode", "docker"],
+        "darwin": ["zsh", "git", "nodejs", "vscode", "docker"]
+      },
       "containers": {
         "phaser": {
           "image": "node:18-alpine",
@@ -365,7 +408,7 @@
     },
     "preview_modules": [
       "rust",
-      "go",
+      "go", 
       "kotlin",
       "terraform"
     ]

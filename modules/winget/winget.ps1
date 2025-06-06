@@ -484,53 +484,53 @@ function Test-ModuleVerification {
 }
 
 function Show-ModuleInfo {
-    $header = @"
-
-📦 Windows Package Manager (WinGet)
-==================================
-
-Description:
------------
-Windows Package Manager integration for automated installation and 
-management of development tools and applications.
-
-Benefits:
---------
-✓ Automated Installation - Command-line package management
-✓ Version Control - Specific versions and automatic updates  
-✓ Dependency Management - Handle complex application dependencies
-✓ Source Management - Multiple package sources (Store, Community)
-✓ Silent Installation - Unattended setup for development environments
-
-Components:
-----------
-1. Core WinGet
-   - Windows Package Manager CLI
-   - App Installer integration
-   - Package database access
-
-2. Package Sources
-   - Microsoft Store packages
-   - WinGet Community Repository
-   - Custom sources support
-
-3. Development Packages
-   - Git, Node.js, Python, Docker
-   - Development tools and utilities
-   - Code editors and IDEs
-
-Quick Commands:
---------------
-wg search <term>         # Search for packages
-wg install <package>     # Install package
-wg list                  # List installed packages  
-wg upgrade               # Upgrade all packages
-wg uninstall <package>   # Remove package
-
-"@
-
-    Write-Host $header -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Windows Package Manager (WinGet)" -ForegroundColor Cyan
+    Write-Host "================================" -ForegroundColor Cyan
+    Write-Host ""
     
+    Write-Host "Description:" -ForegroundColor Yellow
+    Write-Host "-----------" -ForegroundColor Yellow
+    Write-Host "Windows Package Manager integration for automated installation and"
+    Write-Host "management of development tools and applications."
+    Write-Host ""
+    
+    Write-Host "Benefits:" -ForegroundColor Yellow
+    Write-Host "--------" -ForegroundColor Yellow
+    Write-Host "+ Automated Installation - Command-line package management" -ForegroundColor Green
+    Write-Host "+ Version Control - Specific versions and automatic updates" -ForegroundColor Green
+    Write-Host "+ Dependency Management - Handle complex application dependencies" -ForegroundColor Green
+    Write-Host "+ Source Management - Multiple package sources (Store, Community)" -ForegroundColor Green
+    Write-Host "+ Silent Installation - Unattended setup for development environments" -ForegroundColor Green
+    Write-Host ""
+    
+    Write-Host "Components:" -ForegroundColor Yellow
+    Write-Host "----------" -ForegroundColor Yellow
+    Write-Host "1. Core WinGet"
+    Write-Host "   - Windows Package Manager CLI"
+    Write-Host "   - App Installer integration"
+    Write-Host "   - Package database access"
+    Write-Host ""
+    Write-Host "2. Package Sources"
+    Write-Host "   - Microsoft Store packages"
+    Write-Host "   - WinGet Community Repository"
+    Write-Host "   - Custom sources support"
+    Write-Host ""
+    Write-Host "3. Development Packages"
+    Write-Host "   - Git, Node.js, Python, Docker"
+    Write-Host "   - Development tools and utilities"
+    Write-Host "   - Code editors and IDEs"
+    Write-Host ""
+    
+    Write-Host "Quick Commands:" -ForegroundColor Yellow
+    Write-Host "--------------" -ForegroundColor Yellow
+    Write-Host "wg search <term>         # Search for packages"
+    Write-Host "wg install <package>     # Install package"
+    Write-Host "wg list                  # List installed packages"
+    Write-Host "wg upgrade               # Upgrade all packages"
+    Write-Host "wg uninstall <package>   # Remove package"
+    Write-Host ""
+
     # Show current installation status
     Write-Host "Current Status:" -ForegroundColor Yellow
     Write-Host "-------------" -ForegroundColor Yellow
@@ -540,11 +540,11 @@ wg uninstall <package>   # Remove package
         $isVerified = Test-Component $component
         
         if ($isInstalled -and $isVerified) {
-            Write-Host "✓ $component`: Installed and verified" -ForegroundColor Green
+            Write-Host "[OK] $component`: Installed and verified" -ForegroundColor Green
         } elseif ($isInstalled) {
-            Write-Host "⚠ $component`: Installed but not verified" -ForegroundColor Yellow
+            Write-Host "[WARN] $component`: Installed but not verified" -ForegroundColor Yellow
         } else {
-            Write-Host "✗ $component`: Not installed" -ForegroundColor Red
+            Write-Host "[MISSING] $component`: Not installed" -ForegroundColor Red
         }
     }
     
@@ -552,7 +552,8 @@ wg uninstall <package>   # Remove package
     try {
         $version = winget.exe --version 2>$null
         if ($version) {
-            Write-Host "`nWinGet Information:" -ForegroundColor Yellow
+            Write-Host ""
+            Write-Host "WinGet Information:" -ForegroundColor Yellow
             Write-Host "  Version: $version" -ForegroundColor Gray
             
             # Show sources
@@ -572,7 +573,8 @@ wg uninstall <package>   # Remove package
             }
         }
     } catch {
-        Write-Host "`nWinGet: Not available" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "WinGet: Not available" -ForegroundColor Red
     }
     
     Write-Host ""
@@ -587,15 +589,15 @@ try {
         }
         'install' {
             $success = Install-Module
-            exit ($success ? 0 : 1)
+            if ($success) { exit 0 } else { exit 1 }
         }
         'remove' {
             $success = Remove-Module
-            exit ($success ? 0 : 1)
+            if ($success) { exit 0 } else { exit 1 }
         }
         'verify' {
             $success = Test-ModuleVerification
-            exit ($success ? 0 : 1)
+            if ($success) { exit 0 } else { exit 1 }
         }
         'info' {
             Show-ModuleInfo

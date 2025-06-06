@@ -1,6 +1,6 @@
-# lib/windows/module.ps1 - PowerShell module utilities
+# lib/windows/module.ps1 - PowerShell module utilities with robust path handling
 
-# Get module configuration
+# Get module configuration with robust path resolution
 function Get-ModuleConfig {
     param (
         [string]$Module,
@@ -9,12 +9,44 @@ function Get-ModuleConfig {
         [string]$Platform = "windows"
     )
     
-    $configFile = "$env:ROOT_DIR\modules\$Module\config.json"
+    if ([string]::IsNullOrWhiteSpace($Module)) {
+        Write-LogError "Module name cannot be empty" $Module
+        return $Default
+    }
     
-    # Get platform-specific or global configuration
-    $value = Get-ConfigValue $configFile $Key $Default $Platform $Module
+    # Try multiple environment variable names for compatibility
+    $rootDir = $env:DEVENV_ROOT
+    if ([string]::IsNullOrWhiteSpace($rootDir)) {
+        $rootDir = $env:ROOT_DIR
+    }
+    if ([string]::IsNullOrWhiteSpace($rootDir)) {
+        # Fallback to script location
+        if ($PSScriptRoot) {
+            # Navigate up to find the root directory (assuming we're in lib/windows)
+            $rootDir = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+        }
+    }
     
-    return $value
+    if ([string]::IsNullOrWhiteSpace($rootDir)) {
+        Write-LogError "Cannot determine DevEnv root directory. Please ensure DEVENV_ROOT environment variable is set." $Module
+        return $Default
+    }
+    
+    $configFile = Join-Path $rootDir "modules\$Module\config.json"
+    
+    if (-not (Test-Path $configFile)) {
+        Write-LogError "Module configuration not found: $configFile" $Module
+        return $Default
+    }
+    
+    try {
+        # Get platform-specific or global configuration
+        $value = Get-ConfigValue $configFile $Key $Default $Platform $Module
+        return $value
+    } catch {
+        Write-LogError "Failed to get module config ${Module}.${Key}: $_" $Module
+        return $Default
+    }
 }
 
 # Check if module is enabled
@@ -23,6 +55,10 @@ function Test-ModuleEnabled {
         [string]$Module,
         [string]$Platform = "windows"
     )
+    
+    if ([string]::IsNullOrWhiteSpace($Module)) {
+        return $false
+    }
     
     # Check global enabled status
     $enabled = Get-ModuleConfig $Module ".enabled" $false
@@ -44,6 +80,10 @@ function Get-ModuleRunlevel {
         [string]$Platform = "windows"
     )
     
+    if ([string]::IsNullOrWhiteSpace($Module)) {
+        return 999
+    }
+    
     # Try platform-specific runlevel first
     $runlevel = Get-ModuleConfig $Module ".platforms.$Platform.runlevel" $null $Platform
     
@@ -62,13 +102,17 @@ function Get-ModuleDependencies {
         [string]$Platform = "windows"
     )
     
+    if ([string]::IsNullOrWhiteSpace($Module)) {
+        return @()
+    }
+    
     # Try platform-specific dependencies first
     $dependencies = @(Get-ModuleConfig $Module ".platforms.$Platform.dependencies[]" @() $Platform)
     
     # Get global dependencies and combine
     $globalDeps = @(Get-ModuleConfig $Module ".dependencies[]" @())
     
-    return ($dependencies + $globalDeps | Select-Object -Unique)
+    return ($dependencies + $globalDeps | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
 }
 
 # Verify module configuration
@@ -77,16 +121,32 @@ function Test-Module {
         [string]$Module
     )
     
-    $configFile = "$env:ROOT_DIR\modules\$Module\config.json"
-    
-    # Check for required files
-    if (-not (Test-Path $configFile)) {
-        Write-LogError "Module configuration not found" $Module
+    if ([string]::IsNullOrWhiteSpace($Module)) {
+        Write-LogError "Module name cannot be empty" $Module
         return $false
     }
     
-    if (-not (Test-Path "$env:ROOT_DIR\modules\$Module\$Module.ps1")) {
-        Write-LogError "Module script not found" $Module
+    # Try multiple environment variable names for compatibility
+    $rootDir = $env:DEVENV_ROOT
+    if ([string]::IsNullOrWhiteSpace($rootDir)) {
+        $rootDir = $env:ROOT_DIR
+    }
+    if ([string]::IsNullOrWhiteSpace($rootDir)) {
+        Write-LogError "Cannot determine DevEnv root directory" $Module
+        return $false
+    }
+    
+    $configFile = Join-Path $rootDir "modules\$Module\config.json"
+    
+    # Check for required files
+    if (-not (Test-Path $configFile)) {
+        Write-LogError "Module configuration not found: $configFile" $Module
+        return $false
+    }
+    
+    $moduleScript = Join-Path $rootDir "modules\$Module\$Module.ps1"
+    if (-not (Test-Path $moduleScript)) {
+        Write-LogError "Module script not found: $moduleScript" $Module
         return $false
     }
     
@@ -98,14 +158,19 @@ function Test-Module {
     return $true
 }
 
-# Initialize module
+# Initialize module with validation
 function Initialize-Module {
     param (
         [string]$Module
     )
     
+    if ([string]::IsNullOrWhiteSpace($Module)) {
+        Write-Error "Module name cannot be empty"
+        return $false
+    }
+    
     # Save current LOG_LEVEL
-    $currentLogLevel = $script:LOG_LEVEL
+    $currentLogLevel = if ($script:LOG_LEVEL) { $script:LOG_LEVEL } else { "INFO" }
     
     # Verify module first
     if (-not (Test-Module $Module)) {
@@ -114,12 +179,23 @@ function Initialize-Module {
     
     # Initialize module-specific logging with preserved log level
     $env:LOG_LEVEL = $currentLogLevel
-    Initialize-Logging $Module
+    try {
+        Initialize-Logging $Module
+    } catch {
+        Write-Warning "Failed to initialize logging for module $Module`: $_"
+    }
     
-    # Export module context variables
-    $env:MODULE_NAME = $Module
-    $env:MODULE_DIR = "$env:ROOT_DIR\modules\$Module"
-    $env:MODULE_CONFIG = "$env:MODULE_DIR\config.json"
+    # Export module context variables with robust path resolution
+    $rootDir = $env:DEVENV_ROOT
+    if ([string]::IsNullOrWhiteSpace($rootDir)) {
+        $rootDir = $env:ROOT_DIR
+    }
+    
+    if (-not [string]::IsNullOrWhiteSpace($rootDir)) {
+        $env:MODULE_NAME = $Module
+        $env:MODULE_DIR = Join-Path $rootDir "modules\$Module"
+        $env:MODULE_CONFIG = Join-Path $env:MODULE_DIR "config.json"
+    }
     
     return $true
 }
@@ -132,35 +208,45 @@ function Get-ModulePaths {
         [string]$Platform = "windows"
     )
     
+    if ([string]::IsNullOrWhiteSpace($Module) -or [string]::IsNullOrWhiteSpace($KeyPath)) {
+        return @()
+    }
+    
     $paths = @(Get-ModuleConfig $Module $KeyPath @() $Platform)
     $expandedPaths = @()
     
     foreach ($path in $paths) {
-        $expandedPath = [System.Environment]::ExpandEnvironmentVariables($path)
-        $expandedPaths += $expandedPath
+        if (-not [string]::IsNullOrWhiteSpace($path)) {
+            $expandedPath = [System.Environment]::ExpandEnvironmentVariables($path)
+            if (-not [string]::IsNullOrWhiteSpace($expandedPath)) {
+                $expandedPaths += $expandedPath
+            }
+        }
     }
     
     return $expandedPaths
 }
 
-# Create a directory if it doesn't exist
+# Create a directory if it doesn't exist with validation
 function Ensure-Directory {
     param (
         [string]$Path,
         [string]$ModuleName = ""
     )
     
-    if (-not (Test-Path $Path)) {
-        try {
-            New-Item -Path $Path -ItemType Directory -Force | Out-Null
-            Write-LogInfo "Created directory: $Path" $ModuleName
-            return $true
-        }
-        catch {
-            Write-LogError "Failed to create directory ${Path}: $_" $ModuleName
-            return $false
-        }
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        Write-LogError "Path cannot be empty" $ModuleName
+        return $false
     }
     
-    return $true
+    try {
+        if (-not (Test-Path $Path)) {
+            New-Item -Path $Path -ItemType Directory -Force | Out-Null
+            Write-LogInfo "Created directory: $Path" $ModuleName
+        }
+        return $true
+    } catch {
+        Write-LogError "Failed to create directory ${Path}: $_" $ModuleName
+        return $false
+    }
 }
