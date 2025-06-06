@@ -6,9 +6,9 @@
     This wrapper script handles all environment setup, path resolution, and
     context management for DevEnv, preventing common initialization errors.
 .EXAMPLE
-    .\de.ps1 install
-    .\de.ps1 install python -Force
-    .\de.ps1 status
+    .\de install
+    .\de install python -Force
+    .\de status
 #>
 
 [CmdletBinding()]
@@ -19,6 +19,28 @@ param(
     [Parameter(Position = 1, ValueFromRemainingArguments)]
     [string[]]$RemainingArgs
 )
+
+# Function to normalize paths and remove double slashes
+function Normalize-Path {
+    param([string]$Path)
+    if (-not $Path) { return $Path }
+    
+    # Convert to absolute path if relative
+    if (-not [System.IO.Path]::IsPathRooted($Path)) {
+        $Path = Join-Path (Get-Location).Path $Path
+    }
+    
+    # Normalize slashes and remove doubles
+    $Path = $Path -replace '\\+', '\'
+    $Path = $Path -replace '/+', '\'
+    
+    # Remove trailing slash unless it's a drive root
+    if ($Path.Length -gt 3 -and $Path.EndsWith('\')) {
+        $Path = $Path.TrimEnd('\')
+    }
+    
+    return $Path
+}
 
 # Capture the original location to restore later
 $originalLocation = Get-Location
@@ -38,15 +60,15 @@ function Get-ScriptDirectory {
     }
     # Method 3: PSScriptRoot fallback
     elseif ($PSScriptRoot) {
-        return $PSScriptRoot
+        return Normalize-Path $PSScriptRoot
     }
     # Method 4: Fallback to current directory
     else {
         Write-Warning "Could not determine script path, using current directory"
-        return (Get-Location).Path
+        return Normalize-Path (Get-Location).Path
     }
     
-    return Split-Path $scriptPath -Parent
+    return Normalize-Path (Split-Path $scriptPath -Parent)
 }
 
 try {
@@ -126,10 +148,10 @@ try {
     
     # Pre-set environment variables that DevEnv expects
     # This ensures they're available when devenv.ps1 runs
-    $env:DEVENV_ROOT = $devenvRoot
-    $env:ROOT_DIR = $devenvRoot
-    $env:DEVENV_CONFIG_FILE = Join-Path $devenvRoot "config.json"
-    $env:DEVENV_MODULES_DIR = Join-Path $devenvRoot "modules"
+    $env:DEVENV_ROOT = Normalize-Path $devenvRoot
+    $env:ROOT_DIR = Normalize-Path $devenvRoot
+    $env:DEVENV_CONFIG_FILE = Normalize-Path (Join-Path $devenvRoot "config.json")
+    $env:DEVENV_MODULES_DIR = Normalize-Path (Join-Path $devenvRoot "modules")
     
     # Determine if we're in project mode by looking for a parent devenv.json
     $projectRoot = $null
@@ -140,7 +162,7 @@ try {
     while ($parentDir -and (Split-Path $parentDir -Parent) -ne $parentDir) {
         $projectConfig = Join-Path $parentDir "devenv.json"
         if (Test-Path $projectConfig) {
-            $projectRoot = $parentDir
+            $projectRoot = Normalize-Path $parentDir
             Write-Host "Project Mode: Detected at $projectRoot" -ForegroundColor Magenta
             break
         }
@@ -150,23 +172,23 @@ try {
     # Set data directory based on mode
     if ($projectRoot) {
         $env:DEVENV_MODE = "Project"
-        $env:DEVENV_DATA_DIR = Join-Path $projectRoot ".devenv"
+        $env:DEVENV_DATA_DIR = Normalize-Path (Join-Path $projectRoot ".devenv")
         $env:DEVENV_PROJECT_ROOT = $projectRoot
     }
     else {
         $env:DEVENV_MODE = "Global"
-        $env:DEVENV_DATA_DIR = Join-Path $env:USERPROFILE ".devenv"
+        $env:DEVENV_DATA_DIR = Normalize-Path (Join-Path $env:USERPROFILE ".devenv")
     }
     
-    # Set derived paths
-    $env:DEVENV_STATE_DIR = Join-Path $env:DEVENV_DATA_DIR "state"
-    $env:DEVENV_LOGS_DIR = Join-Path $env:DEVENV_DATA_DIR "logs"
-    $env:DEVENV_BACKUPS_DIR = Join-Path $env:DEVENV_DATA_DIR "backups"
+    # Set derived paths - all normalized
+    $env:DEVENV_STATE_DIR = Normalize-Path (Join-Path $env:DEVENV_DATA_DIR "state")
+    $env:DEVENV_LOGS_DIR = Normalize-Path (Join-Path $env:DEVENV_DATA_DIR "logs")
+    $env:DEVENV_BACKUPS_DIR = Normalize-Path (Join-Path $env:DEVENV_DATA_DIR "backups")
     
-    # Module-specific directories
-    $env:DEVENV_PYTHON_DIR = Join-Path $env:DEVENV_DATA_DIR "python"
-    $env:DEVENV_NODEJS_DIR = Join-Path $env:DEVENV_DATA_DIR "nodejs"
-    $env:DEVENV_GO_DIR = Join-Path $env:DEVENV_DATA_DIR "go"
+    # Module-specific directories - all normalized
+    $env:DEVENV_PYTHON_DIR = Normalize-Path (Join-Path $env:DEVENV_DATA_DIR "python")
+    $env:DEVENV_NODEJS_DIR = Normalize-Path (Join-Path $env:DEVENV_DATA_DIR "nodejs")
+    $env:DEVENV_GO_DIR = Normalize-Path (Join-Path $env:DEVENV_DATA_DIR "go")
     
     # Ensure data directories exist
     @(
@@ -182,10 +204,24 @@ try {
     
     Write-Host "Mode: $($env:DEVENV_MODE)" -ForegroundColor $(if ($env:DEVENV_MODE -eq "Project") { "Magenta" } else { "Green" })
     Write-Host "Data Directory: $($env:DEVENV_DATA_DIR)" -ForegroundColor Gray
+    
+    # Check if we need elevated permissions for Python installation
+    if ($Action -eq 'install' -and $RemainingArgs -contains 'python' -or 
+        ($Action -eq 'install' -and -not $RemainingArgs)) {
+        
+        # Check if running as admin
+        $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+        
+        if (-not $isAdmin) {
+            Write-Host "`nNOTE: Python installation may require administrator privileges." -ForegroundColor Yellow
+            Write-Host "If you encounter permission errors, run this command as Administrator." -ForegroundColor Yellow
+        }
+    }
+    
     Write-Host ""
     
     # Build the command line arguments
-    $devenvScript = Join-Path $devenvRoot "devenv.ps1"
+    $devenvScript = Normalize-Path (Join-Path $devenvRoot "devenv.ps1")
     $arguments = @($Action)
     if ($RemainingArgs) {
         $arguments += $RemainingArgs
