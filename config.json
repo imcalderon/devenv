@@ -99,7 +99,7 @@
           "extra_args": "--network=host",
           "ports": ["8443:8443"],
           "environment": {
-            "PASSWORD": "devenv123"
+            "PASSWORD": "${DEVENV_VSCODE_PASSWORD:-changeme}"
           }
         },
         "java": {

@@ -386,8 +386,8 @@ services:
       - vscode-extensions:/home/coder/.local/share/code-server/extensions
       - vscode-config:/home/coder/.local/share/code-server/User
     environment:
-      - PASSWORD=devenv123
-      - SUDO_PASSWORD=devenv123
+      - PASSWORD=`${DEVENV_VSCODE_PASSWORD:-changeme}
+      - SUDO_PASSWORD=`${DEVENV_SUDO_PASSWORD:-changeme}
     restart: unless-stopped
 
 volumes:

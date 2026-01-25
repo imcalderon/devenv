@@ -456,15 +456,23 @@ case "${1:-}" in
 esac
 }
 
+# Check if container functions are available from module.sh
+check_container_functions() {
+    # Verify that required container functions exist
+    type should_containerize &>/dev/null && \
+    type get_module_container_image &>/dev/null && \
+    type run_module_in_container &>/dev/null
+}
+
 # Safe version of should_containerize
 should_use_container() {
     local module=$1
-    
+
     # Check if container functions are available
     if ! check_container_functions; then
         return 1
     fi
-    
+
     # Use the existing function if available
     should_containerize "$module"
 }
