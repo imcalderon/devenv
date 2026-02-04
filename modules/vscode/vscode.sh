@@ -2,6 +2,7 @@
 # modules/vscode/vscode.sh - VSCode module implementation with state management
 
 # Load required utilities
+source "$SCRIPT_DIR/compat.sh"   # Cross-platform compatibility
 source "$SCRIPT_DIR/logging.sh"  # Load logging first
 source "$SCRIPT_DIR/json.sh"     # Then JSON handling
 source "$SCRIPT_DIR/module.sh"   # Then module utilities
@@ -242,7 +243,7 @@ verify_component() {
             ;;
         "settings")
             local config_dir=$(get_module_config "vscode" ".shell.paths.config_dir")
-            config_dir=$(eval echo "$config_dir")
+            config_dir=$(echo "$config_dir" | expand_vars)
             [[ -f "$config_dir/settings.json" ]]
             ;;
         "extensions")
@@ -311,7 +312,7 @@ verify_required_extensions() {
 # Verify additional configurations
 verify_additional_config() {
     local config_dir=$(get_module_config "vscode" ".shell.paths.config_dir")
-    config_dir=$(eval echo "$config_dir")
+    config_dir=$(echo "$config_dir" | expand_vars)
     [[ -f "$config_dir/settings.json" ]] && \
     [[ -d "$(get_module_config "vscode" ".shell.paths.extensions_dir")" ]]
 }
@@ -319,7 +320,7 @@ configure_vscode_settings() {
     log "INFO" "Configuring VSCode settings..." "vscode"
 
     local config_dir=$(get_module_config "vscode" ".shell.paths.config_dir")
-    config_dir=$(eval echo "$config_dir")
+    config_dir=$(echo "$config_dir" | expand_vars)
     local settings_file="$config_dir/settings.json"
 
     # Backup existing settings
@@ -333,7 +334,7 @@ configure_vscode_settings() {
     
     if [[ -n "$settings" ]]; then
         # Expand environment variables in settings
-        settings=$(echo "$settings" | envsubst)
+        settings=$(echo "$settings" | expand_vars)
         echo "$settings" > "$settings_file"
 
         if [ $? -ne 0 ]; then
@@ -477,8 +478,8 @@ configure_additional() {
     # Create required directories
     local config_dir=$(get_module_config "vscode" ".shell.paths.config_dir")
     local extensions_dir=$(get_module_config "vscode" ".shell.paths.extensions_dir")
-    config_dir=$(eval echo "$config_dir")
-    extensions_dir=$(eval echo "$extensions_dir")
+    config_dir=$(echo "$config_dir" | expand_vars)
+    extensions_dir=$(echo "$extensions_dir" | expand_vars)
 
     mkdir -p "$config_dir" "$extensions_dir"
     
@@ -591,13 +592,13 @@ remove_vscode() {
 
     # Backup existing configurations
     for file in $(get_module_config "vscode" ".backup.paths[]"); do
-        file=$(eval echo "$file")
+        file=$(echo "$file" | expand_vars)
         [[ -f "$file" ]] && backup_file "$file" "vscode"
     done
 
     # Remove VSCode configuration files
     local config_dir=$(get_module_config "vscode" ".shell.paths.config_dir")
-    config_dir=$(eval echo "$config_dir")
+    config_dir=$(echo "$config_dir" | expand_vars)
     rm -f "$config_dir/settings.json" "$config_dir/keybindings.json"
 
     # Remove aliases

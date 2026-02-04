@@ -2,6 +2,7 @@
 # modules/zsh/zsh.sh - Minimal ZSH module implementation with fixed shell switching
 
 # Load required utilities
+source "$SCRIPT_DIR/compat.sh"
 source "$SCRIPT_DIR/logging.sh"
 source "$SCRIPT_DIR/json.sh"
 source "$SCRIPT_DIR/module.sh"

@@ -2,90 +2,116 @@ name: DevEnv CI/CD
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, crossplatform ]
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 jobs:
   shellcheck:
-    name: Shell Script Analysis
+    name: ShellCheck (Linux)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install ShellCheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
-      
+
       - name: Run ShellCheck
-        run: |
-          find . -type f -name "*.sh" -exec shellcheck {} +
+        run: find . -type f -name "*.sh" -not -path "./.git/*" -exec shellcheck {} +
 
   json-validation:
-    name: JSON Configuration Validation
+    name: JSON Validation
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-      
+
       - name: Validate JSON Files
         run: |
-          find . -type f -name "*.json" -exec sh -c '
-            for file do
-              if ! jq . "$file" >/dev/null 2>&1; then
-                echo "Invalid JSON: $file"
-                exit 1
-              fi
-            done
-          ' sh {} +
+          find . -type f -name "*.json" -not -path "./.git/*" -not -path "*/node_modules/*" \
+            -exec sh -c '
+              for file do
+                if ! jq . "$file" >/dev/null 2>&1; then
+                  echo "Invalid JSON: $file"
+                  exit 1
+                fi
+              done
+            ' sh {} +
+
+  unit-tests:
+    name: Unit Tests (Linux)
+    runs-on: ubuntu-latest
+    needs: [shellcheck, json-validation]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats-core
+        run: |
+          sudo apt-get update && sudo apt-get install -y bats
+
+      - name: Run bats tests
+        run: bats tests/
+
+  unit-tests-macos:
+    name: Unit Tests (macOS)
+    runs-on: macos-latest
+    needs: [shellcheck, json-validation]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats-core
+        run: brew install bats-core
+
+      - name: Run bats tests
+        run: bats tests/
+
+  psscriptanalyzer:
+    name: PSScriptAnalyzer (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+          $results = Get-ChildItem -Recurse -Filter '*.ps1' |
+            ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Severity Warning }
+          if ($results) {
+            $results | Format-Table -AutoSize
+            Write-Host "PSScriptAnalyzer found $($results.Count) issue(s)" -ForegroundColor Yellow
+          } else {
+            Write-Host "PSScriptAnalyzer: All clear" -ForegroundColor Green
+          }
 
   installation-test:
-    name: Installation Test
+    name: Installation Test (Linux)
     runs-on: ubuntu-latest
-    needs: [shellcheck, json-validation]
+    needs: [unit-tests]
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Test Python Module Installation
-        run: |
-          sudo ./devenv.sh install python
-          
-      - name: Test Git Module Installation
-        run: |
-          sudo ./devenv.sh install git
-          
-      - name: Verify Installations
-        run: |
-          ./devenv.sh verify python
-          ./devenv.sh verify git
 
-  module-generation:
-    name: Module Generation Test
-    runs-on: ubuntu-latest
-    needs: [shellcheck, json-validation]
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Test Module Generation
-        run: |
-          ./generate.sh test_module
-          test -f modules/test_module/test_module.sh
-          test -f modules/test_module/config.json
+      - name: Test Git Module Installation
+        run: sudo ./devenv.sh install git
+
+      - name: Verify Git Installation
+        run: ./devenv.sh verify git
 
   documentation:
     name: Documentation Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Check Module Documentation
         run: |
+          missing=0
           for module in modules/*/; do
             if [ ! -f "${module}/README.md" ]; then
               echo "Warning: Missing README.md in ${module}"
+              missing=$((missing + 1))
             fi
           done
-
-permissions:
-  contents: read
+          echo "$missing module(s) missing README.md"

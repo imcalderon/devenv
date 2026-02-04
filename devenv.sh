@@ -50,6 +50,7 @@ fi
 export STATE_DIR="$DEVENV_STATE_DIR"
 
 # Load utilities
+source "$SCRIPT_DIR/compat.sh"   # Cross-platform compatibility helpers
 source "$SCRIPT_DIR/logging.sh"  # Load logging first
 source "$SCRIPT_DIR/json.sh"     # Then JSON handling
 source "$SCRIPT_DIR/module.sh"   # Then module utilities
@@ -217,12 +218,67 @@ create_backup() {
         paths+=("${platform_paths[@]}")
         
         for path in "${paths[@]}"; do
-            path=$(eval echo "$path")  # Expand environment variables
+            path=$(echo "$path" | expand_vars)  # Expand environment variables
             if [[ -e "$path" ]]; then
                 backup_file "$path" "$module"
             fi
         done
     done
+}
+
+# Restore from backup
+restore_backup() {
+    local specific_module="${1:-}"
+    local -a modules
+
+    if [[ -n "$specific_module" ]]; then
+        modules=("$specific_module")
+    else
+        readarray -t modules < <(get_ordered_modules)
+    fi
+
+    # Find latest backup directory
+    local backup_base="$DEVENV_BACKUPS_DIR"
+    local latest_backup=$(ls -td "$backup_base"/* 2>/dev/null | head -1)
+
+    if [[ -z "$latest_backup" ]]; then
+        log "ERROR" "No backup found in $backup_base"
+        return 1
+    fi
+
+    log "INFO" "Restoring from backup: $latest_backup"
+
+    for module in "${modules[@]}"; do
+        if ! init_module "$module"; then
+            log "ERROR" "Failed to initialize module: $module"
+            continue
+        fi
+
+        log "INFO" "Restoring module: $module" "$module"
+
+        # Get module backup paths
+        local paths=($(get_module_config "$module" '.backup.paths[]' 2>/dev/null || echo ""))
+
+        for path in "${paths[@]}"; do
+            [[ -z "$path" ]] && continue
+            path=$(eval echo "$path")
+            local filename=$(basename "$path")
+            local backup_file="$latest_backup/$module/$filename.backup"
+
+            if [[ -f "$backup_file" ]]; then
+                # Create parent directory if needed
+                mkdir -p "$(dirname "$path")"
+                cp "$backup_file" "$path"
+                log "INFO" "Restored: $path" "$module"
+            elif [[ -d "$backup_file" ]]; then
+                mkdir -p "$(dirname "$path")"
+                cp -r "$backup_file" "$path"
+                log "INFO" "Restored directory: $path" "$module"
+            fi
+        done
+    done
+
+    log "INFO" "Restore completed"
 }
 
 # Main execution
@@ -277,8 +333,7 @@ main() {
             create_backup "$specific_module"
             ;;
         restore)
-            log "ERROR" "Restore functionality not yet implemented"
-            exit 1
+            restore_backup "$specific_module"
             ;;
         *)
             show_usage

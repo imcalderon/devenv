@@ -2,6 +2,7 @@
 # modules/conda/conda.sh - Conda module implementation
 
 # Load required utilities
+source "$SCRIPT_DIR/compat.sh"
 source "$SCRIPT_DIR/logging.sh"
 source "$SCRIPT_DIR/json.sh"
 source "$SCRIPT_DIR/module.sh"
@@ -194,7 +195,7 @@ verify_component() {
 # Component verification helpers
 verify_channels() {
     local channel_dir=$(get_module_config "conda" ".shell.paths.channel_dir")
-    channel_dir=$(eval echo "$channel_dir")
+    channel_dir=$(echo "$channel_dir" | expand_vars)
     
     [[ -d "$channel_dir" ]] && \
     [[ -f "$channel_dir/channeldata.json" ]] && \
@@ -205,7 +206,7 @@ verify_channels() {
 verify_shell_integration() {
     local modules_dir=$(get_aliases_dir)
     local completions_dir=$(get_module_config "zsh" ".shell.paths.completions_dir")
-    completions_dir=$(eval echo "$completions_dir")
+    completions_dir=$(echo "$completions_dir" | expand_vars)
     
     [[ -f "$modules_dir/conda.zsh" ]] && \
     [[ -f "$completions_dir/_conda" ]] && \
@@ -215,14 +216,14 @@ verify_shell_integration() {
 
 verify_vscode_integration() {
     local vscode_config_dir=$(get_module_config "vscode" ".shell.paths.config_dir")
-    vscode_config_dir=$(eval echo "$vscode_config_dir")
+    vscode_config_dir=$(echo "$vscode_config_dir" | expand_vars)
     [[ -f "$vscode_config_dir/settings.json" ]] && \
     grep -q "python.condaPath" "$vscode_config_dir/settings.json"
 }
 
 verify_docker_integration() {
     local templates_dir=$(get_module_config "conda" ".shell.paths.templates_dir")
-    templates_dir=$(eval echo "$templates_dir")
+    templates_dir=$(echo "$templates_dir" | expand_vars)
     [[ -f "$templates_dir/Dockerfile.conda" ]]
 }
 
@@ -272,7 +273,7 @@ install_component() {
 # Component installation implementations
 install_conda_package() {
     local conda_root=$(get_module_config "conda" ".shell.paths.conda_root")
-    conda_root=$(eval echo "$conda_root")
+    conda_root=$(echo "$conda_root" | expand_vars)
 
     if [[ -d "$conda_root" ]]; then
         log "INFO" "Conda already installed at $conda_root" "conda"
@@ -297,7 +298,7 @@ install_conda_package() {
 
 configure_channels() {
     local channel_dir=$(get_module_config "conda" ".shell.paths.channel_dir")
-    channel_dir=$(eval echo "$channel_dir")
+    channel_dir=$(echo "$channel_dir" | expand_vars)
 
     mkdir -p "$channel_dir"/{linux-64,noarch}
 
@@ -392,9 +393,9 @@ configure_vscode_integration() {
     local vscode_settings=$(get_module_config "conda" ".vscode.settings")
     [[ -z "$vscode_settings" ]] && return 0
 
-    vscode_settings=$(echo "$vscode_settings" | envsubst)
+    vscode_settings=$(echo "$vscode_settings" | expand_vars)
     local vscode_config_dir=$(get_module_config "vscode" ".shell.paths.config_dir")
-    vscode_config_dir=$(eval echo "$vscode_config_dir")
+    vscode_config_dir=$(echo "$vscode_config_dir" | expand_vars)
     local settings_file="$vscode_config_dir/settings.json"
 
     mkdir -p "$vscode_config_dir"
@@ -418,7 +419,7 @@ configure_vscode_integration() {
 
 configure_docker_integration() {
     local templates_dir=$(get_module_config "conda" ".shell.paths.templates_dir")
-    templates_dir=$(eval echo "$templates_dir")
+    templates_dir=$(echo "$templates_dir" | expand_vars)
 
     mkdir -p "$templates_dir"
 

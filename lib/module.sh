@@ -62,8 +62,8 @@ get_module_container_mounts() {
     for mount_key in $mount_paths; do
         local mount_value=$(get_json_value "$CONFIG_FILE" ".global.container.mount_paths[\"$mount_key\"]")
         
-        # Expand environment variables
-        mount_value=$(eval echo "$mount_value")
+        # Expand environment variables safely
+        mount_value=$(echo "$mount_value" | expand_vars)
         
         # Add to mounts string
         mounts="$mounts -v $mount_value"
@@ -73,8 +73,8 @@ get_module_container_mounts() {
     local extra_mounts=$(get_json_value "$CONFIG_FILE" ".global.container.modules.$module.extra_mounts[]" "")
     
     for mount in $extra_mounts; do
-        # Expand environment variables
-        mount=$(eval echo "$mount")
+        # Expand environment variables safely
+        mount=$(echo "$mount" | expand_vars)
         
         # Add to mounts string
         mounts="$mounts -v $mount"
@@ -151,12 +151,15 @@ run_module_in_container() {
     # Get Docker socket path for volume mounting
     local docker_socket=$(get_docker_socket)
     
-    # Mount the module directory and scripts
-    local module_mount="-v $MODULES_DIR/$module:/devenv/modules/$module"
-    local lib_mount="-v $SCRIPT_DIR:/devenv/lib"
-    
+    # Mount the module directory and scripts (quote paths for spaces)
+    local module_mount="-v \"$MODULES_DIR/$module:/devenv/modules/$module\""
+    local lib_mount="-v \"$SCRIPT_DIR:/devenv/lib\""
+
     # Create a temporary script to execute inside the container
     local temp_script=$(mktemp)
+
+    # Ensure cleanup on exit or error
+    trap "rm -f '$temp_script'" EXIT
     
     cat > "$temp_script" << EOF
 #!/bin/bash
@@ -185,7 +188,7 @@ EOF
         --network=$network \
         $extra_args \
         $image \
-        /tmp/run_module.sh $@"
+        /tmp/run_module.sh \"\$@\""
     
     # Log the docker command
     log "DEBUG" "Running docker command: $docker_run" "$module"
@@ -193,10 +196,11 @@ EOF
     # Execute the docker command
     eval "$docker_run"
     local exit_code=$?
-    
-    # Clean up
-    rm -f "$temp_script"
-    
+
+    # Clean up (trap handles this, but explicit cleanup is clearer)
+    rm -f "$temp_script" 2>/dev/null || true
+    trap - EXIT  # Reset trap
+
     return $exit_code
 }
 

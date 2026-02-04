@@ -386,8 +386,8 @@ services:
       - vscode-extensions:/home/coder/.local/share/code-server/extensions
       - vscode-config:/home/coder/.local/share/code-server/User
     environment:
-      - PASSWORD=devenv123
-      - SUDO_PASSWORD=devenv123
+      - PASSWORD=`${DEVENV_VSCODE_PASSWORD:-changeme}
+      - SUDO_PASSWORD=`${DEVENV_SUDO_PASSWORD:-changeme}
     restart: unless-stopped
 
 volumes:
@@ -420,7 +420,7 @@ try {
         Write-Host ""
         Write-Host "VSCode Server is starting up!" -ForegroundColor Green
         Write-Host "URL: http://localhost:8443" -ForegroundColor Cyan
-        Write-Host "Password: devenv123" -ForegroundColor Yellow
+        Write-Host "Password: (set DEVENV_VSCODE_PASSWORD env var)" -ForegroundColor Yellow
         Write-Host ""
         Write-Host "Give it a moment to start, then open the URL in your browser." -ForegroundColor White
     } else {
@@ -725,7 +725,7 @@ Container Mode:
 & "$env:DEVENV_DATA_DIR\containers\vscode\start-code-server.ps1"
 
 # Access via browser at http://localhost:8443
-# Password: devenv123
+# Password: set via DEVENV_VSCODE_PASSWORD env var
 
 "@
 

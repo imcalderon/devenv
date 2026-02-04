@@ -19,8 +19,8 @@ get_aliases_dir() {
         log "WARN" "ZSH modules_dir not found in config, using default: $modules_dir" "alias"
     fi
     
-    # Expand env variables
-    modules_dir=$(eval echo "$modules_dir")
+    # Expand env variables safely
+    modules_dir=$(echo "$modules_dir" | expand_vars)
     
     # Create directory if it doesn't exist
     mkdir -p "$modules_dir"
@@ -87,7 +87,7 @@ remove_module_aliases() {
     if [[ -f "$aliases_file" ]]; then
         local marker_start="# BEGIN ${module}${category:+_$category} aliases"
         local marker_end="# END ${module}${category:+_$category} aliases"
-        sed -i "/^${marker_start}/,/^${marker_end}/d" "$aliases_file"
+        sed_inplace "/^${marker_start}/,/^${marker_end}/d" "$aliases_file"
         
         log "INFO" "Removed aliases for $module${category:+ ($category)}" "alias"
     fi

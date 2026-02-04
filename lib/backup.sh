@@ -1,5 +1,24 @@
 #!/bin/bash
 # lib/utils/backup.sh - Backup utilities
+
+# Detect platform (local copy to avoid dependency on devenv.sh)
+detect_platform() {
+    if [[ -n "${PLATFORM:-}" ]]; then
+        echo "$PLATFORM"
+        return
+    fi
+
+    local platform="unknown"
+    case "$(uname -s)" in
+        Linux*)     platform="linux";;
+        Darwin*)    platform="darwin";;
+        MINGW*|MSYS*|CYGWIN*) platform="windows";;
+        *)          platform="unknown";;
+    esac
+
+    echo "$platform"
+}
+
 create_backup() {
     local module=${1:-}
 
@@ -29,7 +48,7 @@ create_backup() {
         # Skip empty paths
         [[ -z "$path" ]] && continue
         
-        path=$(eval echo "$path")  # Expand environment variables
+        path=$(echo "$path" | expand_vars)  # Expand environment variables
         if [[ -e "$path" ]]; then
             backup_file "$path" "$module"
         fi

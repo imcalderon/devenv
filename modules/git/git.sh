@@ -2,6 +2,7 @@
 # modules/git/git.sh - Git module implementation with ZSH integration
 
 # Load required utilities
+source "$SCRIPT_DIR/compat.sh"
 source "$SCRIPT_DIR/logging.sh"
 source "$SCRIPT_DIR/json.sh"
 source "$SCRIPT_DIR/module.sh"
@@ -134,7 +135,7 @@ EOF
                     ;;
                 "ssh")
                     local ssh_dir=$(get_module_config "git" ".shell.paths.ssh_dir")
-                    ssh_dir=$(eval echo "$ssh_dir")
+                    ssh_dir=$(echo "$ssh_dir" | expand_vars)
                     if [[ -f "${ssh_dir}/id_ed25519" ]]; then
                         echo "  SSH Key: Present"
                     fi
@@ -179,7 +180,7 @@ verify_component() {
             ;;
         "ssh")
             local ssh_dir=$(get_module_config "git" ".shell.paths.ssh_dir")
-            ssh_dir=$(eval echo "$ssh_dir")
+            ssh_dir=$(echo "$ssh_dir" | expand_vars)
             [[ -f "${ssh_dir}/id_ed25519" ]] && [[ -f "${ssh_dir}/config" ]]
             ;;
         "config")
@@ -430,7 +431,7 @@ configure_ssh() {
     log "INFO" "Configuring SSH..." "git"
 
     local ssh_dir=$(get_module_config "git" ".shell.paths.ssh_dir")
-    ssh_dir=$(eval echo "$ssh_dir")
+    ssh_dir=$(echo "$ssh_dir" | expand_vars)
 
     # Create SSH directory with proper permissions
     mkdir -p "$ssh_dir"
@@ -492,7 +493,7 @@ configure_aliases() {
 # Configure SSH config file
 configure_ssh_config() {
     local ssh_dir=$(get_module_config "git" ".shell.paths.ssh_dir")
-    ssh_dir=$(eval echo "$ssh_dir")
+    ssh_dir=$(echo "$ssh_dir" | expand_vars)
     local ssh_config="${ssh_dir}/config"
 
     [[ -f "$ssh_config" ]] && backup_file "$ssh_config" "git"
@@ -505,7 +506,7 @@ configure_ssh_config() {
         for host in "${hosts[@]}"; do
             local user=$(get_module_config "git" ".git.ssh.hosts[] | select(.host == \"$host\") | .user")
             local identity=$(get_module_config "git" ".git.ssh.hosts[] | select(.host == \"$host\") | .identity_file")
-            identity=$(eval echo "$identity")
+            identity=$(echo "$identity" | expand_vars)
 
             echo "Host $host"
             echo "    User $user"
@@ -567,11 +568,11 @@ remove_git() {
 
     # Backup existing configurations
     local git_config=$(get_module_config "git" ".shell.paths.git_config")
-    git_config=$(eval echo "$git_config")
+    git_config=$(echo "$git_config" | expand_vars)
     [[ -f "$git_config" ]] && backup_file "$git_config" "git"
     
     local ssh_dir=$(get_module_config "git" ".shell.paths.ssh_dir")
-    ssh_dir=$(eval echo "$ssh_dir")
+    ssh_dir=$(echo "$ssh_dir" | expand_vars)
     [[ -f "${ssh_dir}/config" ]] && backup_file "${ssh_dir}/config" "git"
 
     # Remove git config
@@ -585,8 +586,8 @@ remove_git() {
     
     # Edit .zshrc to remove git.zsh source line
     if [[ -f "$HOME/.config/zsh/.zshrc" ]]; then
-        sed -i '/# Load Git integration/d' "$HOME/.config/zsh/.zshrc"
-        sed -i '/source.*git.zsh/d' "$HOME/.config/zsh/.zshrc"
+        sed_inplace '/# Load Git integration/d' "$HOME/.config/zsh/.zshrc"
+        sed_inplace '/source.*git.zsh/d' "$HOME/.config/zsh/.zshrc"
     fi
 
     # Remove git aliases
