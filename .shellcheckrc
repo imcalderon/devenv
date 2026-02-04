@@ -1,0 +1,11 @@
+# Allow sourcing files from variable paths
+# shellcheck source-path=lib
+# shellcheck source-path=modules
+
+# Allow following sourced files
+enable=require-variable-braces
+
+# Tolerate common patterns used in this project
+disable=SC2034  # Variable appears unused (module exports)
+disable=SC1091  # Cannot follow non-constant source
+disable=SC2155  # Declare and assign separately
