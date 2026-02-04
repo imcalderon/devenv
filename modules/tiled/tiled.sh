@@ -2,6 +2,7 @@
 # modules/tiled/tiled.sh - Tiled map editor module implementation
 
 # Load required utilities
+source "$SCRIPT_DIR/compat.sh"
 source "$SCRIPT_DIR/logging.sh"
 source "$SCRIPT_DIR/json.sh"
 source "$SCRIPT_DIR/module.sh"
@@ -77,7 +78,7 @@ EOF
                     ;;
                 "docker")
                     local templates_dir=$(get_module_config "tiled" ".shell.paths.templates_dir")
-                    templates_dir=$(eval echo "$templates_dir")
+                    templates_dir=$(echo "$templates_dir" | expand_vars)
                     if [[ -f "$templates_dir/Dockerfile.tiled" ]]; then
                         echo "  Docker: Configured"
                     fi
@@ -134,7 +135,7 @@ verify_component() {
 # Verify Docker setup
 verify_docker_setup() {
     local templates_dir=$(get_module_config "tiled" ".shell.paths.templates_dir")
-    templates_dir=$(eval echo "$templates_dir")
+    templates_dir=$(echo "$templates_dir" | expand_vars)
     
     [[ -f "$templates_dir/Dockerfile.tiled" ]] && \
     [[ -f "$templates_dir/docker-compose.yml" ]]
@@ -143,7 +144,7 @@ verify_docker_setup() {
 # Verify templates
 verify_templates() {
     local templates_dir=$(get_module_config "tiled" ".shell.paths.templates_dir")
-    templates_dir=$(eval echo "$templates_dir")
+    templates_dir=$(echo "$templates_dir" | expand_vars)
     
     [[ -d "$templates_dir/maps" ]] && \
     [[ -f "$templates_dir/maps/phaser-template.json" ]]
@@ -152,7 +153,7 @@ verify_templates() {
 # Verify configuration
 verify_config() {
     local config_dir=$(get_module_config "tiled" ".shell.paths.config_dir")
-    config_dir=$(eval echo "$config_dir")
+    config_dir=$(echo "$config_dir" | expand_vars)
     
     [[ -f "$config_dir/tiled.conf" ]]
 }
@@ -193,7 +194,7 @@ setup_docker() {
     log "INFO" "Setting up Docker environment..." "tiled"
     
     local templates_dir=$(get_module_config "tiled" ".shell.paths.templates_dir")
-    templates_dir=$(eval echo "$templates_dir")
+    templates_dir=$(echo "$templates_dir" | expand_vars)
     
     mkdir -p "$templates_dir"
     
@@ -244,7 +245,7 @@ setup_templates() {
     log "INFO" "Setting up map templates..." "tiled"
     
     local templates_dir=$(get_module_config "tiled" ".shell.paths.templates_dir")
-    templates_dir=$(eval echo "$templates_dir")
+    templates_dir=$(echo "$templates_dir" | expand_vars)
     
     mkdir -p "$templates_dir/maps"
     
@@ -260,7 +261,7 @@ configure_tiled() {
     log "INFO" "Configuring Tiled..." "tiled"
     
     local config_dir=$(get_module_config "tiled" ".shell.paths.config_dir")
-    config_dir=$(eval echo "$config_dir")
+    config_dir=$(echo "$config_dir" | expand_vars)
     
     mkdir -p "$config_dir"
     
@@ -361,7 +362,7 @@ remove_tiled() {
 
     # Backup existing configurations
     local config_dir=$(get_module_config "tiled" ".shell.paths.config_dir")
-    config_dir=$(eval echo "$config_dir")
+    config_dir=$(echo "$config_dir" | expand_vars)
     [[ -d "$config_dir" ]] && backup_file "$config_dir" "tiled"
     
     # Remove configurations
@@ -369,7 +370,7 @@ remove_tiled() {
     
     # Remove Docker files
     local templates_dir=$(get_module_config "tiled" ".shell.paths.templates_dir")
-    templates_dir=$(eval echo "$templates_dir")
+    templates_dir=$(echo "$templates_dir" | expand_vars)
     rm -f "$templates_dir/Dockerfile.tiled" "$templates_dir/docker-compose.yml"
     rm -rf "$templates_dir/maps"
 

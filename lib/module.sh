@@ -62,8 +62,8 @@ get_module_container_mounts() {
     for mount_key in $mount_paths; do
         local mount_value=$(get_json_value "$CONFIG_FILE" ".global.container.mount_paths[\"$mount_key\"]")
         
-        # Expand environment variables
-        mount_value=$(eval echo "$mount_value")
+        # Expand environment variables safely
+        mount_value=$(echo "$mount_value" | expand_vars)
         
         # Add to mounts string
         mounts="$mounts -v $mount_value"
@@ -73,8 +73,8 @@ get_module_container_mounts() {
     local extra_mounts=$(get_json_value "$CONFIG_FILE" ".global.container.modules.$module.extra_mounts[]" "")
     
     for mount in $extra_mounts; do
-        # Expand environment variables
-        mount=$(eval echo "$mount")
+        # Expand environment variables safely
+        mount=$(echo "$mount" | expand_vars)
         
         # Add to mounts string
         mounts="$mounts -v $mount"

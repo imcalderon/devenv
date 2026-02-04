@@ -2,6 +2,7 @@
 # modules/ldtk/ldtk.sh - LDtk level editor module
 
 # Load required utilities
+source "$SCRIPT_DIR/compat.sh"
 source "$SCRIPT_DIR/logging.sh"
 source "$SCRIPT_DIR/json.sh"
 source "$SCRIPT_DIR/module.sh"
@@ -118,7 +119,7 @@ install_core() {
     local version=$(get_module_config "ldtk" ".ldtk.version")
     local download_url=$(get_module_config "ldtk" ".ldtk.download_url")
     local bin_dir=$(get_module_config "ldtk" ".shell.paths.bin_dir")
-    bin_dir=$(eval echo "$bin_dir")
+    bin_dir=$(echo "$bin_dir" | expand_vars)
     
     mkdir -p "$bin_dir"
     
@@ -230,7 +231,7 @@ setup_templates() {
 # Configure LDtk
 configure_ldtk() {
     local config_dir=$(get_module_config "ldtk" ".shell.paths.config_dir")
-    config_dir=$(eval echo "$config_dir")
+    config_dir=$(echo "$config_dir" | expand_vars)
     
     mkdir -p "$config_dir"
     
@@ -267,7 +268,7 @@ verify_component() {
 # Verification helper functions
 verify_core_installation() {
     local bin_dir=$(get_module_config "ldtk" ".shell.paths.bin_dir")
-    bin_dir=$(eval echo "$bin_dir")
+    bin_dir=$(echo "$bin_dir" | expand_vars)
     
     # Check binary exists and is executable
     [[ -x "$bin_dir/ldtk" ]] && \
@@ -294,7 +295,7 @@ verify_templates() {
 
 verify_config() {
     local config_dir=$(get_module_config "ldtk" ".shell.paths.config_dir")
-    config_dir=$(eval echo "$config_dir")
+    config_dir=$(echo "$config_dir" | expand_vars)
     
     [[ -f "$config_dir/config.json" ]] && \
     validate_json "$config_dir/config.json"
@@ -386,12 +387,12 @@ remove_ldtk() {
     
     # Backup configs
     local config_dir=$(get_module_config "ldtk" ".shell.paths.config_dir")
-    config_dir=$(eval echo "$config_dir")
+    config_dir=$(echo "$config_dir" | expand_vars)
     [[ -d "$config_dir" ]] && backup_file "$config_dir" "ldtk"
     
     # Remove binary
     local bin_dir=$(get_module_config "ldtk" ".shell.paths.bin_dir")
-    bin_dir=$(eval echo "$bin_dir")
+    bin_dir=$(echo "$bin_dir" | expand_vars)
     rm -f "$bin_dir/ldtk"
     
     # Remove Docker files

@@ -50,6 +50,7 @@ fi
 export STATE_DIR="$DEVENV_STATE_DIR"
 
 # Load utilities
+source "$SCRIPT_DIR/compat.sh"   # Cross-platform compatibility helpers
 source "$SCRIPT_DIR/logging.sh"  # Load logging first
 source "$SCRIPT_DIR/json.sh"     # Then JSON handling
 source "$SCRIPT_DIR/module.sh"   # Then module utilities
@@ -217,7 +218,7 @@ create_backup() {
         paths+=("${platform_paths[@]}")
         
         for path in "${paths[@]}"; do
-            path=$(eval echo "$path")  # Expand environment variables
+            path=$(echo "$path" | expand_vars)  # Expand environment variables
             if [[ -e "$path" ]]; then
                 backup_file "$path" "$module"
             fi

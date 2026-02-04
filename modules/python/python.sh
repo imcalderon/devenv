@@ -3,6 +3,7 @@
 
 set -euox pipefail
 # Load required utilities
+source "$SCRIPT_DIR/compat.sh"
 source "$SCRIPT_DIR/logging.sh"
 source "$SCRIPT_DIR/json.sh"
 source "$SCRIPT_DIR/module.sh"
@@ -145,7 +146,7 @@ EOF
                     else
                         # Check virtual environment
                         local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
-                        venv_dir=$(eval echo "$venv_dir")
+                        venv_dir=$(echo "$venv_dir" | expand_vars)
                         if [[ -f "$venv_dir/bin/python" ]]; then
                             echo "  Version: $("$venv_dir/bin/python" --version 2>/dev/null)"
                         else
@@ -163,7 +164,7 @@ EOF
                     else
                         # Check virtual environment
                         local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
-                        venv_dir=$(eval echo "$venv_dir")
+                        venv_dir=$(echo "$venv_dir" | expand_vars)
                         if [[ -f "$venv_dir/bin/pip" ]]; then
                             echo "  Packages: $("$venv_dir/bin/pip" list --format=freeze | wc -l) installed"
                         else
@@ -183,7 +184,7 @@ EOF
                     else
                         # Check virtual environment
                         local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
-                        venv_dir=$(eval echo "$venv_dir")
+                        venv_dir=$(echo "$venv_dir" | expand_vars)
                         if [[ -d "$venv_dir" ]]; then
                             echo "  Virtual Env: $venv_dir"
                         else
@@ -371,7 +372,7 @@ verify_python() {
         else
             # Virtual environment approach
             local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
-            venv_dir=$(eval echo "$venv_dir")
+            venv_dir=$(echo "$venv_dir" | expand_vars)
             if [[ -f "$venv_dir/bin/python" ]]; then
                 log "INFO" "Python version: $("$venv_dir/bin/python" --version)" "python"
             else
@@ -399,7 +400,7 @@ remove_python() {
     
     # Remove virtual environment
     local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
-    venv_dir=$(eval echo "$venv_dir")
+    venv_dir=$(echo "$venv_dir" | expand_vars)
     if [[ -d "$venv_dir" ]]; then
         log "INFO" "Removing Python virtual environment..." "python"
         rm -rf "$venv_dir"
@@ -407,12 +408,12 @@ remove_python() {
     
     # Remove configuration files
     local config_dir=$(get_module_config "python" ".shell.paths.config_dir")
-    config_dir=$(eval echo "$config_dir")
+    config_dir=$(echo "$config_dir" | expand_vars)
     rm -rf "$config_dir"
     
     # Remove command wrappers
     local bin_dir=$(get_module_config "python" ".shell.paths.bin_dir")
-    bin_dir=$(eval echo "$bin_dir")
+    bin_dir=$(echo "$bin_dir" | expand_vars)
     rm -f "$bin_dir/py"
     rm -f "$bin_dir/py-pip"
     rm -f "$bin_dir/py-venv"
@@ -488,7 +489,7 @@ verify_component() {
             else
                 # For virtual env Python, verify python or venv exists
                 local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
-                venv_dir=$(eval echo "$venv_dir")
+                venv_dir=$(echo "$venv_dir" | expand_vars)
                 [[ -f "$venv_dir/bin/python" ]] || command -v python3 &>/dev/null
             fi
             ;;
@@ -499,7 +500,7 @@ verify_component() {
             else
                 # For virtual env Python, verify venv exists
                 local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
-                venv_dir=$(eval echo "$venv_dir")
+                venv_dir=$(echo "$venv_dir" | expand_vars)
                 [[ -d "$venv_dir" ]] && [[ -f "$venv_dir/bin/python" ]]
             fi
             ;;
@@ -516,7 +517,7 @@ verify_component() {
             else
                 # For virtual env Python
                 local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
-                venv_dir=$(eval echo "$venv_dir")
+                venv_dir=$(echo "$venv_dir" | expand_vars)
                 [[ -f "$venv_dir/bin/pip" ]]
             fi
             ;;
@@ -533,14 +534,14 @@ verify_component() {
             else
                 # For virtual env Python
                 local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
-                venv_dir=$(eval echo "$venv_dir")
+                venv_dir=$(echo "$venv_dir" | expand_vars)
                 "$venv_dir/bin/python" -c "import black, pylint, flake8, mypy" &>/dev/null
             fi
             ;;
         "config")
             # Check Python configuration
             local config_dir=$(get_module_config "python" ".shell.paths.config_dir")
-            config_dir=$(eval echo "$config_dir")
+            config_dir=$(echo "$config_dir" | expand_vars)
             [[ -d "$config_dir" ]] && \
             [[ -f "$config_dir/pyproject.toml" ]] && \
             [[ -f "$config_dir/pylintrc" ]]
@@ -554,7 +555,7 @@ verify_component() {
             else
                 # Virtual env should exist
                 local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
-                venv_dir=$(eval echo "$venv_dir")
+                venv_dir=$(echo "$venv_dir" | expand_vars)
                 [[ -d "$venv_dir" ]]
             fi
             ;;
@@ -573,9 +574,9 @@ create_directories() {
     local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
     local bin_dir=$(get_module_config "python" ".shell.paths.bin_dir")
     
-    config_dir=$(eval echo "$config_dir")
-    venv_dir=$(eval echo "$venv_dir")
-    bin_dir=$(eval echo "$bin_dir")
+    config_dir=$(echo "$config_dir" | expand_vars)
+    venv_dir=$(echo "$venv_dir" | expand_vars)
+    bin_dir=$(echo "$bin_dir" | expand_vars)
     
     mkdir -p "$config_dir" "$venv_dir" "$bin_dir"
     
@@ -736,7 +737,7 @@ install_python_packages() {
         log "INFO" "Installing Python packages in virtual environment..." "python"
         
         local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
-        venv_dir=$(eval echo "$venv_dir")
+        venv_dir=$(echo "$venv_dir" | expand_vars)
         
         # Ensure virtual environment exists
         if [[ ! -f "$venv_dir/bin/pip" ]]; then
@@ -776,7 +777,7 @@ configure_python_tools() {
     log "INFO" "Configuring Python development tools..." "python"
     
     local config_dir=$(get_module_config "python" ".shell.paths.config_dir")
-    config_dir=$(eval echo "$config_dir")
+    config_dir=$(echo "$config_dir" | expand_vars)
     
     # Create configuration files
     mkdir -p "$config_dir"
@@ -801,7 +802,7 @@ EOF
         else
             # For non-containerized Python, use virtual environment
             local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
-            venv_dir=$(eval echo "$venv_dir")
+            venv_dir=$(echo "$venv_dir" | expand_vars)
             
             if [[ -f "$venv_dir/bin/pylint" ]]; then
                 "$venv_dir/bin/pylint" --generate-rcfile > "$config_dir/pylintrc"
@@ -836,9 +837,9 @@ EOF
         local good_names=$(get_module_config "python" ".python.config.pylint.good-names[]" | tr -s '\n' ',')
         local max_line_length=$(get_module_config "python" ".python.config.pylint.max-line-length" "100")
         
-        sed -i "s/^disable=.*/disable=$disabled_checks/" "$config_dir/pylintrc"
-        sed -i "s/^good-names=.*/good-names=$good_names/" "$config_dir/pylintrc"
-        sed -i "s/^max-line-length=.*/max-line-length=$max_line_length/" "$config_dir/pylintrc"
+        sed_inplace "s/^disable=.*/disable=$disabled_checks/" "$config_dir/pylintrc"
+        sed_inplace "s/^good-names=.*/good-names=$good_names/" "$config_dir/pylintrc"
+        sed_inplace "s/^max-line-length=.*/max-line-length=$max_line_length/" "$config_dir/pylintrc"
     fi
     
     # Configure Flake8
@@ -862,9 +863,9 @@ create_python_wrappers() {
     log "INFO" "Creating Python command wrappers..." "python"
     
     local bin_dir=$(get_module_config "python" ".shell.paths.bin_dir")
-    bin_dir=$(eval echo "$bin_dir")
+    bin_dir=$(echo "$bin_dir" | expand_vars)
     local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
-    venv_dir=$(eval echo "$venv_dir")
+    venv_dir=$(echo "$venv_dir" | expand_vars)
     
     mkdir -p "$bin_dir"
     
@@ -1211,7 +1212,7 @@ verify_python() {
         else
             # Virtual environment approach
             local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
-            venv_dir=$(eval echo "$venv_dir")
+            venv_dir=$(echo "$venv_dir" | expand_vars)
             if [[ -f "$venv_dir/bin/python" ]]; then
                 log "INFO" "Python version: $("$venv_dir/bin/python" --version)" "python"
             else
@@ -1239,7 +1240,7 @@ remove_python() {
     
     # Remove virtual environment
     local venv_dir=$(get_module_config "python" ".shell.paths.venv_dir")
-    venv_dir=$(eval echo "$venv_dir")
+    venv_dir=$(echo "$venv_dir" | expand_vars)
     if [[ -d "$venv_dir" ]]; then
         log "INFO" "Removing Python virtual environment..." "python"
         rm -rf "$venv_dir"
@@ -1247,12 +1248,12 @@ remove_python() {
     
     # Remove configuration files
     local config_dir=$(get_module_config "python" ".shell.paths.config_dir")
-    config_dir=$(eval echo "$config_dir")
+    config_dir=$(echo "$config_dir" | expand_vars)
     rm -rf "$config_dir"
     
     # Remove command wrappers
     local bin_dir=$(get_module_config "python" ".shell.paths.bin_dir")
-    bin_dir=$(eval echo "$bin_dir")
+    bin_dir=$(echo "$bin_dir" | expand_vars)
     rm -f "$bin_dir/py"
     rm -f "$bin_dir/py-pip"
     rm -f "$bin_dir/py-venv"
