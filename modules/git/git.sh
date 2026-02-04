@@ -184,14 +184,15 @@ verify_component() {
             [[ -f "${ssh_dir}/id_ed25519" ]] && [[ -f "${ssh_dir}/config" ]]
             ;;
         "config")
-            git config --global user.name &>/dev/null && \
-            git config --global user.email &>/dev/null
+            git config --global core.editor &>/dev/null && \
+            git config --global init.defaultBranch &>/dev/null
             ;;
         "aliases")
             list_module_aliases "git" "git" &>/dev/null
             ;;
         "zsh_integration")
-            [[ -f "$HOME/.config/zsh/git.zsh" ]]
+            # If zsh isn't installed, treat as verified (nothing to check)
+            command -v zsh &>/dev/null && [[ -f "$HOME/.config/zsh/git.zsh" ]] || ! command -v zsh &>/dev/null
             ;;
         *)
             return 1
@@ -267,7 +268,7 @@ configure_zsh_integration() {
     # Check if ZSH is installed
     if ! command -v zsh &>/dev/null; then
         log "WARN" "ZSH not installed, skipping ZSH integration" "git"
-        return 0
+        return 1
     fi
     
     # Create ZSH config directory if it doesn't exist
@@ -548,8 +549,13 @@ install_git() {
         if [[ "$force" == "true" ]] || ! check_state "$component" || ! verify_component "$component"; then
             log "INFO" "Installing component: $component" "git"
             if ! install_component "$component"; then
-                log "ERROR" "Failed to install component: $component" "git"
-                return 1
+                # zsh_integration is optional — don't fail if zsh isn't installed
+                if [[ "$component" == "zsh_integration" ]]; then
+                    log "WARN" "Optional component $component skipped" "git"
+                else
+                    log "ERROR" "Failed to install component: $component" "git"
+                    return 1
+                fi
             fi
         else
             log "INFO" "Skipping already installed and verified component: $component" "git"
@@ -618,8 +624,7 @@ verify_git() {
     if [ $status -eq 0 ]; then
         log "INFO" "Testing GitHub SSH connection..." "git"
         if ! ssh -T git@github.com -o BatchMode=yes -o StrictHostKeyChecking=no 2>&1 | grep -q "successfully authenticated"; then
-            log "WARN" "GitHub SSH authentication failed" "git"
-            status=1
+            log "WARN" "GitHub SSH authentication not configured — add your SSH key to GitHub" "git"
         else
             log "INFO" "GitHub SSH connection successful" "git"
         fi

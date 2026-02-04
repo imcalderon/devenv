@@ -1,7 +1,7 @@
 #!/bin/bash
 # devenv.sh - Development environment setup with cross-platform support
 
-set -euox pipefail
+set -euo pipefail
 
 # Get absolute paths if not already set
 if [[ -z "${ROOT_DIR:-}" ]]; then
@@ -89,7 +89,7 @@ verify_environment() {
 
 # Get ordered list of enabled modules
 get_ordered_modules() {
-    local modules=($(get_json_value "$CONFIG_FILE" '.global.modules.order[]'))
+    local modules=($(get_json_value "$CONFIG_FILE" ".platforms.$PLATFORM.modules.order[]"))
     local enabled_modules=()
     
     for module in "${modules[@]}"; do
@@ -261,7 +261,7 @@ restore_backup() {
 
         for path in "${paths[@]}"; do
             [[ -z "$path" ]] && continue
-            path=$(eval echo "$path")
+            path=$(echo "$path" | expand_vars)
             local filename=$(basename "$path")
             local backup_file="$latest_backup/$module/$filename.backup"
 

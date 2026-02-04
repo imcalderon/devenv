@@ -491,8 +491,23 @@ install_vscode_package() {
     log "INFO" "Installing VSCode..." "vscode"
 
     if command -v dnf &>/dev/null; then
-        # RPM-based installation (unchanged)
-        # ...existing code...
+        # RPM-based installation
+        log "INFO" "Using Microsoft's repository for VSCode (RPM)" "vscode"
+
+        # Import Microsoft GPG key
+        sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+
+        # Add the repository
+        printf "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc\n" | \
+            sudo tee /etc/yum.repos.d/vscode.repo
+
+        # Install VSCode
+        if ! sudo dnf install -y code; then
+            log "ERROR" "Failed to install VSCode via DNF" "vscode"
+            return 1
+        fi
+
+        log "INFO" "VSCode installation completed successfully" "vscode"
     elif command -v apt-get &>/dev/null; then
         # DEB-based installation - Updated approach
         log "INFO" "Using Microsoft's repository for VSCode" "vscode"

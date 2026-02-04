@@ -1,7 +1,7 @@
 #!/bin/bash
 # modules/python/python.sh - Python module implementation with container support
 
-set -euox pipefail
+set -euo pipefail
 # Load required utilities
 source "$SCRIPT_DIR/compat.sh"
 source "$SCRIPT_DIR/logging.sh"
@@ -12,6 +12,9 @@ source "$SCRIPT_DIR/alias.sh"
 
 # Initialize module
 init_module "python" || exit 1
+
+# Set module-specific data directory
+export DEVENV_PYTHON_DIR="${DEVENV_DATA_DIR}/python"
 
 # State file for tracking installation status
 STATE_FILE="$HOME/.devenv/state/python.state"
