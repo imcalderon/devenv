@@ -152,7 +152,15 @@ check_state() {
 
 install_fonts() {
     log "INFO" "Installing Nerd Fonts for VSCode terminal..." "vscode"
-    
+
+    # In WSL, fonts should be installed on Windows side
+    if grep -qi microsoft /proc/version 2>/dev/null; then
+        log "INFO" "WSL detected - fonts should be installed on Windows" "vscode"
+        log "INFO" "Download Nerd Fonts from: https://www.nerdfonts.com/font-downloads" "vscode"
+        save_state "fonts" "installed"
+        return 0
+    fi
+
     local fonts_dir="$HOME/.local/share/fonts"
     mkdir -p "$fonts_dir"
     local temp_dir=$(mktemp -d)
@@ -210,13 +218,18 @@ install_fonts() {
 # Verify fonts installation
 verify_fonts() {
     log "INFO" "Verifying font installation..." "vscode"
-    
+
+    # In WSL, fonts are managed on Windows side - skip verification
+    if grep -qi microsoft /proc/version 2>/dev/null; then
+        return 0
+    fi
+
     local fonts_dir="$HOME/.local/share/fonts"
     local required_fonts=(
         "MesloLGMNerdFont-Regular.ttf"
         "MesloLGMNerdFontMono-Regular.ttf"
     )
-    
+
     # Check if font files exist
     for font in "${required_fonts[@]}"; do
         if ! ls "$fonts_dir"/*"$font" >/dev/null 2>&1; then
@@ -312,9 +325,11 @@ verify_required_extensions() {
 # Verify additional configurations
 verify_additional_config() {
     local config_dir=$(get_module_config "vscode" ".shell.paths.config_dir")
+    local extensions_dir=$(get_module_config "vscode" ".shell.paths.extensions_dir")
     config_dir=$(echo "$config_dir" | expand_vars)
-    [[ -f "$config_dir/settings.json" ]] && \
-    [[ -d "$(get_module_config "vscode" ".shell.paths.extensions_dir")" ]]
+    extensions_dir=$(echo "$extensions_dir" | expand_vars)
+
+    [[ -f "$config_dir/settings.json" ]] && [[ -d "$extensions_dir" ]]
 }
 configure_vscode_settings() {
     log "INFO" "Configuring VSCode settings..." "vscode"
@@ -362,16 +377,21 @@ configure_vscode_settings() {
 }
 
 verify_required_extensions() {
+    # In WSL, extensions are managed by Windows VSCode - skip verification
+    if grep -qi microsoft /proc/version 2>/dev/null; then
+        return 0
+    fi
+
     local installed_extensions=$(code --list-extensions 2>/dev/null)
     local status=0
 
     # Get all required extensions from config
     local extensions=($(get_module_config "vscode" ".vscode.extensions[]"))
-    
+
     for extension in "${extensions[@]}"; do
         # Skip empty extensions
         [ -z "$extension" ] && continue
-        
+
         if ! echo "$installed_extensions" | grep -qi "^${extension}$"; then
             log "DEBUG" "Missing extension: $extension" "vscode"
             status=1
@@ -384,6 +404,21 @@ verify_required_extensions() {
 # Install VSCode extensions
 install_vscode_extensions() {
     log "INFO" "Installing VSCode extensions..." "vscode"
+
+    # In WSL, extension installation requires special handling
+    if grep -qi microsoft /proc/version 2>/dev/null; then
+        # Check if there's a Linux VSCode installed that needs to be removed
+        if dpkg -l code 2>/dev/null | grep -q "^ii"; then
+            log "WARN" "Linux VSCode is installed - removing to use Windows integration" "vscode"
+            sudo apt-get remove -y code 2>/dev/null || true
+        fi
+
+        log "INFO" "WSL detected - extensions managed by Windows VSCode" "vscode"
+        log "INFO" "Install extensions via VSCode GUI or run from Windows:" "vscode"
+        log "INFO" "  code --install-extension ms-vscode-remote.remote-wsl" "vscode"
+        return 0
+    fi
+
     local install_failed=false
 
     # Function to install extension with retry
@@ -409,11 +444,11 @@ install_vscode_extensions() {
 
     # Get all extensions from config
     local extensions=($(get_module_config "vscode" ".vscode.extensions[]"))
-    
+
     for extension in "${extensions[@]}"; do
         # Skip empty extensions
         [ -z "$extension" ] && continue
-        
+
         if ! install_extension "$extension"; then
             install_failed=true
         fi
@@ -489,6 +524,20 @@ configure_additional() {
 # Install VSCode package
 install_vscode_package() {
     log "INFO" "Installing VSCode..." "vscode"
+
+    # In WSL, use Windows VSCode integration instead of installing Linux VSCode
+    if grep -qi microsoft /proc/version 2>/dev/null; then
+        if command -v code &>/dev/null; then
+            log "INFO" "WSL detected - using Windows VSCode integration" "vscode"
+            log "INFO" "VSCode is available via Windows integration" "vscode"
+            return 0
+        else
+            log "WARN" "WSL detected but 'code' command not found" "vscode"
+            log "INFO" "Please install VSCode on Windows and enable WSL integration" "vscode"
+            log "INFO" "See: https://code.visualstudio.com/docs/remote/wsl" "vscode"
+            return 0  # Don't fail - just skip Linux installation
+        fi
+    fi
 
     if command -v dnf &>/dev/null; then
         # RPM-based installation
