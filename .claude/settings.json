@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make:*)",
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "Bash(./devenv:*)",
+      "Bash(shellcheck:*)",
+      "Bash(jq:*)"
+    ],
+    "deny": []
+  }
+}
