@@ -92,17 +92,8 @@ if ($FullSetup) {
 elseif (-not $SkipDevenvClone) {
     Write-Host "Starting $DistroName and cloning devenv..." -ForegroundColor Green
 
-    # Clone devenv only
-    $devenvCommands = @"
-set -e
-echo '=== Cloning devenv ==='
-git clone -b crossplatform https://github.com/imcalderon/devenv.git ~/devenv
-echo ''
-echo '=== DevEnv cloned to ~/devenv ==='
-echo 'To install, run: cd ~/devenv && ./devenv install'
-"@
-
-    wsl -d $DistroName -- bash -c $devenvCommands
+    # Clone devenv only (using single line to avoid CRLF issues)
+    wsl -d $DistroName -- bash -c "set -e; echo '=== Cloning devenv ==='; git clone -b crossplatform https://github.com/imcalderon/devenv.git ~/devenv; echo ''; echo '=== DevEnv cloned to ~/devenv ==='; echo 'To install, run: cd ~/devenv && ./devenv install'"
 }
 
 Write-Host ""
