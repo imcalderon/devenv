@@ -92,11 +92,13 @@ EOF
             echo "✓ $component: Installed"
             case "$component" in
                 "core")
+                    ensure_nvm_loaded
                     if command -v node &>/dev/null; then
                         echo "  Version: $(node --version)"
                     fi
                     ;;
                 "nvm")
+                    ensure_nvm_loaded
                     if command -v nvm &>/dev/null; then
                         echo "  NVM: $(nvm --version)"
                     fi
@@ -189,15 +191,29 @@ verify_npm_config() {
     local value=$(npm config get "$key")
     [[ "$value" == "$expected" ]]
 }
+# Ensure NVM is loaded into the current shell session
+ensure_nvm_loaded() {
+    if command -v nvm &>/dev/null; then
+        return 0
+    fi
+    export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+    if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+        \. "$NVM_DIR/nvm.sh"
+        return 0
+    fi
+    return 1
+}
+
 # Verify specific component
 verify_component() {
     local component=$1
     case "$component" in
         "core")
+            ensure_nvm_loaded
             command -v node &>/dev/null && command -v npm &>/dev/null
             ;;
         "nvm")
-            command -v nvm &>/dev/null
+            ensure_nvm_loaded
             ;;
         "packages")
             # Check each required global package

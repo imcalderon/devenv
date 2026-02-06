@@ -444,6 +444,9 @@ configure_ssh() {
         
         local git_email=$(get_module_config "git" ".git.config[\"user.email\"]")
         if [[ -z "$git_email" ]]; then
+            git_email=$(get_secret "git_email" 2>/dev/null) || true
+        fi
+        if [[ -z "$git_email" ]]; then
             read -p "Enter your email for SSH key: " git_email
         fi
 
@@ -468,10 +471,12 @@ configure_git() {
         if [[ -z "$value" ]]; then
             case "$key" in
                 "user.name")
-                    read -p "Enter your Git name: " value
+                    value=$(get_secret "git_name" 2>/dev/null) || true
+                    [[ -z "$value" ]] && read -p "Enter your Git name: " value
                     ;;
                 "user.email")
-                    read -p "Enter your Git email: " value
+                    value=$(get_secret "git_email" 2>/dev/null) || true
+                    [[ -z "$value" ]] && read -p "Enter your Git email: " value
                     ;;
             esac
         fi

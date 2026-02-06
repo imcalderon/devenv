@@ -169,6 +169,152 @@ validate_json() {
             return 1
         fi
     fi
-    
+
     return 0
+}
+
+# Validate root config.json structure using jq
+# Returns 0 on success, 1 on failure. Logs warnings for issues.
+validate_root_config() {
+    local file=${1:-$CONFIG_FILE}
+    local module="json"
+    local status=0
+
+    if [[ ! -f "$file" ]]; then
+        log "WARN" "Root config not found: $file" "$module"
+        return 1
+    fi
+
+    # Check required top-level keys
+    local required_keys=("version" "metadata" "global" "platforms")
+    for key in "${required_keys[@]}"; do
+        if ! jq -e "has(\"$key\")" "$file" >/dev/null 2>&1; then
+            log "WARN" "Root config missing required key: $key" "$module"
+            status=1
+        fi
+    done
+
+    # Validate version is semver-like
+    local version
+    version=$(jq -r '.version // empty' "$file" 2>/dev/null)
+    if [[ -n "$version" ]] && ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        log "WARN" "Root config version is not valid semver: $version" "$module"
+        status=1
+    fi
+
+    # Validate platform keys are valid
+    local platform_keys
+    platform_keys=$(jq -r '.platforms | keys[]' "$file" 2>/dev/null)
+    for key in $platform_keys; do
+        case "$key" in
+            windows|linux|darwin) ;;
+            *)
+                log "WARN" "Unknown platform key in config: $key" "$module"
+                status=1
+                ;;
+        esac
+    done
+
+    # Validate each platform has required fields
+    for platform in $platform_keys; do
+        for field in script shell modules; do
+            if ! jq -e ".platforms.\"$platform\" | has(\"$field\")" "$file" >/dev/null 2>&1; then
+                log "WARN" "Platform '$platform' missing required field: $field" "$module"
+                status=1
+            fi
+        done
+    done
+
+    # Validate global.paths has required path keys
+    local required_paths=("data_dir" "logs_dir" "backups_dir" "state_dir" "modules_dir")
+    for path_key in "${required_paths[@]}"; do
+        if ! jq -e ".global.paths | has(\"$path_key\")" "$file" >/dev/null 2>&1; then
+            log "WARN" "Root config global.paths missing required key: $path_key" "$module"
+            status=1
+        fi
+    done
+
+    # Verify modules referenced in platform orders actually exist as directories
+    local modules_dir="${MODULES_DIR:-$(dirname "$file")/modules}"
+    for platform in $platform_keys; do
+        local modules
+        modules=$(jq -r ".platforms.\"$platform\".modules.order[]?" "$file" 2>/dev/null)
+        for mod in $modules; do
+            if [[ ! -d "$modules_dir/$mod" ]]; then
+                log "WARN" "Platform '$platform' references non-existent module: $mod" "$module"
+                status=1
+            fi
+        done
+    done
+
+    return $status
+}
+
+# Validate module config.json structure using jq
+# Usage: validate_module_config <config_file> [module_name]
+validate_module_config() {
+    local file=$1
+    local mod_name=${2:-$(basename "$(dirname "$file")")}
+    local module="json"
+    local status=0
+
+    if [[ ! -f "$file" ]]; then
+        log "WARN" "Module config not found: $file" "$module"
+        return 1
+    fi
+
+    # Check required fields
+    if ! jq -e 'has("enabled")' "$file" >/dev/null 2>&1; then
+        log "WARN" "Module '$mod_name' config missing required field: enabled" "$module"
+        status=1
+    else
+        # Validate enabled is boolean
+        local enabled_type
+        enabled_type=$(jq -r '.enabled | type' "$file" 2>/dev/null)
+        if [[ "$enabled_type" != "boolean" ]]; then
+            log "WARN" "Module '$mod_name' config 'enabled' must be boolean, got: $enabled_type" "$module"
+            status=1
+        fi
+    fi
+
+    if ! jq -e 'has("runlevel")' "$file" >/dev/null 2>&1; then
+        log "WARN" "Module '$mod_name' config missing required field: runlevel" "$module"
+        status=1
+    else
+        # Validate runlevel is integer 0-99
+        local runlevel
+        runlevel=$(jq -r '.runlevel' "$file" 2>/dev/null)
+        if ! [[ "$runlevel" =~ ^[0-9]+$ ]] || [[ "$runlevel" -gt 99 ]]; then
+            log "WARN" "Module '$mod_name' config 'runlevel' must be integer 0-99, got: $runlevel" "$module"
+            status=1
+        fi
+    fi
+
+    # Validate dependencies reference existing modules if present
+    local deps
+    deps=$(jq -r '.dependencies[]?' "$file" 2>/dev/null)
+    local modules_dir="${MODULES_DIR:-}"
+    if [[ -n "$deps" && -n "$modules_dir" ]]; then
+        for dep in $deps; do
+            if [[ ! -d "$modules_dir/$dep" ]]; then
+                log "WARN" "Module '$mod_name' depends on non-existent module: $dep" "$module"
+                status=1
+            fi
+        done
+    fi
+
+    # Validate platform keys if present
+    local plat_keys
+    plat_keys=$(jq -r '.platforms | keys[]?' "$file" 2>/dev/null)
+    for key in $plat_keys; do
+        case "$key" in
+            windows|linux|darwin) ;;
+            *)
+                log "WARN" "Module '$mod_name' has unknown platform key: $key" "$module"
+                status=1
+                ;;
+        esac
+    done
+
+    return $status
 }

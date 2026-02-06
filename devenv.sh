@@ -55,6 +55,7 @@ source "$SCRIPT_DIR/logging.sh"  # Load logging first
 source "$SCRIPT_DIR/json.sh"     # Then JSON handling
 source "$SCRIPT_DIR/module.sh"   # Then module utilities
 source "$SCRIPT_DIR/backup.sh"   # Finally backup utilities
+source "$SCRIPT_DIR/secrets.sh"  # Secrets management
 
 # Verify environment
 verify_environment() {
@@ -78,12 +79,16 @@ verify_environment() {
         return 1
     fi
     
-    # Validate global config
+    # Validate global config syntax
     if ! validate_json "$CONFIG_FILE"; then
         log "ERROR" "Config validation failed"
         return 1
     fi
-    
+
+    # Structural validation (warnings only, don't block on schema issues)
+    validate_root_config "$CONFIG_FILE" || \
+        log "WARN" "Config structural validation found issues (see warnings above)"
+
     return 0
 }
 
@@ -175,6 +180,7 @@ Commands:
   info      Show information about one or all modules
   backup    Create backup of current environment
   restore   Restore from backup
+  secrets   Manage secrets (wizard, show, set, reset, validate, export, import)
 
 Options:
   --force   Force installation even if already installed
@@ -293,7 +299,8 @@ main() {
     shift
     local specific_module=""
     local force="false"
-    
+    local -a extra_args=()
+
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --force)
@@ -303,6 +310,8 @@ main() {
             *)
                 if [[ -z "$specific_module" ]]; then
                     specific_module="$1"
+                else
+                    extra_args+=("$1")
                 fi
                 shift
                 ;;
@@ -334,6 +343,9 @@ main() {
             ;;
         restore)
             restore_backup "$specific_module"
+            ;;
+        secrets)
+            secrets_command "$specific_module" "${extra_args[@]+"${extra_args[@]}"}"
             ;;
         *)
             show_usage
