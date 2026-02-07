@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/imcalderon/devenv/schemas/config.schema.json",
+  "title": "DevEnv Root Configuration",
+  "description": "Schema for the root config.json of the DevEnv development environment manager",
+  "type": "object",
+  "required": ["version", "metadata", "global", "platforms"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of the configuration"
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["name", "description"],
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "author": { "type": "string" },
+        "created": { "type": "string" },
+        "schema_version": { "type": "string" }
+      }
+    },
+    "global": {
+      "type": "object",
+      "required": ["paths"],
+      "properties": {
+        "paths": {
+          "type": "object",
+          "required": ["data_dir", "logs_dir", "backups_dir", "state_dir", "modules_dir"],
+          "properties": {
+            "data_dir": { "type": "string" },
+            "logs_dir": { "type": "string" },
+            "backups_dir": { "type": "string" },
+            "state_dir": { "type": "string" },
+            "modules_dir": { "type": "string" },
+            "cache_dir": { "type": "string" },
+            "temp_dir": { "type": "string" }
+          }
+        },
+        "modules": {
+          "type": "object",
+          "properties": {
+            "execution_strategy": { "type": "object" },
+            "cross_platform": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "defaults": { "type": "object" },
+        "container": { "type": "object" }
+      }
+    },
+    "platforms": {
+      "type": "object",
+      "propertyNames": {
+        "enum": ["windows", "linux", "darwin"]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["script", "shell", "modules"],
+        "properties": {
+          "script": { "type": "string" },
+          "shell": { "type": "string" },
+          "modules": {
+            "type": "object",
+            "required": ["order", "available"],
+            "properties": {
+              "order": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "available": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "platform_specific": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "environments": { "type": "object" },
+    "templates": { "type": "object" },
+    "integrations": { "type": "object" },
+    "experimental": { "type": "object" }
+  }
+}

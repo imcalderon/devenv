@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/imcalderon/devenv/schemas/module.schema.json",
+  "title": "DevEnv Module Configuration",
+  "description": "Schema for module config.json files in modules/<name>/config.json",
+  "type": "object",
+  "required": ["enabled", "runlevel"],
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Whether the module is enabled"
+    },
+    "runlevel": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 99,
+      "description": "Module loading order (0-99, lower runs first)"
+    },
+    "dependencies": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of module names this module depends on"
+    },
+    "platforms": {
+      "type": "object",
+      "propertyNames": {
+        "enum": ["windows", "linux", "darwin"]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean" }
+        }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "properties": {
+        "paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "shell": {
+      "type": "object",
+      "properties": {
+        "paths": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "aliases": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

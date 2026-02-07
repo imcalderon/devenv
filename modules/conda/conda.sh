@@ -129,6 +129,7 @@ EOF
             echo "✓ $component: Installed"
             case "$component" in
                 "core")
+                    ensure_conda_loaded
                     if command -v conda &>/dev/null; then
                         echo "  Version: $(conda --version)"
                         echo "  Python: $(conda run python --version 2>/dev/null)"
@@ -165,11 +166,34 @@ check_state() {
     return 1
 }
 
+# Ensure Conda is loaded into the current shell session
+ensure_conda_loaded() {
+    if command -v conda &>/dev/null; then
+        return 0
+    fi
+    local conda_root="${HOME}/miniconda3"
+    # Try module config path if available
+    local config_root
+    config_root=$(get_module_config "conda" ".shell.paths.conda_root" 2>/dev/null) || true
+    if [[ -n "$config_root" && "$config_root" != "null" ]]; then
+        conda_root=$(echo "$config_root" | expand_vars)
+    fi
+    if [[ -s "$conda_root/etc/profile.d/conda.sh" ]]; then
+        \. "$conda_root/etc/profile.d/conda.sh"
+        return 0
+    elif [[ -d "$conda_root/bin" ]]; then
+        export PATH="$conda_root/bin:$PATH"
+        return 0
+    fi
+    return 1
+}
+
 # Verify specific component
 verify_component() {
     local component=$1
     case "$component" in
         "core")
+            ensure_conda_loaded
             command -v conda &>/dev/null && \
             conda info &>/dev/null
             ;;

@@ -334,6 +334,7 @@
   },
   "templates": {
     "web_development": {
+      "description": "Web development environment with Node.js, Docker, and VS Code",
       "modules": {
         "windows": ["terminal", "powershell", "git", "nodejs", "vscode", "docker"],
         "linux": ["zsh", "git", "nodejs", "vscode", "docker"],
@@ -351,6 +352,7 @@
       }
     },
     "data_science": {
+      "description": "Data science environment with Python, Conda, Jupyter, and PostgreSQL",
       "modules": {
         "windows": ["terminal", "powershell", "git", "python", "vscode", "docker"],
         "linux": ["zsh", "git", "python", "vscode", "docker", "conda"],
@@ -368,6 +370,7 @@
       }
     },
     "game_development": {
+      "description": "Game development environment with Node.js, Phaser, and Docker",
       "modules": {
         "windows": ["terminal", "powershell", "git", "nodejs", "vscode", "docker"],
         "linux": ["zsh", "git", "nodejs", "vscode", "docker"],

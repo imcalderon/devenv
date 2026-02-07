@@ -1,3 +1,6 @@
+# WSL images (large virtual disks)
+/wsl-images/
+
 # Keep module configurations
 !/modules/*/config.json
 
@@ -21,7 +24,8 @@ modules/*/logs/
 /logs/
 
 # Editor and IDE files
-.vscode/
+.vscode/*
+!.vscode/settings.json
 .idea/
 *.sublime-project
 *.sublime-workspace
@@ -66,6 +70,10 @@ yarn-error.log
 .cache/
 tmp/
 temp/
+
+# Secrets
+secrets/
+*.enc
 
 # Personal files
 .env
