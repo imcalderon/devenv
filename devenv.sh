@@ -178,6 +178,7 @@ Commands:
   remove    Remove one or all modules
   verify    Verify one or all modules
   info      Show information about one or all modules
+  init      Initialize environment from a template
   backup    Create backup of current environment
   restore   Restore from backup
   secrets   Manage secrets (wizard, show, set, reset, validate, export, import)
@@ -189,7 +190,8 @@ Examples:
   $0 install              # Install all modules
   $0 install git --force  # Force install git module
   $0 info docker         # Show docker module information
-  $0 verify             # Verify all modules
+  $0 verify              # Verify all modules
+  $0 init web_development # Initialize from template
 EOF
 }
 
@@ -287,6 +289,63 @@ restore_backup() {
     log "INFO" "Restore completed"
 }
 
+# Initialize from a template
+init_template() {
+    local template_name=$1
+    local force="${2:-false}"
+
+    if [[ -z "$template_name" ]]; then
+        log "ERROR" "Template name required. Available templates:"
+        local templates
+        templates=$(get_json_value "$CONFIG_FILE" ".templates | keys[]")
+        for t in $templates; do
+            local desc
+            desc=$(get_json_value "$CONFIG_FILE" ".templates.$t.description" "$t")
+            log "INFO" "  $t - $desc"
+        done
+        return 1
+    fi
+
+    # Verify the template exists
+    local template_modules
+    template_modules=$(get_json_value "$CONFIG_FILE" ".templates.$template_name.modules.$PLATFORM[]" "" 2>/dev/null)
+
+    if [[ -z "$template_modules" ]]; then
+        log "ERROR" "Template '$template_name' not found or has no modules for platform '$PLATFORM'"
+        return 1
+    fi
+
+    log "INFO" "Initializing template: $template_name (platform: $PLATFORM)"
+
+    # Install each module in template order
+    local exit_code=0
+    for module in $template_modules; do
+        log "INFO" "Installing template module: $module"
+        if ! execute_stage "install" "$module" "$force"; then
+            log "ERROR" "Failed to install module: $module"
+            exit_code=1
+        fi
+    done
+
+    # Save template state
+    local template_state_file="$DEVENV_STATE_DIR/template.state"
+    mkdir -p "$(dirname "$template_state_file")"
+    cat > "$template_state_file" << EOF
+template:$template_name
+platform:$PLATFORM
+timestamp:$(date +%s)
+modules:$(echo $template_modules | tr '\n' ',')
+EOF
+
+    if [[ $exit_code -eq 0 ]]; then
+        log "INFO" "Template '$template_name' initialized successfully"
+    else
+        log "WARN" "Template '$template_name' initialized with errors"
+    fi
+
+    return $exit_code
+}
+
 # Main execution
 main() {
     if [[ $# -eq 0 ]]; then
@@ -337,6 +396,14 @@ main() {
             ;;
         info)
             execute_stage "info" "$specific_module"
+            ;;
+        init)
+            if [[ -z "$specific_module" ]]; then
+                log "ERROR" "Template name required: $0 init <template>"
+                show_usage
+                exit 1
+            fi
+            init_template "$specific_module" "$force"
             ;;
         backup)
             create_backup "$specific_module"

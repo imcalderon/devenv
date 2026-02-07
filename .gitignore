@@ -1,3 +1,6 @@
+# WSL images (large virtual disks)
+/wsl-images/
+
 # Keep module configurations
 !/modules/*/config.json
 
