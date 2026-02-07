@@ -54,6 +54,25 @@ dnf install -y 'dnf-command(config-manager)'
 dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
 dnf install -y gh --repo gh-cli
 
+# --- Install Node.js (via nvm) and Claude Code ---
+echo "=== Installing Node.js via nvm and Claude Code ==="
+su - "$USERNAME" -c '
+set -e
+echo "Installing nvm..."
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+
+# Load nvm
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+echo "Installing Node.js LTS..."
+nvm install --lts
+nvm use --lts
+
+echo "Installing Claude Code..."
+npm install -g @anthropic-ai/claude-code
+'
+
 # --- Configure WSL ---
 echo "=== Configuring WSL ==="
 cat > /etc/wsl.conf << EOF
@@ -103,18 +122,14 @@ if [[ ! -f "$SECRETS_DIR/secrets.env" ]]; then
     cp "$SECRETS_DIR/secrets.env.template" "$SECRETS_DIR/secrets.env"
 fi
 chmod 600 "$SECRETS_DIR/secrets.env" "$SECRETS_DIR/secrets.env.template"
-chown -R "$USERNAME:$USERNAME" "$SECRETS_DIR"
+chown -R "$USERNAME:$USERNAME" "/home/$USERNAME/.config"
 
 echo ""
 echo "=== Bootstrap complete ==="
 echo ""
-echo "Next steps:"
-echo "  1. Exit and restart WSL: wsl --shutdown && wsl -d <distro>"
-echo "  2. Run full setup: /mnt/e/WSL/setup-devenv.sh"
-echo "     Or manually:"
-echo "       git clone --recurse-submodules https://github.com/imcalderon/vfx-devenv.git ~/vfx-devenv"
-echo "       cd ~/vfx-devenv && ./vfx-devenv init vfx_platform"
-echo "       npm install -g @anthropic-ai/claude-code"
+echo "Installed: git, jq, curl, gh, node ($(su - "$USERNAME" -c 'bash -lc "node --version"' 2>/dev/null || echo 'n/a')), claude"
+echo ""
+echo "WSL will restart and then prompt for gh and claude authentication."
 echo ""
 echo "User: $USERNAME"
 echo "Password: $PASSWORD (change with 'passwd')"

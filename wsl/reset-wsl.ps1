@@ -1,4 +1,4 @@
-# reset-wsl.ps1 - Reset and provision AlmaLinux WSL for devenv
+# reset-wsl.ps1 - Reset and provision AlmaLinux WSL with gh + Claude auth
 # Run from PowerShell as Administrator
 
 param(
@@ -7,9 +7,7 @@ param(
     [string]$ImagePath = "",  # Path to .wsl image file
     [string]$Username = "devuser",
     [string]$Password = "devenv",
-    [string]$Timezone = "America/Chicago",
-    [switch]$SkipDevenvClone,
-    [switch]$FullSetup
+    [string]$Timezone = "America/Chicago"
 )
 
 # Auto-detect paths relative to script location
@@ -26,7 +24,6 @@ if (-not $ImagePath) {
 
 $InstallPath = Join-Path $WslRoot $DistroName
 $BootstrapScript = Join-Path $ScriptDir "bootstrap-wsl.sh"
-$SetupScript = Join-Path $ScriptDir "setup-devenv.sh"
 
 $ErrorActionPreference = "Stop"
 
@@ -79,33 +76,28 @@ Write-Host "Shutting down WSL to apply configuration..." -ForegroundColor Yellow
 wsl --shutdown
 Start-Sleep -Seconds 3
 
-if ($FullSetup) {
-    Write-Host "Running full setup (devenv + Claude Code + gh CLI)..." -ForegroundColor Green
-
-    $WslSetupPath = "/mnt/" + ($SetupScript -replace "\\", "/" -replace ":", "").ToLower()
-
-    wsl -d $DistroName -- bash $WslSetupPath
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "WARNING: Full setup had errors, check output above" -ForegroundColor Yellow
-    }
+# --- Interactive authentication ---
+Write-Host ""
+Write-Host "=== Authenticating gh CLI ===" -ForegroundColor Cyan
+Write-Host "Follow the prompts to log in to GitHub:" -ForegroundColor White
+wsl -d $DistroName -- gh auth login
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "WARNING: gh auth login failed or was cancelled" -ForegroundColor Yellow
 }
-elseif (-not $SkipDevenvClone) {
-    Write-Host "Starting $DistroName and cloning devenv..." -ForegroundColor Green
 
-    # Clone devenv only (using single line to avoid CRLF issues)
-    wsl -d $DistroName -- bash -c "set -e; echo '=== Cloning devenv ==='; git clone -b crossplatform https://github.com/imcalderon/devenv.git ~/devenv; echo ''; echo '=== DevEnv cloned to ~/devenv ==='; echo 'To install, run: cd ~/devenv && ./devenv install'"
+Write-Host ""
+Write-Host "=== Authenticating Claude Code ===" -ForegroundColor Cyan
+Write-Host "Follow the prompts to complete Claude first-run auth:" -ForegroundColor White
+wsl -d $DistroName -- bash -lc "claude"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "WARNING: Claude first-run auth failed or was cancelled" -ForegroundColor Yellow
 }
 
 Write-Host ""
 Write-Host "=== Done ===" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "To start: wsl -d $DistroName" -ForegroundColor White
-if (-not $FullSetup) {
-    Write-Host "To install devenv: cd ~/devenv && ./devenv install" -ForegroundColor White
-    Write-Host "For full setup: .\reset-wsl.ps1 -FullSetup" -ForegroundColor White
-}
-else {
-    Write-Host "To start Claude: claude" -ForegroundColor White
-    Write-Host "To view issues: gh issue list --repo imcalderon/devenv" -ForegroundColor White
-}
+Write-Host "Your WSL environment is ready." -ForegroundColor Green
+Write-Host "  Start WSL:      wsl -d $DistroName" -ForegroundColor White
+Write-Host "  GitHub CLI:     gh auth status" -ForegroundColor White
+Write-Host "  Claude Code:    claude" -ForegroundColor White
 Write-Host ""
