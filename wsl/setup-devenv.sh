@@ -13,7 +13,7 @@ if [[ $EUID -eq 0 ]]; then
     exit 1
 fi
 
-DEVENV_DIR="$HOME/devenv"
+DEVENV_DIR="$HOME/vfx-devenv"
 SECRETS_FILE="$HOME/.config/devenv/secrets.env"
 
 # --- Load secrets if available ---
@@ -22,24 +22,23 @@ if [[ -f "$SECRETS_FILE" ]]; then
     source "$SECRETS_FILE"
 fi
 
-# --- Clone or update devenv ---
-echo "=== Setting up devenv ==="
+# --- Clone or update vfx-devenv ---
+echo "=== Setting up vfx-devenv ==="
 if [[ -d "$DEVENV_DIR" ]]; then
-    echo "devenv already exists, pulling latest..."
+    echo "vfx-devenv already exists, pulling latest..."
     cd "$DEVENV_DIR"
-    git fetch origin
-    git checkout crossplatform
-    git pull origin crossplatform
+    git pull origin main
+    git submodule update --init --recursive
 else
-    echo "Cloning devenv..."
-    git clone -b crossplatform https://github.com/imcalderon/devenv.git "$DEVENV_DIR"
+    echo "Cloning vfx-devenv..."
+    git clone --recurse-submodules https://github.com/imcalderon/vfx-devenv.git "$DEVENV_DIR"
 fi
 
-# --- Run devenv install ---
+# --- Run vfx-devenv init ---
 echo ""
-echo "=== Running devenv install ==="
+echo "=== Running vfx-devenv init ==="
 cd "$DEVENV_DIR"
-./devenv install
+./vfx-devenv init vfx_platform
 
 # --- Install Claude Code ---
 echo ""
@@ -57,9 +56,9 @@ echo ""
 echo "=== Installing GitHub CLI ==="
 if ! command -v gh &>/dev/null; then
     if command -v dnf &>/dev/null; then
-        sudo dnf install -y 'dnf-command(config-manager)' || true
-        sudo dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo 2>/dev/null || true
-        sudo dnf install -y gh || echo "gh CLI may need manual installation"
+        sudo dnf install -y 'dnf-command(config-manager)'
+        sudo dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
+        sudo dnf install -y gh --repo gh-cli
     fi
 fi
 
@@ -78,7 +77,7 @@ echo "=== Setup Complete ==="
 echo "=========================================="
 echo ""
 echo "Installed:"
-echo "  - devenv: $DEVENV_DIR"
+echo "  - vfx-devenv: $DEVENV_DIR"
 command -v claude &>/dev/null && echo "  - Claude Code: $(claude --version 2>/dev/null || echo 'installed')"
 command -v gh &>/dev/null && echo "  - GitHub CLI: $(gh --version | head -1)"
 echo ""
@@ -96,7 +95,7 @@ echo "  - GITHUB_TOKEN, ANTHROPIC_API_KEY"
 echo "  (Never commit this file!)"
 echo ""
 echo "To start working:"
-echo "  cd ~/devenv"
+echo "  cd ~/vfx-devenv"
 echo "  gh auth login                    # One-time auth"
 echo "  gh issue list                    # View issues"
 echo "  claude                           # Start Claude Code"

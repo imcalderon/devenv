@@ -48,6 +48,12 @@ dnf install -y --setopt=install_weak_deps=False \
     curl \
     sudo
 
+# --- Install GitHub CLI ---
+echo "=== Installing GitHub CLI ==="
+dnf install -y 'dnf-command(config-manager)'
+dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
+dnf install -y gh --repo gh-cli
+
 # --- Configure WSL ---
 echo "=== Configuring WSL ==="
 cat > /etc/wsl.conf << EOF
@@ -106,8 +112,8 @@ echo "Next steps:"
 echo "  1. Exit and restart WSL: wsl --shutdown && wsl -d <distro>"
 echo "  2. Run full setup: /mnt/e/WSL/setup-devenv.sh"
 echo "     Or manually:"
-echo "       git clone -b crossplatform https://github.com/imcalderon/devenv.git ~/devenv"
-echo "       cd ~/devenv && ./devenv install"
+echo "       git clone --recurse-submodules https://github.com/imcalderon/vfx-devenv.git ~/vfx-devenv"
+echo "       cd ~/vfx-devenv && ./vfx-devenv init vfx_platform"
 echo "       npm install -g @anthropic-ai/claude-code"
 echo ""
 echo "User: $USERNAME"

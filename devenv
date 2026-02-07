@@ -112,7 +112,7 @@ main() {
         linux|darwin)
             # Use bash for Linux and macOS
             export ROOT_DIR="$script_dir"
-            export CONFIG_FILE="$config_file"
+            export CONFIG_FILE="${CONFIG_FILE:-$config_file}"
             "$script_dir/devenv.sh" "$@"
             ;;
         windows)
@@ -120,7 +120,7 @@ main() {
             if grep -q "microsoft" /proc/version 2>/dev/null; then
                 # We're in WSL, use bash
                 export ROOT_DIR="$script_dir"
-                export CONFIG_FILE="$config_file"
+                export CONFIG_FILE="${CONFIG_FILE:-$config_file}"
                 "$script_dir/devenv.sh" "$@"
             else
                 # We're in Windows, use PowerShell
