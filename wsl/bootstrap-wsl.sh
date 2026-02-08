@@ -107,6 +107,20 @@ generateResolvConf=true
 systemd=true
 EOF
 
+# --- Load secrets.local if available (mounted from Windows host) ---
+# The PowerShell scripts pass the secrets.local path as $4 if it exists
+SECRETS_LOCAL="${4:-}"
+declare -A SEED_VALUES=()
+if [[ -n "$SECRETS_LOCAL" && -f "$SECRETS_LOCAL" ]]; then
+    echo "=== Loading seed values from secrets.local ==="
+    while IFS='=' read -r key value; do
+        key=$(echo "$key" | xargs)
+        [[ -z "$key" || "$key" == \#* ]] && continue
+        value=$(echo "$value" | xargs | sed 's/^["'\''"]//;s/["'\''"]$//')
+        [[ -n "$value" ]] && SEED_VALUES["$key"]="$value"
+    done < "$SECRETS_LOCAL"
+fi
+
 # --- Create secrets config template ---
 echo "=== Creating secrets config template ==="
 SECRETS_DIR="/home/$USERNAME/.config/devenv"
@@ -136,9 +150,21 @@ export ANTHROPIC_API_KEY=""
 # export MY_SECRET=""
 SECRETS
 
-# Create empty secrets.env if it doesn't exist
+# Create secrets.env seeded with values from secrets.local (or empty from template)
 if [[ ! -f "$SECRETS_DIR/secrets.env" ]]; then
     cp "$SECRETS_DIR/secrets.env.template" "$SECRETS_DIR/secrets.env"
+fi
+
+# Seed values from secrets.local into secrets.env
+if [[ ${#SEED_VALUES[@]} -gt 0 ]]; then
+    echo "Seeding secrets.env with values from secrets.local..."
+    for key in GIT_USER_NAME GIT_USER_EMAIL GITHUB_TOKEN ANTHROPIC_API_KEY; do
+        if [[ -n "${SEED_VALUES[$key]:-}" ]]; then
+            # Replace the empty export line with the seeded value
+            sed -i "s|^export ${key}=\"\"|export ${key}=\"${SEED_VALUES[$key]}\"|" "$SECRETS_DIR/secrets.env"
+            echo "  Seeded: $key"
+        fi
+    done
 fi
 chmod 600 "$SECRETS_DIR/secrets.env" "$SECRETS_DIR/secrets.env.template"
 chown -R "$USERNAME:$USERNAME" "/home/$USERNAME/.config"

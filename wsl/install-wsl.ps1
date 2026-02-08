@@ -26,6 +26,29 @@ $ErrorActionPreference = "Stop"
 # --- Path resolution ---
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
+# --- Load secrets.local if present (provides defaults for unset params) ---
+$SecretsFile = Join-Path $ScriptDir "secrets.local"
+if (Test-Path $SecretsFile) {
+    Write-Host "Loading defaults from secrets.local..." -ForegroundColor Gray
+    Get-Content $SecretsFile | ForEach-Object {
+        $line = $_.Trim()
+        if ($line -and -not $line.StartsWith("#")) {
+            $parts = $line -split "=", 2
+            if ($parts.Count -eq 2) {
+                $key = $parts[0].Trim()
+                $val = $parts[1].Trim().Trim('"').Trim("'")
+                if ($val) {
+                    switch ($key) {
+                        "WSL_USERNAME"     { if ($Username -eq "devuser")           { $Username = $val } }
+                        "WSL_PASSWORD"     { if ($Password -eq "devenv")            { $Password = $val } }
+                        "WSL_TIMEZONE"     { if ($Timezone -eq "America/Chicago")   { $Timezone = $val } }
+                    }
+                }
+            }
+        }
+    }
+}
+
 if (-not $WslRoot) {
     # Default: D:\WSL\devenv (from config.json)
     # Fallback: parent of repo root
@@ -180,7 +203,12 @@ if (-not $SkipBootstrap) {
         $WslBootstrapPath = "/mnt/" + ($BootstrapScript -replace "\\", "/" -replace ":", "").ToLower()
 
         Write-Host "  Script: $WslBootstrapPath"
-        wsl -d $DistroName --user root -- bash $WslBootstrapPath $Username $Password $Timezone
+        # Pass secrets.local path as 4th arg if it exists
+        $WslSecretsArg = ""
+        if (Test-Path $SecretsFile) {
+            $WslSecretsArg = "/mnt/" + ($SecretsFile -replace "\\", "/" -replace ":", "").ToLower()
+        }
+        wsl -d $DistroName --user root -- bash $WslBootstrapPath $Username $Password $Timezone $WslSecretsArg
         if ($LASTEXITCODE -ne 0) {
             throw "Bootstrap script failed"
         }

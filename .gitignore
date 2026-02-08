@@ -74,6 +74,7 @@ temp/
 # Secrets
 secrets/
 *.enc
+wsl/secrets.local
 
 # Personal files
 .env
