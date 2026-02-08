@@ -1,139 +1,126 @@
-# DevEnv - Claude Code Instructions
+# DevEnv — Unified Development Environment Manager
 
-## Project Overview
-
-DevEnv is a cross-platform, hermetic development environment manager. It provides modular, containerized development tool installation and configuration across Windows (native + WSL), Linux, and macOS.
+## Overview
+DevEnv is a cross-platform, modular development environment manager that takes a clean machine to a fully-functional build environment. It supports VFX (USD/OpenEXR), web (Phaser/Vite), data science, and game development workflows with project scaffolding and agentic metadata.
 
 ## Architecture
 
 ```
-devenv                  # Entry point: detects platform, routes to .sh or .ps1
-devenv.sh               # Linux/macOS orchestrator (sources lib/*.sh)
-devenv.ps1              # Windows orchestrator
-config.json             # Global configuration (platforms, containers, templates)
+devenv                    # Entry point: platform detection, routing
+devenv.sh                 # Linux/macOS orchestrator
+devenv.ps1                # Windows orchestrator
+config.json               # Global config (platforms, modules, templates)
 lib/
-  compat.sh             # Cross-platform helpers (sed_inplace, expand_vars)
-  logging.sh            # Structured logging with severity levels
-  json.sh               # jq wrapper with auto-installation
-  module.sh             # Module lifecycle, containerization, Docker integration
-  backup.sh             # Backup/restore utilities
-  alias.sh              # ZSH alias management with markers
-  windows/              # Windows-specific PowerShell libraries
-modules/<name>/
-  config.json           # Module configuration (runlevel, deps, paths, aliases)
-  <name>.sh             # Bash implementation
-  <name>.ps1            # PowerShell implementation (Windows modules)
-wsl/                    # WSL provisioning scripts
+  compat.sh               # Cross-platform helpers (sed_inplace, expand_vars)
+  logging.sh              # Structured logging (INFO, WARN, ERROR, DEBUG)
+  json.sh                 # jq wrapper with auto-install
+  module.sh               # Module lifecycle + Docker integration
+  backup.sh               # Backup/restore utilities
+  alias.sh                # ZSH alias management
+  scaffold.sh             # Project scaffolding engine
+  secrets.sh              # Secrets management
+  windows/                # Windows-specific PowerShell libraries
+modules/                  # All modules (see Module Index below)
+workflows/                # Workflow definitions (replace flat templates)
+  vfx/workflow.json       # VFX Platform 2024 workflow
+  web/workflow.json       # Web dev with phaser/vanilla sub-types
+  data-science/workflow.json
+  game/workflow.json
+scaffolds/                # Project templates for --new-project
+  common/                 # Shared files (.gitignore, .editorconfig, README)
+  vfx/                    # CMake + C++ VFX project
+  web/phaser/             # Phaser 3 + TypeScript game
+  web/vanilla/            # Vite + TypeScript
+toolkits/
+  vfx-bootstrap/          # Conda-based VFX build system
+    builder/              # core.py, cli.py, cache.py
+    packager/             # Export to conda, tar, archive
+    recipes/              # 12 VFX package recipes
+schemas/                  # JSON schemas for validation
+tests/                    # bats (lib/, modules/) + pytest (vfx-bootstrap)
+wsl/                      # WSL provisioning scripts
 ```
+
+## Module Index
+
+Each module has its own `.claude/CLAUDE.md` with detailed documentation.
+
+| Module | Runlevel | Platform | Purpose |
+|--------|----------|----------|---------|
+| [zsh](modules/zsh/.claude/CLAUDE.md) | 1 | Linux/macOS | Z shell + Oh My Zsh |
+| [git](modules/git/.claude/CLAUDE.md) | 1 | Cross-platform | Git configuration |
+| [docker](modules/docker/.claude/CLAUDE.md) | 1 | Cross-platform | Container runtime |
+| [python](modules/python/.claude/CLAUDE.md) | 2 | Cross-platform | Python + pyenv |
+| [nodejs](modules/nodejs/.claude/CLAUDE.md) | 2 | Cross-platform | Node.js + nvm |
+| [conda](modules/conda/.claude/CLAUDE.md) | 3 | Linux/macOS | Miniconda |
+| [vscode](modules/vscode/.claude/CLAUDE.md) | 3 | Cross-platform | VS Code + extensions |
+| [vfx](modules/vfx/.claude/CLAUDE.md) | 5 | Linux/macOS | VFX Platform build env |
+| [react](modules/react/.claude/CLAUDE.md) | 3 | Linux/macOS | React framework |
+| [tiled](modules/tiled/.claude/CLAUDE.md) | 3 | Linux/macOS | Tiled map editor |
+| [ldtk](modules/ldtk/.claude/CLAUDE.md) | 3 | Linux/macOS | LDtk level editor |
+| [powershell](modules/powershell/.claude/CLAUDE.md) | 1 | Windows | PowerShell config |
+| [terminal](modules/terminal/.claude/CLAUDE.md) | 1 | Windows | Windows Terminal |
+| [winget](modules/winget/.claude/CLAUDE.md) | 1 | Windows | Windows Package Manager |
+| [registry](modules/registry/.claude/CLAUDE.md) | 1 | Windows | Windows Registry |
+
+## Key Commands
+
+```bash
+# Environment management
+./devenv init vfx              # Initialize VFX workflow
+./devenv init web              # Initialize web development
+./devenv install <module>      # Install a specific module
+./devenv verify                # Health check all modules
+./devenv workflows             # List available workflows
+
+# Project scaffolding
+./devenv --new-project my-tool --type vfx          # C++ VFX project
+./devenv --new-project my-game --type web:phaser    # Phaser game
+./devenv --new-project my-app --type web:vanilla    # Vite + TS
+./devenv --list-types                               # Show types
+
+# VFX builds
+conda run -n vfx-build python -m builder.cli list   # List recipes
+conda run -n vfx-build python -m builder.cli build <pkg> -v
+
+# Development
+make lint                      # ShellCheck + JSON validation
+make test                      # bats + pytest
+```
+
+## Conventions
+
+- **Shell**: `set -euo pipefail`, log via `log "LEVEL" "msg" "module"`
+- **JSON**: `get_module_config` / `get_json_value` wrappers (never raw jq in modules)
+- **Variable expansion**: `expand_vars` (never `eval echo`)
+- **Portable sed**: `sed_inplace` (never raw `sed -i`)
+- **Conda commands**: `conda run -n <env>` (never `conda activate`)
+- **Module interface**: install, remove, verify, info via case statement
+- **State tracking**: `$HOME/.devenv/state/<module>.state`
+- **Commits**: No `Co-Authored-By:` lines
 
 ## Platform Detection
 
-This project runs on multiple platforms. Detect and use the correct package manager:
-
 | Distribution | Package Manager | Detection |
 |-------------|-----------------|-----------|
-| AlmaLinux, RHEL, Fedora, CentOS | `dnf` (or `yum`) | `command -v dnf` |
+| AlmaLinux, RHEL, Fedora | `dnf` | `command -v dnf` |
 | Ubuntu, Debian | `apt-get` | `command -v apt-get` |
 | macOS | `brew` | `command -v brew` |
-| Windows | `winget` or `choco` | PowerShell environment |
+| Windows | `winget` | PowerShell environment |
 
-**WSL Detection**: Check `/proc/version` for "microsoft" to detect WSL environments.
+WSL: Check `/proc/version` for "microsoft".
 
-```bash
-# Example platform detection
-if grep -qi microsoft /proc/version 2>/dev/null; then
-    # WSL environment - may use Windows tools
-elif command -v dnf &>/dev/null; then
-    # RHEL-based (AlmaLinux, Fedora, CentOS)
-elif command -v apt-get &>/dev/null; then
-    # Debian-based (Ubuntu, Debian)
-fi
-```
+## VFX Build System
 
-## Key Conventions
+Build order: imath → openexr → opencolorio → tbb → opensubdiv → boost → openvdb → ptex → openimageio → materialx → alembic → usd
 
-- **Module naming**: Directory name = script name = config key (e.g., `modules/git/git.sh`)
-- **Module loading order**: Controlled by `runlevel` in each module's `config.json`
-- **Library sourcing**: Every module sources `compat.sh`, `logging.sh`, `json.sh`, `module.sh`, `backup.sh`, `alias.sh`
-- **Environment variable expansion**: Use `expand_vars` (from `compat.sh`), never `eval echo`
-- **Portable sed**: Use `sed_inplace` (from `compat.sh`), never raw `sed -i`
-- **Platform paths**: Config uses `${DEVENV_ROOT}`, `${DEVENV_DATA_DIR}`, `${HOME}` - expanded at runtime
-- **State tracking**: Module installation state in `$HOME/.devenv/state/<module>.state`
-- **Backup before modify**: Always call `backup_file` before overwriting user configs
+- Recipes in `toolkits/vfx-bootstrap/recipes/<pkg>/`
+- Output: `~/Development/vfx/builds/linux-64/`
+- Logs: `~/Development/vfx/builds/logs/`
+- SHA256 verify: `curl -sL <url> | sha256sum`
 
-### Shell Scripts
-- Use `set -euo pipefail` (bash) or `set -eu` (POSIX sh)
-- Source library files from `lib/`
-- Use `log "LEVEL" "message" "module"` for logging (levels: INFO, WARN, ERROR, DEBUG)
+## Known Issues
 
-### PowerShell Scripts
-- Use `Set-StrictMode -Version Latest`
-- Use `$ErrorActionPreference = 'Stop'`
-- Windows-specific modules go in `lib/windows/`
-
-## Module Interface
-
-Every module script handles these actions via a case statement:
-- `install` - Install and configure the tool
-- `remove` - Uninstall and clean up
-- `verify` - Health check all components
-- `info` - Display status and version info
-
-### Module Structure
-Each module in `modules/<name>/` must have:
-- `config.json` - Module configuration (runlevel, deps, paths, aliases)
-- `<name>.sh` - Bash implementation with actions: install, remove, verify, info
-- `<name>.ps1` - PowerShell implementation (Windows modules)
-
-## Common Commands
-
-```bash
-./devenv install <module>     # Install a module
-./devenv remove <module>      # Remove a module
-./devenv verify <module>      # Verify installation
-./devenv info <module>        # Show module info
-./devenv backup               # Backup all configs
-./devenv restore              # Restore from backup
-make lint                     # Run ShellCheck + JSON validation
-make test                     # Run bats tests
-```
-
-## Available Tools
-
-When devenv is active, these tools are available:
-
-| Tool | Command | Purpose |
-|------|---------|---------|
-| Python | `py`, `py-pip`, `py-fmt`, `py-lint` | Python development |
-| Node.js | `node`, `npm`, `nvm` | JavaScript development |
-| Conda | `conda`, `ca`, `ci` | Environment management |
-| Git | `git` | Version control |
-| Docker | `docker` (via WSL integration) | Containerization |
-| VSCode | `code` | Editor (Windows integration in WSL) |
-
-## Modules
-
-- **All modules**: git, docker, vscode, python, nodejs, conda, zsh, powershell, terminal, winget, phaser, tiled, ldtk, react, registry
-- **Windows-only**: terminal, powershell, winget, registry
-- **Cross-platform**: git, docker, vscode, python, nodejs
-
-## Testing
-
-- Bash tests: `bats-core` in `tests/`
-- PowerShell tests: `Pester` (planned)
-- Run: `make test` or `make lint`
-- Line endings: `.sh` = LF, `.ps1` = CRLF (enforced by `.gitattributes`)
-
-## Known Issues / Technical Debt
-
-- `devenv.ps1` needs refactoring into `lib/windows/` modules
-- CI only runs on ubuntu-latest (needs Windows and macOS runners)
-- macOS platform support is less complete than Linux/Windows
-- Environment templates defined in `config.json` but `devenv init <template>` not yet implemented
-- No JSON Schema validation for config files
-
-## GitHub Integration
-
-- Project board: https://github.com/users/imcalderon/projects/4
-- Create issues with: `gh issue create --repo imcalderon/devenv`
-- Use labels: `bug`, `enhancement`, `platform`, `docs`
+- VFX module reports `[ok]` even on failure (#100)
+- Docker listed as VFX dep but not in template (#101)
+- TBB recipe has uncommitted local changes (#102)

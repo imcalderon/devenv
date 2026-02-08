@@ -1,0 +1,24 @@
+# ${PROJECT_NAME}
+
+## Project Type
+Phaser ${PHASER_VERSION} + TypeScript game project.
+
+## Development
+```bash
+npm install
+npm run dev      # Start dev server
+npm run build    # Production build
+```
+
+## Key Files
+| File | Purpose |
+|------|---------|
+| src/main.ts | Game entry point and scene setup |
+| index.html | HTML shell |
+| package.json | Dependencies and scripts |
+| tsconfig.json | TypeScript configuration |
+
+## Conventions
+- Use TypeScript strict mode
+- Scenes extend `Phaser.Scene`
+- Assets loaded in `preload()`, setup in `create()`, logic in `update()`
