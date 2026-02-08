@@ -137,9 +137,9 @@
         },
         "wsl": {
           "enabled": true,
-          "distribution": "Ubuntu-22.04",
-          "auto_install": true,
-          "docker_socket": "/var/run/docker-desktop.sock",
+          "distribution": "AlmaLinux10",
+          "auto_install": false,
+          "docker_socket": "/var/run/docker.sock",
           "modules": {
             "order": [
               "zsh",
@@ -353,6 +353,25 @@
         "linux": ["zsh", "git", "nodejs", "vscode", "docker"],
         "darwin": ["zsh", "git", "nodejs", "vscode", "docker"]
       }
+    }
+  },
+  "wsl": {
+    "enabled": true,
+    "distribution": "AlmaLinux10",
+    "default_root": "${DEVENV_ROOT}/..",
+    "memory": "8GB",
+    "swap": "4GB",
+    "processors": 4,
+    "auto_install": false,
+    "auto_memory_reclaim": "gradual",
+    "docker_socket": "/var/run/docker.sock",
+    "bootstrap": {
+      "username": "devuser",
+      "timezone": "America/Chicago"
+    },
+    "image": {
+      "source_url": "https://github.com/AlmaLinux/wsl-images/releases/download/10.1-20250127/AlmaLinux-10.1_x64.wsl",
+      "filename": "AlmaLinux-10.1_x64.wsl"
     }
   },
   "integrations": {

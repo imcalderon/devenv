@@ -1,13 +1,14 @@
 #!/bin/bash
-# bootstrap-wsl.sh - Minimal WSL bootstrap for devenv
+# bootstrap-wsl.sh - Minimal WSL bootstrap for AlmaLinux 10
 # Creates user, sets up sudo, installs only what's needed to run devenv
+# Run as root inside WSL: wsl -d AlmaLinux10 --user root -- bash bootstrap-wsl.sh
 
-set -e
+set -euo pipefail
 
-echo "=== Minimal WSL Bootstrap for DevEnv ==="
+echo "=== Minimal WSL Bootstrap for DevEnv (AlmaLinux 10) ==="
 
 # --- Configuration ---
-USERNAME="${1:-imcalderon}"
+USERNAME="${1:-devuser}"
 PASSWORD="${2:-devenv}"
 TIMEZONE="${3:-America/Chicago}"
 
@@ -17,6 +18,12 @@ echo "Timezone: $TIMEZONE"
 # --- Timezone ---
 echo "=== Setting timezone ==="
 ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime 2>/dev/null || true
+
+# --- Enable EPEL and CRB repos ---
+echo "=== Enabling EPEL and CRB repositories ==="
+dnf install -y --setopt=install_weak_deps=False epel-release
+dnf config-manager --set-enabled crb 2>/dev/null || \
+    dnf config-manager --set-enabled powertools 2>/dev/null || true
 
 # --- Create user ---
 echo "=== Creating user $USERNAME ==="
@@ -30,7 +37,6 @@ fi
 
 # --- Configure sudo (passwordless for dev environment) ---
 echo "=== Configuring passwordless sudo ==="
-# Create a dedicated sudoers drop-in file for clean passwordless sudo
 cat > /etc/sudoers.d/99-devenv-nopasswd << 'SUDOERS'
 # DevEnv: Allow wheel group passwordless sudo for development
 %wheel ALL=(ALL) NOPASSWD: ALL
@@ -46,11 +52,21 @@ dnf install -y --setopt=install_weak_deps=False \
     git \
     jq \
     curl \
-    sudo
+    sudo \
+    tar \
+    gzip \
+    which \
+    findutils \
+    procps-ng
+
+# --- Install development tools (needed for VFX builds, conda, etc.) ---
+echo "=== Installing development tools ==="
+dnf group install -y "Development Tools" --setopt=install_weak_deps=False 2>/dev/null || \
+    dnf install -y --setopt=install_weak_deps=False gcc gcc-c++ make cmake
 
 # --- Install GitHub CLI ---
 echo "=== Installing GitHub CLI ==="
-dnf install -y 'dnf-command(config-manager)'
+dnf install -y 'dnf-command(config-manager)' 2>/dev/null || true
 dnf config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
 dnf install -y gh --repo gh-cli
 
@@ -59,7 +75,7 @@ echo "=== Installing Node.js via nvm and Claude Code ==="
 su - "$USERNAME" -c '
 set -e
 echo "Installing nvm..."
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
 
 # Load nvm
 export NVM_DIR="$HOME/.nvm"
@@ -86,6 +102,9 @@ appendWindowsPath=true
 [network]
 generateHosts=true
 generateResolvConf=true
+
+[boot]
+systemd=true
 EOF
 
 # --- Create secrets config template ---
@@ -127,9 +146,11 @@ chown -R "$USERNAME:$USERNAME" "/home/$USERNAME/.config"
 echo ""
 echo "=== Bootstrap complete ==="
 echo ""
-echo "Installed: git, jq, curl, gh, node ($(su - "$USERNAME" -c 'bash -lc "node --version"' 2>/dev/null || echo 'n/a')), claude"
+echo "Installed: git, jq, curl, gh, dev tools"
+echo "  Node.js: $(su - "$USERNAME" -c 'bash -lc "node --version"' 2>/dev/null || echo 'n/a')"
+echo "  Claude:  $(su - "$USERNAME" -c 'bash -lc "claude --version"' 2>/dev/null || echo 'n/a')"
 echo ""
-echo "WSL will restart and then prompt for gh and claude authentication."
+echo "WSL will restart to apply wsl.conf settings."
 echo ""
 echo "User: $USERNAME"
 echo "Password: $PASSWORD (change with 'passwd')"
