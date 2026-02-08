@@ -1,10 +1,10 @@
 {
   "version": "3.0.0",
   "metadata": {
-    "name": "DevEnv Configuration",
-    "description": "Cross-platform development environment with native Windows, WSL, and container support",
+    "name": "VFX DevEnv Configuration",
+    "description": "VFX Platform development environment extending devenv",
     "author": "Ivan Calderon",
-    "created": "2025-01-01",
+    "created": "2026-02-05",
     "schema_version": "3.0"
   },
   "global": {
@@ -25,7 +25,7 @@
       },
       "cross_platform": [
         "git",
-        "docker", 
+        "docker",
         "vscode",
         "python",
         "nodejs"
@@ -92,23 +92,6 @@
           "environment": {
             "NPM_CACHE_DIR": "/home/user/.cache/npm"
           }
-        },
-        "vscode": {
-          "containerize": true,
-          "image": "codercom/code-server:latest",
-          "extra_args": "--network=host",
-          "ports": ["8443:8443"],
-          "environment": {
-            "PASSWORD": "${DEVENV_VSCODE_PASSWORD:-changeme}"
-          }
-        },
-        "java": {
-          "containerize": true,
-          "image": "openjdk:17-jdk-slim",
-          "extra_mounts": [
-            "${env:USERPROFILE}/.m2:/home/user/.m2",
-            "${env:USERPROFILE}/.gradle:/home/user/.gradle"
-          ]
         }
       }
     }
@@ -130,7 +113,7 @@
         ],
         "available": [
           "terminal",
-          "powershell", 
+          "powershell",
           "winget",
           "git",
           "docker",
@@ -142,7 +125,7 @@
         "platform_specific": [
           "terminal",
           "powershell",
-          "winget", 
+          "winget",
           "registry"
         ]
       },
@@ -160,20 +143,23 @@
           "modules": {
             "order": [
               "zsh",
-              "git", 
+              "git",
               "docker",
               "python",
               "nodejs",
-              "vscode"
+              "vscode",
+              "conda",
+              "vfx"
             ],
             "available": [
               "zsh",
               "git",
-              "docker", 
+              "docker",
               "python",
               "nodejs",
               "vscode",
-              "conda"
+              "conda",
+              "vfx"
             ]
           }
         },
@@ -228,20 +214,22 @@
         "order": [
           "zsh",
           "git",
-          "docker", 
+          "docker",
           "python",
           "nodejs",
           "vscode",
-          "conda"
+          "conda",
+          "vfx"
         ],
         "available": [
           "zsh",
           "git",
           "docker",
-          "python", 
+          "python",
           "nodejs",
           "vscode",
           "conda",
+          "vfx",
           "react"
         ],
         "platform_specific": [
@@ -267,7 +255,7 @@
       }
     },
     "darwin": {
-      "script": "devenv.sh", 
+      "script": "devenv.sh",
       "shell": "/bin/bash",
       "modules": {
         "order": [
@@ -275,9 +263,10 @@
           "git",
           "docker",
           "python",
-          "nodejs", 
+          "nodejs",
           "vscode",
-          "conda"
+          "conda",
+          "vfx"
         ],
         "available": [
           "zsh",
@@ -285,8 +274,9 @@
           "docker",
           "python",
           "nodejs",
-          "vscode", 
+          "vscode",
           "conda",
+          "vfx",
           "react"
         ],
         "platform_specific": [
@@ -333,22 +323,19 @@
     }
   },
   "templates": {
+    "vfx_platform": {
+      "description": "VFX Platform development and build environment",
+      "modules": {
+        "linux": ["zsh", "git", "docker", "python", "conda", "vfx"],
+        "darwin": ["zsh", "git", "docker", "python", "conda", "vfx"]
+      }
+    },
     "web_development": {
       "description": "Web development environment with Node.js, Docker, and VS Code",
       "modules": {
         "windows": ["terminal", "powershell", "git", "nodejs", "vscode", "docker"],
         "linux": ["zsh", "git", "nodejs", "vscode", "docker"],
         "darwin": ["zsh", "git", "nodejs", "vscode", "docker"]
-      },
-      "containers": {
-        "frontend": {
-          "image": "node:18-alpine",
-          "ports": ["3000:3000"]
-        },
-        "backend": {
-          "image": "node:18-alpine", 
-          "ports": ["8000:8000"]
-        }
       }
     },
     "data_science": {
@@ -357,16 +344,6 @@
         "windows": ["terminal", "powershell", "git", "python", "vscode", "docker"],
         "linux": ["zsh", "git", "python", "vscode", "docker", "conda"],
         "darwin": ["zsh", "git", "python", "vscode", "docker", "conda"]
-      },
-      "containers": {
-        "jupyter": {
-          "image": "jupyter/datascience-notebook",
-          "ports": ["8888:8888"]
-        },
-        "database": {
-          "image": "postgres:14",
-          "ports": ["5432:5432"]
-        }
       }
     },
     "game_development": {
@@ -375,13 +352,6 @@
         "windows": ["terminal", "powershell", "git", "nodejs", "vscode", "docker"],
         "linux": ["zsh", "git", "nodejs", "vscode", "docker"],
         "darwin": ["zsh", "git", "nodejs", "vscode", "docker"]
-      },
-      "containers": {
-        "phaser": {
-          "image": "node:18-alpine",
-          "ports": ["8080:8080"],
-          "extra_mounts": ["${env:USERPROFILE}/Projects/games:/home/user/games"]
-        }
       }
     }
   },
@@ -390,30 +360,6 @@
       "enabled": true,
       "auto_ssh_setup": true,
       "codespaces_support": true
-    },
-    "azure": {
-      "enabled": false,
-      "devops_integration": false,
-      "container_registry": ""
-    },
-    "aws": {
-      "enabled": false,
-      "ecr_integration": false,
-      "cloud9_support": false
     }
-  },
-  "experimental": {
-    "features": {
-      "auto_updates": false,
-      "telemetry": false,
-      "ai_assistance": false,
-      "cloud_sync": false
-    },
-    "preview_modules": [
-      "rust",
-      "go", 
-      "kotlin",
-      "terraform"
-    ]
   }
 }
