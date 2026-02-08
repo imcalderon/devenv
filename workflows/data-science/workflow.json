@@ -1,0 +1,16 @@
+{
+  "name": "Data Science",
+  "description": "Data science environment with Python, Conda, Jupyter, and PostgreSQL",
+  "version": "1.0.0",
+  "modules": {
+    "linux": ["zsh", "git", "python", "vscode", "docker", "conda"],
+    "darwin": ["zsh", "git", "python", "vscode", "docker", "conda"],
+    "windows": ["terminal", "powershell", "git", "python", "vscode", "docker"]
+  },
+  "scaffold": "data-science",
+  "variables": {
+    "PYTHON_VERSION": "3.12",
+    "JUPYTER_ENABLED": "true",
+    "NOTEBOOK_DIR": "notebooks"
+  }
+}
