@@ -1,0 +1,42 @@
+{% set name = "opensubdiv" %}
+{% set version = "3.6.0" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/PixarAnimationStudios/OpenSubdiv/archive/v{{ version.replace('.', '_') }}.tar.gz
+  sha256: bebfd61ab6657a4f4ff27845fb66a167d00395783bfbd253254d87447ed1d879
+
+build:
+  number: 0
+  run_exports:
+    - {{ pin_subpackage(name, max_pin='x.x') }}
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - cmake
+    - ninja  # [unix]
+  host:
+    - tbb
+    - zlib
+
+test:
+  commands:
+    - test -f $PREFIX/lib/libosdCPU${SHLIB_EXT}  # [unix]
+    - test -f $PREFIX/include/opensubdiv/version.h  # [unix]
+
+about:
+  home: https://graphics.pixar.com/opensubdiv/
+  license: Apache-2.0
+  license_file: LICENSE.txt
+  summary: High performance subdivision surface evaluation
+  doc_url: https://graphics.pixar.com/opensubdiv/docs/intro.html
+  dev_url: https://github.com/PixarAnimationStudios/OpenSubdiv
+
+extra:
+  recipe-maintainers:
+    - vfx-bootstrap

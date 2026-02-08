@@ -1,0 +1,146 @@
+# VFX Bootstrap Package Manifest Schema
+# This schema defines the format-agnostic package manifest
+
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://vfx-bootstrap.dev/schemas/package.schema.yaml"
+title: VFX Bootstrap Package Manifest
+description: Format-agnostic package manifest for VFX software distribution
+
+type: object
+required:
+  - name
+  - version
+
+properties:
+  name:
+    type: string
+    description: Package name
+    pattern: "^[a-z][a-z0-9-]*$"
+
+  version:
+    type: string
+    description: Package version (semver recommended)
+    pattern: "^[0-9]+\\.[0-9]+.*$"
+
+  description:
+    type: string
+    description: Human-readable package description
+
+  license:
+    type: string
+    description: SPDX license identifier
+    examples:
+      - Apache-2.0
+      - MIT
+      - BSD-3-Clause
+
+  homepage:
+    type: string
+    format: uri
+    description: Project homepage URL
+
+  components:
+    type: array
+    description: List of package components
+    items:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Component name
+
+        description:
+          type: string
+          description: Component description
+
+        optional:
+          type: boolean
+          default: false
+          description: Whether this component is optional
+
+        files:
+          type: array
+          description: Files included in this component
+          items:
+            type: object
+            required:
+              - src
+              - dst
+            properties:
+              src:
+                type: string
+                description: Source path (relative to build output)
+
+              dst:
+                type: string
+                description: Destination path (relative to install prefix)
+
+              executable:
+                type: boolean
+                default: false
+                description: Mark file as executable
+
+              optional:
+                type: boolean
+                default: false
+                description: File is optional (don't fail if missing)
+
+        dependencies:
+          type: array
+          description: Runtime dependencies for this component
+          items:
+            type: string
+            description: Dependency specification (name and optional version)
+            examples:
+              - boost >= 1.76
+              - python >= 3.10
+              - tbb
+
+  metadata:
+    type: object
+    description: Additional metadata
+    additionalProperties:
+      type: string
+    properties:
+      vfx_platform:
+        type: string
+        description: Target VFX Platform year
+        examples:
+          - "2024"
+          - "2023"
+
+      build_date:
+        type: string
+        format: date
+        description: Build date
+
+examples:
+  - name: usd-tools
+    version: "24.03"
+    description: USD utilities and plugins
+    license: Apache-2.0
+    homepage: https://openusd.org/
+    components:
+      - name: core
+        description: Core USD libraries and tools
+        files:
+          - src: bin/usdcat
+            dst: bin/
+            executable: true
+          - src: lib/*.so
+            dst: lib/
+        dependencies:
+          - boost >= 1.76
+          - tbb >= 2020.3
+      - name: python
+        description: Python bindings
+        optional: true
+        files:
+          - src: python/pxr/*
+            dst: python/pxr/
+        dependencies:
+          - python >= 3.10
+    metadata:
+      vfx_platform: "2024"

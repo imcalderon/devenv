@@ -1,0 +1,46 @@
+{% set name = "materialx" %}
+{% set version = "1.38.9" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/AcademySoftwareFoundation/MaterialX/archive/v{{ version }}.tar.gz
+  sha256: 8eb707bd9bc63ced7a8d64c2e3b2e1e39df71e2a8650daa178f564bec0c79291
+
+build:
+  number: 0
+  run_exports:
+    - {{ pin_subpackage(name, max_pin='x.x') }}
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - cmake
+    - ninja  # [unix]
+  host:
+    - python
+    - openexr
+    - imath
+  run:
+    - python
+
+test:
+  imports:
+    - MaterialX
+  commands:
+    - test -f $PREFIX/lib/libMaterialXCore${SHLIB_EXT}  # [unix]
+
+about:
+  home: https://www.materialx.org/
+  license: Apache-2.0
+  license_file: LICENSE
+  summary: MaterialX is an open standard for representing rich material and look-development content
+  doc_url: https://materialx.org/docs/api/
+  dev_url: https://github.com/AcademySoftwareFoundation/MaterialX
+
+extra:
+  recipe-maintainers:
+    - vfx-bootstrap

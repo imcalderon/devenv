@@ -1,0 +1,46 @@
+{% set name = "alembic" %}
+{% set version = "1.8.5" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/alembic/alembic/archive/{{ version }}.tar.gz
+  sha256: 180a12f08d391cd89f021f279dbe3b5423b1db751a9898540c8059a45825c2e9
+
+build:
+  number: 0
+  run_exports:
+    - {{ pin_subpackage(name, max_pin='x.x') }}
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - cmake
+    - ninja  # [unix]
+  host:
+    - openexr
+    - imath
+    - zlib
+  run:
+    - openexr
+    - imath
+
+test:
+  commands:
+    - test -f $PREFIX/lib/libAlembic${SHLIB_EXT}  # [unix]
+    - test -f $PREFIX/include/Alembic/Abc/All.h  # [unix]
+
+about:
+  home: https://www.alembic.io/
+  license: BSD-3-Clause
+  license_file: LICENSE.txt
+  summary: Open computer graphics interchange framework
+  doc_url: http://www.alembic.io/
+  dev_url: https://github.com/alembic/alembic
+
+extra:
+  recipe-maintainers:
+    - vfx-bootstrap

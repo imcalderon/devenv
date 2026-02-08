@@ -1,0 +1,60 @@
+{% set name = "opencolorio" %}
+{% set version = "2.3.2" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/AcademySoftwareFoundation/OpenColorIO/archive/v{{ version }}.tar.gz
+  sha256: 6bbf4e7fa4ea2f743a238cb22aff44890425771a2f57f62cece1574e46ceec2f
+
+build:
+  number: 0
+  run_exports:
+    - {{ pin_subpackage(name, max_pin='x.x') }}
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - cmake
+    - ninja  # [unix]
+  host:
+    - python
+    - pybind11 >=2.9.1
+    - imath
+    - openexr
+    - zlib
+    - expat
+    - lcms2
+    - yaml-cpp
+  run:
+    - python
+    - imath
+    - yaml-cpp
+
+test:
+  imports:
+    - PyOpenColorIO
+  commands:
+    - test -f $PREFIX/lib/libOpenColorIO${SHLIB_EXT}  # [unix]
+    - test -f $PREFIX/bin/ociocheck  # [unix]
+
+about:
+  home: https://opencolorio.org/
+  license: BSD-3-Clause
+  license_file: LICENSE
+  summary: Complete color management solution for film production
+  description: |
+    OpenColorIO (OCIO) is a complete color management solution geared towards
+    motion picture production with an emphasis on visual effects and computer
+    animation. OCIO provides a straightforward and consistent user experience
+    across all supporting applications while allowing for sophisticated
+    back-end configuration options.
+  doc_url: https://opencolorio.readthedocs.io/
+  dev_url: https://github.com/AcademySoftwareFoundation/OpenColorIO
+
+extra:
+  recipe-maintainers:
+    - vfx-bootstrap

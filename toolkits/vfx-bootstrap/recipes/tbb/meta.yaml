@@ -1,0 +1,45 @@
+{% set name = "tbb" %}
+{% set version = "2020.3" %}
+{% set version_tag = "v2020.3" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/oneapi-src/oneTBB/archive/{{ version_tag }}.tar.gz
+  sha256: ebc4f6aa47972daed1f7bf71d100ae5bf6931c2e3144cf299c8cc7d041dca2f3
+
+build:
+  number: 0
+  run_exports:
+    - {{ pin_subpackage(name, max_pin='x.x') }}
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - cmake
+    - ninja  # [unix]
+    - make   # [unix]
+
+test:
+  commands:
+    - test -f $PREFIX/lib/libtbb${SHLIB_EXT}  # [unix]
+    - test -f $PREFIX/include/tbb/tbb.h  # [unix]
+
+about:
+  home: https://github.com/oneapi-src/oneTBB
+  license: Apache-2.0
+  license_file: LICENSE
+  summary: Intel Threading Building Blocks
+  description: |
+    Intel Threading Building Blocks (Intel TBB) is a widely used,
+    award-winning C++ library for shared-memory parallel programming
+    and heterogeneous computing.
+  doc_url: https://oneapi-src.github.io/oneTBB/
+  dev_url: https://github.com/oneapi-src/oneTBB
+
+extra:
+  recipe-maintainers:
+    - vfx-bootstrap

@@ -1,0 +1,58 @@
+{% set name = "openvdb" %}
+{% set version = "11.0.0" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/AcademySoftwareFoundation/openvdb/archive/v{{ version }}.tar.gz
+  sha256: 6314ff1db057ea90050763e7b7d7ed86d8224fcd42a82cdbb9c515e001b96c74
+
+build:
+  number: 0
+  run_exports:
+    - {{ pin_subpackage(name, max_pin='x.x') }}
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - cmake
+    - ninja  # [unix]
+  host:
+    - python
+    - numpy
+    - pybind11 >=2.9.1,<3
+    - boost
+    - tbb
+    - openexr
+    - imath
+    - zlib
+    - blosc
+  run:
+    - python
+    - {{ pin_compatible('numpy') }}
+    - {{ pin_compatible('boost', max_pin='x.x') }}
+    - {{ pin_compatible('tbb', max_pin='x.x') }}
+    - openexr
+    - imath
+
+test:
+  imports:
+    - pyopenvdb
+  commands:
+    - test -f $PREFIX/lib/libopenvdb${SHLIB_EXT}  # [unix]
+    - vdb_print --version  # [unix]
+
+about:
+  home: https://www.openvdb.org/
+  license: MPL-2.0
+  license_file: LICENSE
+  summary: Sparse volume data structure and tools
+  doc_url: https://www.openvdb.org/documentation/
+  dev_url: https://github.com/AcademySoftwareFoundation/openvdb
+
+extra:
+  recipe-maintainers:
+    - vfx-bootstrap
