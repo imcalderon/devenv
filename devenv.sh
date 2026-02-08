@@ -174,14 +174,15 @@ show_usage() {
 Usage: $0 COMMAND [MODULE] [OPTIONS]
 
 Commands:
-  install   Install one or all modules
-  remove    Remove one or all modules
-  verify    Verify one or all modules
-  info      Show information about one or all modules
-  init      Initialize environment from a template
-  backup    Create backup of current environment
-  restore   Restore from backup
-  secrets   Manage secrets (wizard, show, set, reset, validate, export, import)
+  install    Install one or all modules
+  remove     Remove one or all modules
+  verify     Verify one or all modules
+  info       Show information about one or all modules
+  init       Initialize environment from a workflow
+  workflows  List available workflows
+  backup     Create backup of current environment
+  restore    Restore from backup
+  secrets    Manage secrets (wizard, show, set, reset, validate, export, import)
 
 Options:
   --force   Force installation even if already installed
@@ -191,7 +192,9 @@ Examples:
   $0 install git --force  # Force install git module
   $0 info docker         # Show docker module information
   $0 verify              # Verify all modules
-  $0 init web_development # Initialize from template
+  $0 workflows           # List available workflows
+  $0 init vfx            # Initialize VFX workflow
+  $0 init web            # Initialize web development workflow
 EOF
 }
 
@@ -295,37 +298,62 @@ init_template() {
     local force="${2:-false}"
 
     if [[ -z "$template_name" ]]; then
-        log "ERROR" "Template name required. Available templates:"
-        local templates
-        templates=$(get_json_value "$CONFIG_FILE" ".templates | keys[]")
-        for t in $templates; do
-            local desc
-            desc=$(get_json_value "$CONFIG_FILE" ".templates.$t.description" "$t")
-            log "INFO" "  $t - $desc"
-        done
+        log "ERROR" "Template name required. Use 'workflows' to see available options."
+        list_workflows
         return 1
     fi
 
-    # Verify the template exists
-    local template_modules
-    template_modules=$(get_json_value "$CONFIG_FILE" ".templates.$template_name.modules.$PLATFORM[]" "" 2>/dev/null)
+    # Try workflow definitions first, then fall back to config.json templates
+    local template_modules=""
+    local resolved_name="$template_name"
+
+    # Handle legacy template name aliases
+    case "$template_name" in
+        vfx_platform) resolved_name="vfx" ;;
+        web_development) resolved_name="web" ;;
+        game_development) resolved_name="game" ;;
+    esac
+
+    local workflow_file="$ROOT_DIR/workflows/$resolved_name/workflow.json"
+
+    if [[ -f "$workflow_file" ]]; then
+        template_modules=$(jq -r ".modules.$PLATFORM[]?" "$workflow_file" 2>/dev/null)
+    fi
+
+    # Fallback: check config.json templates (backward compatibility)
+    if [[ -z "$template_modules" ]]; then
+        template_modules=$(get_json_value "$CONFIG_FILE" ".templates.$template_name.modules.$PLATFORM[]" "" 2>/dev/null)
+    fi
 
     if [[ -z "$template_modules" ]]; then
-        log "ERROR" "Template '$template_name' not found or has no modules for platform '$PLATFORM'"
+        log "ERROR" "Workflow '$template_name' not found or has no modules for platform '$PLATFORM'"
         return 1
     fi
 
-    log "INFO" "Initializing template: $template_name (platform: $PLATFORM)"
+    log "INFO" "Initializing workflow: $template_name (platform: $PLATFORM)"
 
     # Install each module in template order
     local exit_code=0
     for module in $template_modules; do
-        log "INFO" "Installing template module: $module"
+        log "INFO" "Installing module: $module"
         if ! execute_stage "install" "$module" "$force"; then
             log "ERROR" "Failed to install module: $module"
             exit_code=1
         fi
     done
+
+    # Run post-init commands if defined in workflow
+    if [[ -f "$workflow_file" ]]; then
+        local post_init
+        post_init=$(jq -r '.post_init[]?' "$workflow_file" 2>/dev/null)
+        if [[ -n "$post_init" ]]; then
+            log "INFO" "Running post-init commands..."
+            while IFS= read -r cmd; do
+                log "DEBUG" "Running: $cmd"
+                eval "$cmd" || log "WARN" "Post-init command failed: $cmd"
+            done <<< "$post_init"
+        fi
+    fi
 
     # Save template state
     local template_state_file="$DEVENV_STATE_DIR/template.state"
@@ -338,12 +366,55 @@ modules:$(echo $template_modules | tr '\n' ',')
 EOF
 
     if [[ $exit_code -eq 0 ]]; then
-        log "INFO" "Template '$template_name' initialized successfully"
+        log "INFO" "Workflow '$template_name' initialized successfully"
     else
-        log "WARN" "Template '$template_name' initialized with errors"
+        log "WARN" "Workflow '$template_name' initialized with errors"
     fi
 
     return $exit_code
+}
+
+# List available workflows
+list_workflows() {
+    log "INFO" "Available workflows:"
+    local workflows_dir="$ROOT_DIR/workflows"
+
+    if [[ -d "$workflows_dir" ]]; then
+        for wf_dir in "$workflows_dir"/*/; do
+            local wf_name
+            wf_name=$(basename "$wf_dir")
+            local wf_file="$wf_dir/workflow.json"
+            if [[ -f "$wf_file" ]]; then
+                local desc
+                desc=$(jq -r '.description // "No description"' "$wf_file")
+                local subtypes
+                subtypes=$(jq -r '.subtypes | keys[]?' "$wf_file" 2>/dev/null)
+                log "INFO" "  $wf_name - $desc"
+                if [[ -n "$subtypes" ]]; then
+                    while IFS= read -r st; do
+                        local st_desc
+                        st_desc=$(jq -r ".subtypes.\"$st\".description // \"\"" "$wf_file")
+                        log "INFO" "    $wf_name:$st - $st_desc"
+                    done <<< "$subtypes"
+                fi
+            fi
+        done
+    fi
+
+    # Also show legacy templates from config.json
+    local legacy_templates
+    legacy_templates=$(get_json_value "$CONFIG_FILE" ".templates | keys[]" "" 2>/dev/null)
+    if [[ -n "$legacy_templates" ]]; then
+        for t in $legacy_templates; do
+            # Skip if already shown as a workflow
+            if [[ -f "$workflows_dir/$t/workflow.json" ]]; then
+                continue
+            fi
+            local desc
+            desc=$(get_json_value "$CONFIG_FILE" ".templates.$t.description" "$t")
+            log "INFO" "  $t - $desc (legacy)"
+        done
+    fi
 }
 
 # Main execution
@@ -399,11 +470,14 @@ main() {
             ;;
         init)
             if [[ -z "$specific_module" ]]; then
-                log "ERROR" "Template name required: $0 init <template>"
-                show_usage
+                log "ERROR" "Workflow name required: $0 init <workflow>"
+                list_workflows
                 exit 1
             fi
             init_template "$specific_module" "$force"
+            ;;
+        workflows)
+            list_workflows
             ;;
         backup)
             create_backup "$specific_module"
