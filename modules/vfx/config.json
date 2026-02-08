@@ -1,0 +1,66 @@
+{
+    "enabled": true,
+    "runlevel": 5,
+    "dependencies": ["conda", "docker", "git"],
+    "backup": {
+        "paths": [
+            "$HOME/.vfx-devenv/platform.json",
+            "$HOME/.condarc"
+        ]
+    },
+    "shell": {
+        "paths": {
+            "vfx_home": "$HOME/.vfx-devenv",
+            "build_output": "$HOME/Development/vfx/builds",
+            "package_output": "$HOME/Development/vfx/packages",
+            "channel_dir": "$HOME/Development/vfx/channel"
+        },
+        "aliases": {
+            "vfx": {
+                "vfx-build": "conda run -n vfx-build python -m builder.cli build",
+                "vfx-package": "conda run -n vfx-build python -m packager.cli",
+                "vfx-clean": "conda run -n vfx-build python -m builder.cli clean",
+                "vfx-list": "conda run -n vfx-build python -m builder.cli list",
+                "vfx-info": "conda run -n vfx-build python -m builder.cli info"
+            },
+            "recipes": {
+                "vfx-recipe": "conda run -n vfx-build python -m builder.cli recipe",
+                "vfx-deps": "conda run -n vfx-build python -m builder.cli deps"
+            }
+        }
+    },
+    "build_deps": {
+        "linux": {
+            "apt": ["cmake", "ninja-build", "gcc", "g++", "make", "pkg-config", "nasm"],
+            "dnf": ["cmake", "ninja-build", "gcc", "gcc-c++", "make", "pkgconfig", "nasm"]
+        },
+        "darwin": {
+            "brew": ["cmake", "ninja", "pkg-config", "nasm"]
+        }
+    },
+    "conda": {
+        "env_name": "vfx-build",
+        "packages": ["conda-build", "boa", "conda-verify"],
+        "channels": ["conda-forge", "defaults"]
+    },
+    "vfx_platform": {
+        "2024": {
+            "python": "3.11",
+            "boost": "1.82.0",
+            "tbb": "2020.3",
+            "openexr": "3.2",
+            "usd": "24.03",
+            "numpy": "1.24",
+            "qt": "6.5"
+        },
+        "2025": {
+            "python": "3.12",
+            "boost": "1.84.0",
+            "tbb": "2021.11",
+            "openexr": "3.3",
+            "usd": "25.02",
+            "numpy": "1.26",
+            "qt": "6.7"
+        }
+    }
+}
