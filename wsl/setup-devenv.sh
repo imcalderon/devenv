@@ -13,7 +13,7 @@ if [[ $EUID -eq 0 ]]; then
     exit 1
 fi
 
-DEVENV_DIR="$HOME/vfx-devenv"
+DEVENV_DIR="$HOME/devenv"
 SECRETS_FILE="$HOME/.config/devenv/secrets.env"
 
 # --- Load secrets if available ---
@@ -22,23 +22,22 @@ if [[ -f "$SECRETS_FILE" ]]; then
     source "$SECRETS_FILE"
 fi
 
-# --- Clone or update vfx-devenv ---
-echo "=== Setting up vfx-devenv ==="
+# --- Clone or update devenv ---
+echo "=== Setting up devenv ==="
 if [[ -d "$DEVENV_DIR" ]]; then
-    echo "vfx-devenv already exists, pulling latest..."
+    echo "devenv already exists, pulling latest..."
     cd "$DEVENV_DIR"
     git pull origin main
-    git submodule update --init --recursive
 else
-    echo "Cloning vfx-devenv..."
-    git clone --recurse-submodules https://github.com/imcalderon/vfx-devenv.git "$DEVENV_DIR"
+    echo "Cloning devenv..."
+    git clone https://github.com/imcalderon/devenv.git "$DEVENV_DIR"
 fi
 
-# --- Run vfx-devenv init ---
+# --- Run devenv init ---
 echo ""
-echo "=== Running vfx-devenv init ==="
+echo "=== Running devenv init ==="
 cd "$DEVENV_DIR"
-./vfx-devenv init vfx_platform
+./devenv init vfx_platform
 
 # --- Install Claude Code ---
 echo ""
@@ -77,16 +76,9 @@ echo "=== Setup Complete ==="
 echo "=========================================="
 echo ""
 echo "Installed:"
-echo "  - vfx-devenv: $DEVENV_DIR"
+echo "  - devenv: $DEVENV_DIR"
 command -v claude &>/dev/null && echo "  - Claude Code: $(claude --version 2>/dev/null || echo 'installed')"
 command -v gh &>/dev/null && echo "  - GitHub CLI: $(gh --version | head -1)"
-echo ""
-echo "DevEnv Open Issues:"
-echo "  #28 - Add configuration validation and schema"
-echo "  #24 - Implement automatic rollback on failure"
-echo "  #29 - Add environment templates/profiles"
-echo "  #27 - Complete macOS platform support"
-echo "  #23 - Add module README documentation"
 echo ""
 echo "Secrets:"
 echo "  Edit ~/.config/devenv/secrets.env to add:"
@@ -95,10 +87,8 @@ echo "  - GITHUB_TOKEN, ANTHROPIC_API_KEY"
 echo "  (Never commit this file!)"
 echo ""
 echo "To start working:"
-echo "  cd ~/vfx-devenv"
+echo "  cd ~/devenv"
 echo "  gh auth login                    # One-time auth"
 echo "  gh issue list                    # View issues"
 echo "  claude                           # Start Claude Code"
-echo ""
-echo "Future: HashiCorp Vault module planned for enterprise secrets"
 echo ""
