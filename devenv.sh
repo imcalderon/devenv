@@ -56,6 +56,7 @@ source "$SCRIPT_DIR/json.sh"     # Then JSON handling
 source "$SCRIPT_DIR/module.sh"   # Then module utilities
 source "$SCRIPT_DIR/backup.sh"   # Finally backup utilities
 source "$SCRIPT_DIR/secrets.sh"  # Secrets management
+source "$SCRIPT_DIR/scaffold.sh" # Project scaffolding
 
 # Verify environment
 verify_environment() {
@@ -174,27 +175,32 @@ show_usage() {
 Usage: $0 COMMAND [MODULE] [OPTIONS]
 
 Commands:
-  install    Install one or all modules
-  remove     Remove one or all modules
-  verify     Verify one or all modules
-  info       Show information about one or all modules
-  init       Initialize environment from a workflow
-  workflows  List available workflows
-  backup     Create backup of current environment
-  restore    Restore from backup
-  secrets    Manage secrets (wizard, show, set, reset, validate, export, import)
+  install        Install one or all modules
+  remove         Remove one or all modules
+  verify         Verify one or all modules
+  info           Show information about one or all modules
+  init           Initialize environment from a workflow
+  workflows      List available workflows
+  --new-project  Create a new project from a scaffold
+  --list-types   List available project types
+  backup         Create backup of current environment
+  restore        Restore from backup
+  secrets        Manage secrets (wizard, show, set, reset, validate, export, import)
 
 Options:
-  --force   Force installation even if already installed
+  --force              Force installation even if already installed
+  --type <type>        Project type for --new-project (e.g. vfx, web:phaser)
+  --location <path>    Target directory for --new-project (default: current dir)
 
 Examples:
-  $0 install              # Install all modules
-  $0 install git --force  # Force install git module
-  $0 info docker         # Show docker module information
-  $0 verify              # Verify all modules
-  $0 workflows           # List available workflows
-  $0 init vfx            # Initialize VFX workflow
-  $0 init web            # Initialize web development workflow
+  $0 install                                    # Install all modules
+  $0 install git --force                        # Force install git module
+  $0 verify                                     # Verify all modules
+  $0 workflows                                  # List available workflows
+  $0 init vfx                                   # Initialize VFX workflow
+  $0 --new-project my-tool --type vfx           # Scaffold a VFX C++ project
+  $0 --new-project my-game --type web:phaser    # Scaffold a Phaser game
+  $0 --list-types                               # Show project scaffold types
 EOF
 }
 
@@ -423,19 +429,44 @@ main() {
         show_usage
         exit 1
     fi
-    
+
     # Parse arguments
     local action=$1
     shift
     local specific_module=""
     local force="false"
+    local project_name=""
+    local project_type=""
+    local project_location="."
     local -a extra_args=()
+
+    # Handle --new-project and --list-types as actions
+    case "$action" in
+        --new-project)
+            action="new-project"
+            if [[ $# -gt 0 && "$1" != --* ]]; then
+                project_name="$1"
+                shift
+            fi
+            ;;
+        --list-types)
+            action="list-types"
+            ;;
+    esac
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --force)
                 force="true"
                 shift
+                ;;
+            --type)
+                project_type="${2:-}"
+                shift 2
+                ;;
+            --location)
+                project_location="${2:-}"
+                shift 2
                 ;;
             *)
                 if [[ -z "$specific_module" ]]; then
@@ -447,13 +478,13 @@ main() {
                 ;;
         esac
     done
-    
+
     # Verify environment first
     if ! verify_environment; then
         log "ERROR" "Environment verification failed"
         exit 1
     fi
-   
+
     case "$action" in
         install)
             create_backup "$specific_module"
@@ -478,6 +509,21 @@ main() {
             ;;
         workflows)
             list_workflows
+            ;;
+        new-project)
+            if [[ -z "$project_name" ]]; then
+                log "ERROR" "Project name required: $0 --new-project <name> --type <type>"
+                exit 1
+            fi
+            if [[ -z "$project_type" ]]; then
+                log "ERROR" "Project type required: --type <vfx|web:phaser|web:vanilla>"
+                list_project_types
+                exit 1
+            fi
+            scaffold_project "$project_name" "$project_type" "$project_location"
+            ;;
+        list-types)
+            list_project_types
             ;;
         backup)
             create_backup "$specific_module"
