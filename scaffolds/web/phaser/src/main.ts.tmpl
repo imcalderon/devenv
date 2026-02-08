@@ -1,0 +1,36 @@
+import Phaser from "phaser";
+
+class MainScene extends Phaser.Scene {
+    constructor() {
+        super("MainScene");
+    }
+
+    preload(): void {
+        // Load assets here
+    }
+
+    create(): void {
+        this.add
+            .text(400, 300, "${PROJECT_NAME}", {
+                fontSize: "32px",
+                color: "#ffffff",
+            })
+            .setOrigin(0.5);
+    }
+
+    update(): void {
+        // Game loop
+    }
+}
+
+const config: Phaser.Types.Core.GameConfig = {
+    type: Phaser.AUTO,
+    width: 800,
+    height: 600,
+    scene: MainScene,
+    physics: {
+        default: "arcade",
+    },
+};
+
+new Phaser.Game(config);

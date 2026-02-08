@@ -2,28 +2,53 @@
 # lib/scaffold.sh - Project scaffolding engine
 # Creates new projects from workflow-defined templates
 
-# Render a .tmpl file by substituting ${VAR} patterns from environment
-# Uses expand_vars from lib/compat.sh
+# Tracked scaffold variables — only these get substituted in templates.
+# This prevents accidental expansion of ${CMAKE_*} or other syntax.
+declare -a _SCAFFOLD_VARS=()
+
+# Register a variable for template substitution
+_register_scaffold_var() {
+    local key="$1"
+    _SCAFFOLD_VARS+=("$key")
+}
+
+# Render a .tmpl file by substituting only registered scaffold variables.
+# Non-registered ${VAR} patterns (like CMake variables) are left untouched.
 render_template() {
     local template_file="$1"
     local output_file="$2"
 
     mkdir -p "$(dirname "$output_file")"
-    expand_vars < "$template_file" > "$output_file"
+
+    # Build a sed expression that replaces only known variables
+    local sed_args=()
+    for varname in "${_SCAFFOLD_VARS[@]}"; do
+        local value="${!varname:-}"
+        # Escape sed special characters in the value
+        value=$(printf '%s' "$value" | sed 's/[&/\]/\\&/g')
+        sed_args+=(-e "s|\${${varname}}|${value}|g")
+    done
+
+    if [[ ${#sed_args[@]} -gt 0 ]]; then
+        sed "${sed_args[@]}" "$template_file" > "$output_file"
+    else
+        cp "$template_file" "$output_file"
+    fi
 }
 
-# Export variables from a workflow.json into the environment
+# Load variables from a workflow.json and register them for substitution.
 # Reads both top-level .variables and subtype-specific .subtypes.<sub>.variables
 load_workflow_variables() {
     local workflow_file="$1"
     local subtype="${2:-}"
 
-    # Always export top-level variables
+    # Always load top-level variables
     local vars
     vars=$(jq -r '.variables // {} | to_entries[] | "\(.key)=\(.value)"' "$workflow_file" 2>/dev/null)
     while IFS='=' read -r key value; do
         [[ -z "$key" ]] && continue
         export "$key=$value"
+        _register_scaffold_var "$key"
     done <<< "$vars"
 
     # Overlay subtype-specific variables if present
@@ -33,6 +58,7 @@ load_workflow_variables() {
         while IFS='=' read -r key value; do
             [[ -z "$key" ]] && continue
             export "$key=$value"
+            _register_scaffold_var "$key"
         done <<< "$st_vars"
     fi
 }
@@ -139,11 +165,16 @@ scaffold_project() {
 
     log "INFO" "Creating $project_type project: $project_name"
 
+    # Reset scaffold variable tracking
+    _SCAFFOLD_VARS=()
+
     # Export standard variables
     export PROJECT_NAME="$project_name"
+    _register_scaffold_var "PROJECT_NAME"
     export PROJECT_TYPE="$project_type"
+    _register_scaffold_var "PROJECT_TYPE"
 
-    # Load workflow variables into environment
+    # Load workflow variables into environment (also registers them)
     load_workflow_variables "$workflow_file" "$subtype"
 
     # Create target directory
