@@ -106,16 +106,17 @@ WSL settings in `config.json`:
 }
 ```
 
-## Secrets
+## Local Configuration & Secrets
 
-Bootstrap creates `~/.config/devenv/secrets.env`:
+All local config lives in a single file at the repo root:
 
 ```bash
-export GIT_USER_NAME=""
-export GIT_USER_EMAIL=""
-export GITHUB_TOKEN=""
-export ANTHROPIC_API_KEY=""
+cp secrets.local.example secrets.local   # One-time setup
 ```
+
+The `secrets.local` file contains WSL params, resource config, git config, and
+API keys. It's `.gitignored` and feeds all devenv systems (WSL scripts, bootstrap,
+`lib/secrets.sh` at runtime). See `secrets.local.example` for all available keys.
 
 For browser-based auth:
 - GitHub: `gh auth login --web`

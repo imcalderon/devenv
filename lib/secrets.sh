@@ -25,6 +25,48 @@ DEVENV_SECRET_DEFS=(
 )
 
 SECRETS_DIR="${DEVENV_DATA_DIR:-$HOME/.devenv}/secrets"
+SECRETS_LOCAL="${DEVENV_ROOT:-.}/secrets.local"
+
+# Read a value from secrets.local (plaintext key=value file)
+# Usage: get_secret_local <key>
+get_secret_local() {
+    local key=$1
+    if [[ ! -f "$SECRETS_LOCAL" ]]; then
+        return 1
+    fi
+    local value=""
+    while IFS='=' read -r k v; do
+        k=$(echo "$k" | xargs 2>/dev/null) || continue
+        [[ -z "$k" || "$k" == \#* ]] && continue
+        v=$(echo "$v" | xargs 2>/dev/null | sed 's/^["'\''"]//;s/["'\''"]$//')
+        if [[ "$k" == "$key" ]]; then
+            value="$v"
+            break
+        fi
+    done < "$SECRETS_LOCAL"
+    if [[ -n "$value" ]]; then
+        echo "$value"
+        return 0
+    fi
+    return 1
+}
+
+# Map between secrets.local keys and devenv secret keys
+# secrets.local uses UPPER_CASE, devenv uses lower_case
+_secret_key_to_local() {
+    local key=$1
+    case "$key" in
+        git_name)         echo "GIT_USER_NAME" ;;
+        git_email)        echo "GIT_USER_EMAIL" ;;
+        github_token)     echo "GITHUB_TOKEN" ;;
+        anthropic_api_key) echo "ANTHROPIC_API_KEY" ;;
+        ssh_passphrase)   echo "SSH_PASSPHRASE" ;;
+        docker_hub_token) echo "DOCKER_HUB_TOKEN" ;;
+        npm_token)        echo "NPM_TOKEN" ;;
+        pypi_token)       echo "PYPI_TOKEN" ;;
+        *)                echo "" ;;
+    esac
+}
 
 # Initialize secrets directory with secure permissions
 init_secrets() {
@@ -72,12 +114,12 @@ set_secret() {
 
 # Retrieve a decrypted secret
 # Usage: get_secret <key> [default]
-# Checks env var override first, then encrypted file
+# Priority: env var > secrets.local > vault > encrypted file > default
 get_secret() {
     local key=$1
     local default=${2:-}
 
-    # Check environment variable override: DEVENV_SECRET_<KEY>
+    # 1. Check environment variable override: DEVENV_SECRET_<KEY>
     local env_var="DEVENV_SECRET_$(echo "$key" | tr '[:lower:]' '[:upper:]')"
     local env_value="${!env_var:-}"
     if [[ -n "$env_value" ]]; then
@@ -85,7 +127,27 @@ get_secret() {
         return 0
     fi
 
-    # Check encrypted file
+    # 2. Check secrets.local (plaintext config file, gitignored)
+    local local_key
+    local_key=$(_secret_key_to_local "$key")
+    if [[ -n "$local_key" ]]; then
+        local local_value
+        if local_value=$(get_secret_local "$local_key" 2>/dev/null); then
+            echo "$local_value"
+            return 0
+        fi
+    fi
+
+    # 3. Check vault (if available and configured)
+    if command -v vault &>/dev/null || command -v bao &>/dev/null; then
+        local vault_value
+        if vault_value=$(_get_secret_from_vault "$key" 2>/dev/null); then
+            echo "$vault_value"
+            return 0
+        fi
+    fi
+
+    # 4. Check encrypted file
     local secret_file="$SECRETS_DIR/${key}.enc"
     if [[ ! -f "$secret_file" ]]; then
         if [[ -n "$default" ]]; then
@@ -375,6 +437,44 @@ secrets_set() {
         log "ERROR" "Validation failed for $key" "secrets"
         return 1
     fi
+}
+
+# Retrieve a secret from vault (OpenBao or HashiCorp Vault)
+# Returns 1 if vault is not configured or secret not found
+_get_secret_from_vault() {
+    local key=$1
+    local vault_addr="${VAULT_ADDR:-}"
+    local vault_token="${VAULT_TOKEN:-}"
+
+    # Check secrets.local for vault config if not in env
+    if [[ -z "$vault_addr" ]]; then
+        vault_addr=$(get_secret_local "VAULT_ADDR" 2>/dev/null) || true
+    fi
+    if [[ -z "$vault_token" ]]; then
+        vault_token=$(get_secret_local "VAULT_TOKEN" 2>/dev/null) || true
+    fi
+
+    # Need both addr and token
+    if [[ -z "$vault_addr" || -z "$vault_token" ]]; then
+        return 1
+    fi
+
+    # Try OpenBao first, fall back to vault CLI
+    local cli="vault"
+    if command -v bao &>/dev/null; then
+        cli="bao"
+    fi
+
+    local vault_path="secret/data/devenv/$key"
+    local result
+    result=$(VAULT_ADDR="$vault_addr" VAULT_TOKEN="$vault_token" \
+        "$cli" kv get -field=value "secret/devenv/$key" 2>/dev/null) || return 1
+
+    if [[ -n "$result" ]]; then
+        echo "$result"
+        return 0
+    fi
+    return 1
 }
 
 # Main command dispatcher

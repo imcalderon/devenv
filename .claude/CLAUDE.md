@@ -58,6 +58,7 @@ Each module has its own `.claude/CLAUDE.md` with detailed documentation.
 | [react](modules/react/.claude/CLAUDE.md) | 3 | Linux/macOS | React framework |
 | [tiled](modules/tiled/.claude/CLAUDE.md) | 3 | Linux/macOS | Tiled map editor |
 | [ldtk](modules/ldtk/.claude/CLAUDE.md) | 3 | Linux/macOS | LDtk level editor |
+| [vault](modules/vault/.claude/CLAUDE.md) | 4 | Cross-platform | OpenBao/Vault secrets |
 | [powershell](modules/powershell/.claude/CLAUDE.md) | 1 | Windows | PowerShell config |
 | [terminal](modules/terminal/.claude/CLAUDE.md) | 1 | Windows | Windows Terminal |
 | [winget](modules/winget/.claude/CLAUDE.md) | 1 | Windows | Windows Package Manager |

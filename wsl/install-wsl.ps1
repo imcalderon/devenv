@@ -27,7 +27,8 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # --- Load secrets.local if present (provides defaults for unset params) ---
-$SecretsFile = Join-Path $ScriptDir "secrets.local"
+$RepoRoot = Split-Path -Parent $ScriptDir
+$SecretsFile = Join-Path $RepoRoot "secrets.local"
 if (Test-Path $SecretsFile) {
     Write-Host "Loading defaults from secrets.local..." -ForegroundColor Gray
     Get-Content $SecretsFile | ForEach-Object {
@@ -42,6 +43,9 @@ if (Test-Path $SecretsFile) {
                         "WSL_USERNAME"     { if ($Username -eq "devuser")           { $Username = $val } }
                         "WSL_PASSWORD"     { if ($Password -eq "devenv")            { $Password = $val } }
                         "WSL_TIMEZONE"     { if ($Timezone -eq "America/Chicago")   { $Timezone = $val } }
+                        "WSL_MEMORY"       { if ($Memory -eq "8GB")                 { $Memory = $val } }
+                        "WSL_SWAP"         { if ($Swap -eq "4GB")                   { $Swap = $val } }
+                        "WSL_PROCESSORS"   { if ($Processors -eq 4)                 { $Processors = [int]$val } }
                     }
                 }
             }
@@ -50,9 +54,7 @@ if (Test-Path $SecretsFile) {
 }
 
 if (-not $WslRoot) {
-    # Default: D:\WSL\devenv (from config.json)
-    # Fallback: parent of repo root
-    $RepoRoot = Split-Path -Parent $ScriptDir
+    # Default: parent of repo root (keeps WSL data alongside devenv)
     $WslRoot = Join-Path (Split-Path -Parent $RepoRoot) "WSL\devenv"
 }
 

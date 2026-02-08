@@ -27,7 +27,8 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # --- Load secrets.local if present (provides defaults for unset params) ---
-$SecretsFile = Join-Path $ScriptDir "secrets.local"
+$RepoRoot = Split-Path -Parent $ScriptDir
+$SecretsFile = Join-Path $RepoRoot "secrets.local"
 if (Test-Path $SecretsFile) {
     Write-Host "Loading defaults from secrets.local..." -ForegroundColor Gray
     Get-Content $SecretsFile | ForEach-Object {
@@ -50,7 +51,6 @@ if (Test-Path $SecretsFile) {
 }
 
 if (-not $WslRoot) {
-    $RepoRoot = Split-Path -Parent $ScriptDir
     $WslRoot = Join-Path (Split-Path -Parent $RepoRoot) "WSL\devenv"
 }
 
