@@ -148,4 +148,4 @@ function Write-LogDebug {
 }
 
 # Initialize logging on import
-Initialize-Logging
+$null = Initialize-Logging

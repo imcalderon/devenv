@@ -57,7 +57,7 @@ function Add-ModuleAliases {
     # If no platform-specific aliases, try global aliases
     if ($aliases.Count -eq 0) {
         $globalAliases = Get-ModuleConfig $Module ".global$query" $null
-        
+
         if ($globalAliases) {
             # Convert from PSObject to hashtable
             foreach ($prop in $globalAliases.PSObject.Properties) {
@@ -65,7 +65,18 @@ function Add-ModuleAliases {
             }
         }
     }
-    
+
+    # If still no aliases, try direct query (for configs without global/platform structure)
+    if ($aliases.Count -eq 0) {
+        $directAliases = Get-ModuleConfig $Module "$query" $null
+
+        if ($directAliases) {
+            foreach ($prop in $directAliases.PSObject.Properties) {
+                $aliases[$prop.Name] = $prop.Value
+            }
+        }
+    }
+
     # If we found aliases, add them to the file
     if ($aliases.Count -gt 0) {
         # Create the aliases block

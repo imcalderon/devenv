@@ -3,7 +3,15 @@
     "runlevel": 2,
     "platforms": {
         "windows": {
-        "enabled": true
+            "enabled": true,
+            "git": {
+                "config": {
+                    "core.autocrlf": "true",
+                    "core.editor": "code --wait",
+                    "core.pager": "",
+                    "credential.helper": "manager"
+                }
+            }
         }
     },
     "backup": {
