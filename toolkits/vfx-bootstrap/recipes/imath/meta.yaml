@@ -19,12 +19,14 @@ requirements:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - cmake
-    - ninja  # [unix]
+    - ninja
 
 test:
   commands:
     - test -f $PREFIX/lib/libImath${SHLIB_EXT}  # [unix]
     - test -f $PREFIX/include/Imath/ImathVec.h  # [unix]
+    - if not exist %LIBRARY_PREFIX%\lib\Imath.lib exit 1  # [win]
+    - if not exist %LIBRARY_PREFIX%\include\Imath\ImathVec.h exit 1  # [win]
 
 about:
   home: https://imath.readthedocs.io/

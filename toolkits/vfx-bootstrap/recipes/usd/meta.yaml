@@ -11,7 +11,6 @@ source:
 
 build:
   number: 0
-  skip: true  # [win]  # Windows support coming later
   run_exports:
     - {{ pin_subpackage(name, max_pin='x.x') }}
 
@@ -20,7 +19,7 @@ requirements:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - cmake
-    - ninja  # [unix]
+    - ninja
   host:
     - python
     - boost
@@ -63,6 +62,7 @@ test:
     - usdcat --help
     - usdview --help  # [linux and x11]
     - test -f $PREFIX/lib/libusd_usd${SHLIB_EXT}  # [unix]
+    - if not exist %LIBRARY_PREFIX%\lib\usd_usd.lib exit 1  # [win]
 
 about:
   home: https://openusd.org/

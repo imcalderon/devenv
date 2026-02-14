@@ -19,7 +19,7 @@ requirements:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - cmake
-    - ninja  # [unix]
+    - ninja
   host:
     - imath
     - zlib
@@ -33,6 +33,8 @@ test:
     - test -f $PREFIX/lib/libOpenEXRCore${SHLIB_EXT}  # [unix]
     - test -f $PREFIX/include/OpenEXR/ImfHeader.h  # [unix]
     - exrinfo --version  # [unix]
+    - if not exist %LIBRARY_PREFIX%\lib\OpenEXR.lib exit 1  # [win]
+    - if not exist %LIBRARY_PREFIX%\include\OpenEXR\ImfHeader.h exit 1  # [win]
 
 about:
   home: https://www.openexr.com/

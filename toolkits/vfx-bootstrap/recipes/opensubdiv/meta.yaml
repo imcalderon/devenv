@@ -19,7 +19,7 @@ requirements:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - cmake
-    - ninja  # [unix]
+    - ninja
   host:
     - tbb
     - zlib
@@ -28,6 +28,8 @@ test:
   commands:
     - test -f $PREFIX/lib/libosdCPU${SHLIB_EXT}  # [unix]
     - test -f $PREFIX/include/opensubdiv/version.h  # [unix]
+    - if not exist %LIBRARY_PREFIX%\lib\osdCPU.lib exit 1  # [win]
+    - if not exist %LIBRARY_PREFIX%\include\opensubdiv\version.h exit 1  # [win]
 
 about:
   home: https://graphics.pixar.com/opensubdiv/

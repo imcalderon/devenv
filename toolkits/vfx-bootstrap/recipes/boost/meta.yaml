@@ -19,7 +19,7 @@ requirements:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - cmake
-    - ninja  # [unix]
+    - ninja
   host:
     - python
     - zlib
@@ -33,6 +33,7 @@ test:
   commands:
     - test -f $PREFIX/lib/libboost_system${SHLIB_EXT}  # [unix]
     - test -f $PREFIX/include/boost/version.hpp  # [unix]
+    - if not exist %LIBRARY_PREFIX%\include\boost\version.hpp exit 1  # [win]
 
 about:
   home: https://www.boost.org/

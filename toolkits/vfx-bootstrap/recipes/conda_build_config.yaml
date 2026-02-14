@@ -57,18 +57,22 @@ blosc:
 c_compiler:
   - gcc                        # [linux]
   - clang                      # [osx]
+  - vs2022                     # [win]
 
 cxx_compiler:
   - gxx                        # [linux]
   - clangxx                    # [osx]
+  - vs2022                     # [win]
 
 c_compiler_version:
   - "11"                       # [linux]
   - "14"                       # [osx]
+  - "19.3"                     # [win]
 
 cxx_compiler_version:
   - "11"                       # [linux]
   - "14"                       # [osx]
+  - "19.3"                     # [win]
 
 # C++ standard
 cxx_standard:

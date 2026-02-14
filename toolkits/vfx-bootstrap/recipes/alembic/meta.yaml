@@ -19,7 +19,7 @@ requirements:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - cmake
-    - ninja  # [unix]
+    - ninja
   host:
     - openexr
     - imath
@@ -32,6 +32,8 @@ test:
   commands:
     - test -f $PREFIX/lib/libAlembic${SHLIB_EXT}  # [unix]
     - test -f $PREFIX/include/Alembic/Abc/All.h  # [unix]
+    - if not exist %LIBRARY_PREFIX%\lib\Alembic.lib exit 1  # [win]
+    - if not exist %LIBRARY_PREFIX%\include\Alembic\Abc\All.h exit 1  # [win]
 
 about:
   home: https://www.alembic.io/

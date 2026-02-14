@@ -344,7 +344,7 @@ class VFXBuilder:
     def _find_build_outputs(self, recipe: str) -> List[Path]:
         """Find output packages for a recipe."""
         outputs = []
-        for subdir in ["linux-64", "osx-64", "osx-arm64", "noarch"]:
+        for subdir in ["linux-64", "osx-64", "osx-arm64", "win-64", "noarch"]:
             pkg_dir = self.output_dir / subdir
             if pkg_dir.exists():
                 for pkg in pkg_dir.glob(f"{recipe}*.conda"):

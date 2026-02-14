@@ -20,13 +20,14 @@ requirements:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - cmake
-    - ninja  # [unix]
+    - ninja
     - make   # [unix]
 
 test:
   commands:
     - test -f $PREFIX/lib/libtbb${SHLIB_EXT}  # [unix]
     - test -f $PREFIX/include/tbb/tbb.h  # [unix]
+    - if not exist %LIBRARY_PREFIX%\include\tbb\tbb.h exit 1  # [win]
 
 about:
   home: https://github.com/oneapi-src/oneTBB

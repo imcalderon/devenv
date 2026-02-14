@@ -19,7 +19,7 @@ requirements:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - cmake
-    - ninja  # [unix]
+    - ninja
   host:
     - python
     - openexr
@@ -32,6 +32,7 @@ test:
     - MaterialX
   commands:
     - test -f $PREFIX/lib/libMaterialXCore${SHLIB_EXT}  # [unix]
+    - if not exist %LIBRARY_PREFIX%\lib\MaterialXCore.lib exit 1  # [win]
 
 about:
   home: https://www.materialx.org/

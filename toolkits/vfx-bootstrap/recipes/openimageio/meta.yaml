@@ -19,7 +19,7 @@ requirements:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - cmake
-    - ninja  # [unix]
+    - ninja
   host:
     - python
     - pybind11 >=2.9.1
@@ -47,6 +47,7 @@ test:
   commands:
     - test -f $PREFIX/lib/libOpenImageIO${SHLIB_EXT}  # [unix]
     - oiiotool --help  # [unix]
+    - if not exist %LIBRARY_PREFIX%\lib\OpenImageIO.lib exit 1  # [win]
 
 about:
   home: https://sites.google.com/site/openaborage/

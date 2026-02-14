@@ -19,7 +19,7 @@ requirements:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - cmake
-    - ninja  # [unix]
+    - ninja
   host:
     - zlib
   run:
@@ -30,6 +30,8 @@ test:
     - test -f $PREFIX/lib/libPtex${SHLIB_EXT}  # [unix]
     - test -f $PREFIX/include/PtexHalf.h  # [unix]
     - ptxinfo -v  # [unix]
+    - if not exist %LIBRARY_PREFIX%\lib\Ptex.lib exit 1  # [win]
+    - if not exist %LIBRARY_PREFIX%\include\PtexHalf.h exit 1  # [win]
 
 about:
   home: https://ptex.us/

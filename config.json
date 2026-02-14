@@ -109,7 +109,9 @@
           "docker",
           "python",
           "nodejs",
-          "vscode"
+          "vscode",
+          "conda",
+          "vfx"
         ],
         "available": [
           "terminal",
@@ -120,7 +122,9 @@
           "python",
           "nodejs",
           "vscode",
-          "registry"
+          "registry",
+          "conda",
+          "vfx"
         ],
         "platform_specific": [
           "terminal",

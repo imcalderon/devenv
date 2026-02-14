@@ -36,6 +36,32 @@
         },
         "darwin": {
             "brew": ["cmake", "ninja", "pkg-config", "nasm"]
+        },
+        "windows": {
+            "winget": [
+                "Microsoft.VisualStudio.2022.BuildTools",
+                "Kitware.CMake",
+                "Ninja-build.Ninja",
+                "NASM.NASM"
+            ],
+            "vs_workloads": [
+                "Microsoft.VisualStudio.Workload.VCTools",
+                "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+                "Microsoft.VisualStudio.Component.Windows11SDK.22621"
+            ]
+        }
+    },
+    "platforms": {
+        "windows": {
+            "enabled": true,
+            "shell": {
+                "paths": {
+                    "vfx_home": "%USERPROFILE%\\.vfx-devenv",
+                    "build_output": "%USERPROFILE%\\Development\\vfx\\builds",
+                    "package_output": "%USERPROFILE%\\Development\\vfx\\packages",
+                    "channel_dir": "%USERPROFILE%\\Development\\vfx\\channel"
+                }
+            }
         }
     },
     "conda": {

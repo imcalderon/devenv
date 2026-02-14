@@ -19,7 +19,7 @@ requirements:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - cmake
-    - ninja  # [unix]
+    - ninja
   host:
     - python
     - numpy
@@ -44,6 +44,7 @@ test:
   commands:
     - test -f $PREFIX/lib/libopenvdb${SHLIB_EXT}  # [unix]
     - vdb_print --version  # [unix]
+    - if not exist %LIBRARY_PREFIX%\lib\openvdb.lib exit 1  # [win]
 
 about:
   home: https://www.openvdb.org/

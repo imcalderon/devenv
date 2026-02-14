@@ -19,7 +19,7 @@ requirements:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - cmake
-    - ninja  # [unix]
+    - ninja
   host:
     - python
     - pybind11 >=2.9.1
@@ -40,6 +40,7 @@ test:
   commands:
     - test -f $PREFIX/lib/libOpenColorIO${SHLIB_EXT}  # [unix]
     - test -f $PREFIX/bin/ociocheck  # [unix]
+    - if not exist %LIBRARY_PREFIX%\lib\OpenColorIO.lib exit 1  # [win]
 
 about:
   home: https://opencolorio.org/
