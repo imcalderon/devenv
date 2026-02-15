@@ -16,6 +16,7 @@ def cmd_build(args):
     builder = VFXBuilder(
         recipes_dir=args.recipes,
         output_dir=args.output,
+        channel_dir=args.channel_dir,
         cache_dir=args.cache_dir,
         log_dir=args.log_dir,
         platform=args.platform,
@@ -184,6 +185,12 @@ def main():
     )
     parser.add_argument(
         "--platform", "-p", default="vfx2024", help="VFX Platform target (default: vfx2024)"
+    )
+    parser.add_argument(
+        "--channel-dir",
+        type=Path,
+        default=Path.home() / "Development" / "vfx" / "channel",
+        help="Local channel directory for publishing (default: ~/Development/vfx/channel)",
     )
     parser.add_argument("--cache-dir", type=Path, help="Build cache directory")
     parser.add_argument("--log-dir", type=Path, help="Log directory")

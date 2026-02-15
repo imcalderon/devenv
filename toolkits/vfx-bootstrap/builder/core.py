@@ -44,13 +44,14 @@ class VFXBuilder:
     Build orchestration for VFX Platform packages.
 
     Manages the build process including dependency resolution, caching,
-    and conda-build invocation.
+    conda-build invocation, and local channel publishing.
     """
 
     def __init__(
         self,
         recipes_dir: Union[str, Path],
         output_dir: Union[str, Path],
+        channel_dir: Optional[Union[str, Path]] = None,
         cache_dir: Optional[Union[str, Path]] = None,
         log_dir: Optional[Union[str, Path]] = None,
         platform: str = "vfx2024",
@@ -62,6 +63,7 @@ class VFXBuilder:
         Args:
             recipes_dir: Directory containing recipe folders.
             output_dir: Directory for built packages.
+            channel_dir: Local channel directory for publishing (optional).
             cache_dir: Directory for build cache (optional).
             log_dir: Directory for build logs (optional).
             platform: VFX Platform target (e.g., "vfx2024").
@@ -70,6 +72,12 @@ class VFXBuilder:
         self.recipes_dir = Path(recipes_dir).resolve()
         self.output_dir = Path(output_dir).resolve()
         self.platform = platform
+
+        # Local channel for publishing
+        if channel_dir:
+            self.channel_dir = Path(channel_dir).resolve()
+        else:
+            self.channel_dir = self.output_dir.parent / "channel"
 
         # Set up cache
         if cache_dir:
@@ -183,6 +191,7 @@ class VFXBuilder:
         recipe: str,
         use_cache: bool = True,
         verbose: bool = True,
+        publish: bool = True,
     ) -> BuildResult:
         """
         Build a single recipe.
@@ -255,6 +264,10 @@ class VFXBuilder:
             if process.returncode == 0:
                 outputs = self._find_build_outputs(recipe)
 
+                # Publish to local channel
+                if publish:
+                    self.publish_to_channel(recipe)
+
                 # Store in cache
                 if self.cache:
                     cache_key = self._compute_cache_key(recipe)
@@ -325,6 +338,62 @@ class VFXBuilder:
                     print(f"  - {r.recipe}: {r.error}")
 
         return results
+
+    def publish_to_channel(self, recipe: str) -> bool:
+        """
+        Copy built packages for a recipe to the local channel and re-index.
+
+        Args:
+            recipe: Recipe name whose outputs to publish.
+
+        Returns:
+            True if packages were published successfully.
+        """
+        import shutil
+
+        outputs = self._find_build_outputs(recipe)
+        if not outputs:
+            print(f"[PUBLISH] No outputs found for {recipe}")
+            return False
+
+        published = []
+        for pkg_path in outputs:
+            # Determine subdir from the package path (e.g. win-64, linux-64)
+            subdir = pkg_path.parent.name
+            dest_dir = self.channel_dir / subdir
+            dest_dir.mkdir(parents=True, exist_ok=True)
+
+            dest = dest_dir / pkg_path.name
+            shutil.copy2(pkg_path, dest)
+            published.append(dest)
+            print(f"[PUBLISH] {pkg_path.name} -> channel/{subdir}/")
+
+        if published:
+            self._index_channel()
+
+        return len(published) > 0
+
+    def _index_channel(self) -> None:
+        """Re-index the local channel using conda-index."""
+        print(f"[INDEX] Indexing {self.channel_dir}")
+        try:
+            subprocess.run(
+                ["python", "-m", "conda_index", str(self.channel_dir)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            print("[INDEX] Done")
+        except subprocess.CalledProcessError as e:
+            # conda-index writes progress to stderr even on success
+            if e.returncode == 1 and "Completed" in (e.stderr or ""):
+                print("[INDEX] Done")
+            else:
+                print(f"[INDEX] Warning: conda-index returned {e.returncode}")
+                if e.stderr:
+                    print(f"[INDEX] {e.stderr.strip()}")
+        except FileNotFoundError:
+            print("[INDEX] Warning: conda-index not available, skipping channel indexing")
 
     def _build_env(self) -> dict:
         """Create environment for build subprocess."""
