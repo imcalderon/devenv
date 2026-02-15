@@ -1,6 +1,15 @@
 @echo off
 setlocal enabledelayedexpansion
 
+REM Activate MSVC environment
+set "VSWHERE=%BUILD_PREFIX%\Library\bin\vswhere.exe"
+if not exist "%VSWHERE%" set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -property installationPath`) do set "VSINSTALL=%%i"
+if defined VSINSTALL (
+    call "%VSINSTALL%\VC\Auxiliary\Build\vcvarsall.bat" amd64
+    if errorlevel 1 exit /b 1
+)
+
 REM Imath build script for vfx-bootstrap (Windows)
 
 mkdir build

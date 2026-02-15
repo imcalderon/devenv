@@ -38,7 +38,7 @@ function Invoke-ModeAwareCommand {
                         Write-Host "=======$('=' * $requestedModule.Name.Length)" -ForegroundColor Cyan
 
                         # Execute module info command
-                        & $requestedModule.Script "info"
+                        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $requestedModule.Script "info"
 
                     } catch {
                         Write-Host "Failed to get module information: $_" -ForegroundColor Red
@@ -156,7 +156,7 @@ function Invoke-ModeAwareCommand {
                 Write-Host "Verifying $($module.Name)... " -NoNewline
 
                 try {
-                    & $module.Script "verify" *>$null
+                    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $module.Script "verify" *>$null
                     if ($LASTEXITCODE -eq 0) {
                         Write-Host "OK" -ForegroundColor Green
                         $verifyCount++

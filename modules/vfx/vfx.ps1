@@ -106,7 +106,10 @@ function Test-Component {
             $condaExe = Get-CondaExe
             if (-not $condaExe) { return $false }
             try {
-                $envList = & $condaExe env list 2>$null
+                $prevEAP = $ErrorActionPreference
+                $ErrorActionPreference = 'Continue'
+                $envList = & $condaExe env list 2>&1
+                $ErrorActionPreference = $prevEAP
                 return ($envList -match "vfx-build")
             } catch {
                 return $false
@@ -116,7 +119,10 @@ function Test-Component {
             $condaExe = Get-CondaExe
             if (-not $condaExe) { return $false }
             try {
-                & $condaExe run -n vfx-build python -c "import builder" 2>$null
+                $prevEAP = $ErrorActionPreference
+                $ErrorActionPreference = 'Continue'
+                & $condaExe run -n vfx-build python -c "import builder" 2>&1 | Out-Null
+                $ErrorActionPreference = $prevEAP
                 return $LASTEXITCODE -eq 0
             } catch {
                 return $false
@@ -145,14 +151,16 @@ function Test-Component {
 function Install-BuildDepsComponent {
     Write-LogInfo "Installing build dependencies..." $script:ModuleName
 
-    # Install via winget
+    # Install via winget (winget writes progress to stderr)
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     $wingetPackages = Get-ModuleConfig $script:ModuleName ".build_deps.windows.winget[]"
     if ($wingetPackages) {
         foreach ($pkg in $wingetPackages) {
             Write-LogInfo "Installing $pkg via winget..." $script:ModuleName
             try {
                 # Check if already installed
-                $installed = winget.exe list --exact --id $pkg 2>$null
+                $installed = winget.exe list --exact --id $pkg 2>&1
                 if ($LASTEXITCODE -eq 0 -and ($installed -match $pkg)) {
                     Write-LogInfo "$pkg already installed" $script:ModuleName
                     continue
@@ -160,7 +168,7 @@ function Install-BuildDepsComponent {
             } catch {}
 
             try {
-                winget.exe install --exact --id $pkg --silent --accept-package-agreements --accept-source-agreements
+                winget.exe install --exact --id $pkg --silent --accept-package-agreements --accept-source-agreements 2>&1
                 if ($LASTEXITCODE -ne 0) {
                     Write-LogWarning "winget install returned non-zero for $pkg (may already be installed)" $script:ModuleName
                 }
@@ -169,6 +177,7 @@ function Install-BuildDepsComponent {
             }
         }
     }
+    $ErrorActionPreference = $prevEAP
 
     # Install VS workloads
     $vsWorkloads = Get-ModuleConfig $script:ModuleName ".build_deps.windows.vs_workloads[]"
@@ -232,30 +241,35 @@ function Install-CondaEnvComponent {
     $envName = Get-ModuleConfig $script:ModuleName ".conda.env_name"
     if ([string]::IsNullOrWhiteSpace($envName)) { $envName = "vfx-build" }
 
-    # Accept conda channel TOS non-interactively
+    # Accept conda channel TOS non-interactively (suppress stderr from native commands)
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     try {
-        & $condaExe tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main 2>$null
-        & $condaExe tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r 2>$null
+        & $condaExe tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main 2>&1 | Out-Null
+        & $condaExe tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r 2>&1 | Out-Null
+        & $condaExe tos accept --override-channels --channel https://repo.anaconda.com/pkgs/msys2 2>&1 | Out-Null
     } catch {}
 
     # Check if env already exists
-    $envList = & $condaExe env list 2>$null
+    $envList = & $condaExe env list 2>&1
     if ($envList -match $envName) {
         Write-LogInfo "Conda environment '$envName' already exists, updating" $script:ModuleName
         $packages = Get-ModuleConfig $script:ModuleName ".conda.packages[]"
         if ($packages) {
-            & $condaExe install -n $envName -y $packages
+            & $condaExe install -n $envName -y $packages 2>&1
         }
+        $ErrorActionPreference = $prevEAP
         return $true
     }
 
     Write-LogInfo "Creating conda environment: $envName" $script:ModuleName
     $packages = Get-ModuleConfig $script:ModuleName ".conda.packages[]"
     if ($packages) {
-        & $condaExe create -n $envName -y $packages
+        & $condaExe create -n $envName -y $packages 2>&1
     } else {
-        & $condaExe create -n $envName -y conda-build boa conda-verify
+        & $condaExe create -n $envName -y conda-build boa conda-verify 2>&1
     }
+    $ErrorActionPreference = $prevEAP
 
     if ($LASTEXITCODE -ne 0) {
         Write-LogError "Failed to create conda environment '$envName'" $script:ModuleName
@@ -285,7 +299,10 @@ function Install-VfxBootstrapComponent {
     }
 
     Write-LogInfo "Installing vfx-bootstrap into $envName from $bootstrapDir" $script:ModuleName
-    & $condaExe run -n $envName pip install -e $bootstrapDir
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    & $condaExe run -n $envName pip install -e $bootstrapDir 2>&1
+    $ErrorActionPreference = $prevEAP
     if ($LASTEXITCODE -ne 0) {
         Write-LogError "Failed to install vfx-bootstrap into '$envName'" $script:ModuleName
         return $false
@@ -306,7 +323,7 @@ function Install-ChannelsComponent {
             New-Item -Path $subdirPath -ItemType Directory -Force | Out-Null
         }
 
-        # Initialize repodata.json
+        # Initialize repodata.json (UTF8 without BOM - conda can't parse BOM)
         $repodataPath = Join-Path $subdirPath "repodata.json"
         $repodataContent = @"
 {
@@ -319,7 +336,7 @@ function Install-ChannelsComponent {
     "repodata_version": 1
 }
 "@
-        Set-Content -Path $repodataPath -Value $repodataContent -Encoding UTF8
+        [System.IO.File]::WriteAllText($repodataPath, $repodataContent, (New-Object System.Text.UTF8Encoding $false))
     }
 
     # Create channeldata.json
@@ -331,21 +348,24 @@ function Install-ChannelsComponent {
     "subdirs": ["win-64", "noarch"]
 }
 "@
-    Set-Content -Path $channeldataPath -Value $channeldataContent -Encoding UTF8
+    [System.IO.File]::WriteAllText($channeldataPath, $channeldataContent, (New-Object System.Text.UTF8Encoding $false))
 
     # Add local channel to conda config
     $condaExe = Get-CondaExe
     if ($condaExe) {
         $channelUrl = "file:///$($channelDir -replace '\\', '/')"
+        $prevEAP = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
         try {
-            $channels = & $condaExe config --show channels 2>$null
+            $channels = & $condaExe config --show channels 2>&1
             if (-not ($channels -match [regex]::Escape($channelDir))) {
-                & $condaExe config --append channels $channelUrl
+                & $condaExe config --append channels $channelUrl 2>&1 | Out-Null
                 Write-LogInfo "Added local VFX channel to conda config" $script:ModuleName
             }
         } catch {
             Write-LogWarning "Could not add local channel to conda config: $_" $script:ModuleName
         }
+        $ErrorActionPreference = $prevEAP
     }
 
     # Create output directories

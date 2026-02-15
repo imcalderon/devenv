@@ -184,7 +184,7 @@ function Test-ModuleInstallation {
             return $false
         }
 
-        & $Module.Script "grovel" *>$null
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $Module.Script "grovel" *>$null
         return $LASTEXITCODE -eq 0
     } catch {
         return $false
@@ -221,9 +221,9 @@ function Install-DevEnvModule {
         Write-Host "  Executing: $($Module.Script) install $forceFlag" -ForegroundColor Gray
 
         if ($Force) {
-            & $Module.Script "install" -Force
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $Module.Script "install" "-Force"
         } else {
-            & $Module.Script "install"
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $Module.Script "install"
         }
 
         if ($LASTEXITCODE -eq 0) {

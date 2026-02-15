@@ -130,8 +130,9 @@ function Install-CoreComponent {
     Write-LogInfo "Downloading Miniconda from: $installerUrl" $script:ModuleName
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        $wc = New-Object System.Net.WebClient
-        $wc.DownloadFile($installerUrl, $installerPath)
+        $ProgressPreference = 'SilentlyContinue'
+        Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath -UseBasicParsing
+        $ProgressPreference = 'Continue'
         Write-LogInfo "Download complete" $script:ModuleName
     } catch {
         Write-LogError "Failed to download Miniconda: $_" $script:ModuleName
@@ -180,11 +181,15 @@ function Install-ConfigComponent {
     }
 
     try {
+        # Temporarily allow stderr from native commands (conda writes warnings to stderr)
+        $prevEAP = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+
         # Configure channels
         $channels = Get-ModuleConfig $script:ModuleName ".config.channels"
         if ($channels) {
             foreach ($channel in $channels) {
-                & $condaExe config --add channels $channel 2>$null
+                & $condaExe config --add channels $channel 2>&1 | Out-Null
                 Write-LogInfo "Added channel: $channel" $script:ModuleName
             }
         }
@@ -192,33 +197,35 @@ function Install-ConfigComponent {
         # Configure channel priority
         $priority = Get-ModuleConfig $script:ModuleName ".config.channel_priority"
         if (-not [string]::IsNullOrWhiteSpace($priority)) {
-            & $condaExe config --set channel_priority $priority
+            & $condaExe config --set channel_priority $priority 2>&1 | Out-Null
             Write-LogInfo "Set channel_priority: $priority" $script:ModuleName
         }
 
         # Configure auto_activate_base
         $autoActivate = Get-ModuleConfig $script:ModuleName ".config.auto_activate_base"
         if ($null -ne $autoActivate) {
-            & $condaExe config --set auto_activate_base $autoActivate.ToString().ToLower()
+            & $condaExe config --set auto_activate_base $autoActivate.ToString().ToLower() 2>&1 | Out-Null
             Write-LogInfo "Set auto_activate_base: $autoActivate" $script:ModuleName
         }
 
         # Configure pip_interop_enabled
         $pipInterop = Get-ModuleConfig $script:ModuleName ".config.pip_interop_enabled"
         if ($null -ne $pipInterop) {
-            & $condaExe config --set pip_interop_enabled $pipInterop.ToString().ToLower()
+            & $condaExe config --set pip_interop_enabled $pipInterop.ToString().ToLower() 2>&1 | Out-Null
             Write-LogInfo "Set pip_interop_enabled: $pipInterop" $script:ModuleName
         }
 
         # Configure env_prompt
         $envPrompt = Get-ModuleConfig $script:ModuleName ".config.env_prompt"
         if (-not [string]::IsNullOrWhiteSpace($envPrompt)) {
-            & $condaExe config --set env_prompt "$envPrompt"
+            & $condaExe config --set env_prompt "$envPrompt" 2>&1 | Out-Null
             Write-LogInfo "Set env_prompt: $envPrompt" $script:ModuleName
         }
 
+        $ErrorActionPreference = $prevEAP
         return $true
     } catch {
+        $ErrorActionPreference = $prevEAP
         Write-LogError "Error configuring conda: $_" $script:ModuleName
         return $false
     }
@@ -236,8 +243,11 @@ function Install-ShellComponent {
     }
 
     try {
-        # Initialize conda for PowerShell
-        & $condaExe init powershell 2>$null
+        # Initialize conda for PowerShell (conda writes to stderr)
+        $prevEAP = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        & $condaExe init powershell 2>&1 | Out-Null
+        $ErrorActionPreference = $prevEAP
         if ($LASTEXITCODE -ne 0) {
             Write-LogWarning "conda init powershell returned non-zero exit code" $script:ModuleName
         }

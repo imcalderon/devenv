@@ -67,12 +67,10 @@ cxx_compiler:
 c_compiler_version:
   - "11"                       # [linux]
   - "14"                       # [osx]
-  - "19.3"                     # [win]
 
 cxx_compiler_version:
   - "11"                       # [linux]
   - "14"                       # [osx]
-  - "19.3"                     # [win]
 
 # C++ standard
 cxx_standard:
