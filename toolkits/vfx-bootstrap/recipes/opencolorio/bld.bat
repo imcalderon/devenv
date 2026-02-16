@@ -36,3 +36,10 @@ if errorlevel 1 exit /b 1
 
 cmake --install .
 if errorlevel 1 exit /b 1
+
+REM Move Python bindings from Library/lib/site-packages to Lib/site-packages
+REM OCIO installs to CMAKE_INSTALL_PREFIX/lib/site-packages but conda expects PREFIX/Lib/site-packages
+if exist "%LIBRARY_PREFIX%\lib\site-packages\PyOpenColorIO" (
+    xcopy /E /I /Y "%LIBRARY_PREFIX%\lib\site-packages\PyOpenColorIO" "%SP_DIR%\PyOpenColorIO"
+    rmdir /S /Q "%LIBRARY_PREFIX%\lib\site-packages\PyOpenColorIO"
+)

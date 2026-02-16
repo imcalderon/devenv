@@ -7,10 +7,10 @@ python:
 
 # Core C++ libraries
 boost:
-  - "1.82"
+  - "1.86"
 
 tbb:
-  - "2020.3"
+  - "2021"
 
 # Math and imaging
 imath:

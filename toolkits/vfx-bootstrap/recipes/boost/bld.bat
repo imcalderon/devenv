@@ -1,46 +1,70 @@
-@echo off
+@echo on
 setlocal enabledelayedexpansion
 
 REM Boost build script for vfx-bootstrap (Windows)
-REM MSVC is already activated by conda's vs2022_compiler_vars.bat
-REM Boost uses its own build system (b2), not CMake
+REM Uses same vswhere MSVC activation as imath recipe.
+REM Aligned with OpenUSD build_usd.py boost build approach.
 
 cd "%SRC_DIR%"
 
-REM Bootstrap b2 for MSVC
-call bootstrap.bat msvc
-if errorlevel 1 exit /b 1
+REM Activate MSVC environment (same as imath bld.bat)
+set "VSWHERE=%BUILD_PREFIX%\Library\bin\vswhere.exe"
+if not exist "%VSWHERE%" set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -property installationPath`) do set "VSINSTALL=%%i"
+if defined VSINSTALL (
+    call "%VSINSTALL%\VC\Auxiliary\Build\vcvarsall.bat" amd64
+    if errorlevel 1 exit /b 1
+)
 
-REM Tell b2 to use cl.exe on PATH as MSVC 14.3, skipping VS install probing
-echo using msvc : 14.3 : cl.exe ; > user-config.jam
+REM Verify cl.exe is available
+where cl.exe
+if %ERRORLEVEL% neq 0 (
+    echo ERROR: cl.exe not found on PATH after MSVC activation
+    exit /b 1
+)
+
+REM Write user-config.jam with Python config only (no MSVC entry needed)
+REM b2 auto-detects MSVC from the activated environment.
+REM See https://github.com/boostorg/build/issues/194
+echo using python > "%SRC_DIR%\user-config.jam"
+echo : %PY_VER% >> "%SRC_DIR%\user-config.jam"
+echo : %PYTHON:\=\\% >> "%SRC_DIR%\user-config.jam"
+echo : %PREFIX:\=\\%\\include >> "%SRC_DIR%\user-config.jam"
+echo : %PREFIX:\=\\%\\libs >> "%SRC_DIR%\user-config.jam"
+echo ; >> "%SRC_DIR%\user-config.jam"
+copy /Y "%SRC_DIR%\user-config.jam" "%USERPROFILE%\user-config.jam"
+
+REM Bootstrap b2
+call bootstrap.bat
+if %ERRORLEVEL% neq 0 exit /b 1
+
+@echo on
 
 REM Build and install
-REM b2 returns non-zero when config probes are skipped, even when the actual
-REM libraries build successfully (17000+ targets). Verify output instead.
-b2 -j%CPU_COUNT% ^
-    --user-config=user-config.jam ^
+REM toolset=msvc-14.3 = VC toolset version, matching OpenUSD build_usd.py
+REM --layout=system gives clean lib names (boost_system.lib)
+.\b2 install ^
     --prefix="%LIBRARY_PREFIX%" ^
     --build-dir=build ^
+    toolset=msvc-14.3 ^
+    address-model=64 ^
     variant=release ^
+    threading=multi ^
     link=shared ^
     runtime-link=shared ^
-    threading=multi ^
-    toolset=msvc-14.3 ^
-    cxxflags="/std:c++17" ^
-    address-model=64 ^
-    python=%PY_VER% ^
-    --without-mpi ^
-    --without-graph_parallel ^
-    install
-
-REM Verify boost actually installed rather than trusting b2 exit code
-if not exist "%LIBRARY_PREFIX%\include\boost\version.hpp" (
-    echo ERROR: boost headers not installed
-    exit /b 1
-)
-dir "%LIBRARY_PREFIX%\lib\boost_*.lib" >nul 2>&1
-if errorlevel 1 (
-    echo ERROR: boost libraries not installed
-    exit /b 1
-)
-echo Boost installed successfully
+    cxxstd=17 ^
+    --layout=system ^
+    --with-atomic ^
+    --with-chrono ^
+    --with-date_time ^
+    --with-filesystem ^
+    --with-iostreams ^
+    --with-program_options ^
+    --with-regex ^
+    --with-system ^
+    --with-thread ^
+    -sNO_BZIP2=1 ^
+    -sZLIB_INCLUDE="%LIBRARY_INC%" ^
+    -sZLIB_LIBPATH="%LIBRARY_LIB%" ^
+    -j%CPU_COUNT%
+if %ERRORLEVEL% neq 0 exit /b 1
