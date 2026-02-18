@@ -36,7 +36,10 @@
         "name": "Miniconda3",
         "version": "latest",
         "installer_urls": {
-            "linux-x86_64": "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
+            "linux-x86_64": "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh",
+            "darwin-x86_64": "https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh",
+            "darwin-arm64": "https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-arm64.sh",
+            "win-64": "https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe"
         }
     },
     "config": {
@@ -65,6 +68,19 @@
                     "COPY environment.yml /tmp/",
                     "RUN conda env create -f /tmp/environment.yml"
                 ]
+            }
+        }
+    },
+    "platforms": {
+        "windows": {
+            "enabled": true,
+            "shell": {
+                "paths": {
+                    "conda_root": "%USERPROFILE%\\miniconda3",
+                    "envs_dir": "%USERPROFILE%\\Development\\conda\\envs",
+                    "pkgs_dir": "%USERPROFILE%\\Development\\conda\\pkgs",
+                    "channel_dir": "%USERPROFILE%\\Development\\conda\\channels"
+                }
             }
         }
     },

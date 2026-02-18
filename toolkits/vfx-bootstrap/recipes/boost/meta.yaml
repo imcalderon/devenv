@@ -1,0 +1,49 @@
+{% set name = "boost" %}
+{% set version = "1.86.0" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://archives.boost.io/release/{{ version }}/source/boost_{{ version | replace(".", "_") }}.tar.bz2
+  sha256: 1bed88e40401b2cb7a1f76d4bab499e352fa4d0c5f31c0dbae64e24d34d7513b
+
+build:
+  number: 0
+  run_exports:
+    - {{ pin_subpackage(name, max_pin='x.x') }}
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - cmake
+    - ninja
+  host:
+    - python
+    - zlib
+  run:
+    - python
+
+test:
+  commands:
+    - test -f $PREFIX/lib/libboost_system${SHLIB_EXT}  # [unix]
+    - test -f $PREFIX/include/boost/version.hpp  # [unix]
+    - if not exist %LIBRARY_PREFIX%\include\boost\version.hpp exit 1  # [win]
+    - if not exist %LIBRARY_PREFIX%\lib\boost_system.lib exit 1  # [win]
+
+about:
+  home: https://www.boost.org/
+  license: BSL-1.0
+  license_file: LICENSE_1_0.txt
+  summary: Boost provides free peer-reviewed portable C++ source libraries
+  description: |
+    Boost provides free peer-reviewed portable C++ source libraries.
+    We emphasize libraries that work well with the C++ Standard Library.
+  doc_url: https://www.boost.org/doc/
+  dev_url: https://github.com/boostorg/boost
+
+extra:
+  recipe-maintainers:
+    - vfx-bootstrap

@@ -74,6 +74,7 @@ temp/
 # Secrets
 secrets/
 *.enc
+secrets.local
 
 # Personal files
 .env

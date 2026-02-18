@@ -1,0 +1,16 @@
+{
+  "name": "Game Development",
+  "description": "Game development environment with Node.js, Phaser, and Docker",
+  "version": "1.0.0",
+  "modules": {
+    "linux": ["zsh", "git", "nodejs", "vscode", "docker"],
+    "darwin": ["zsh", "git", "nodejs", "vscode", "docker"],
+    "windows": ["terminal", "powershell", "git", "nodejs", "vscode", "docker"]
+  },
+  "scaffold": "game",
+  "variables": {
+    "NODE_VERSION": "20",
+    "GAME_ENGINE": "phaser",
+    "PHASER_VERSION": "3.80"
+  }
+}

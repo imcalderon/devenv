@@ -1,0 +1,41 @@
+{% set name = "imath" %}
+{% set version = "3.1.9" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/AcademySoftwareFoundation/Imath/archive/v{{ version }}.tar.gz
+  sha256: f1d8aacd46afed958babfced3190d2d3c8209b66da451f556abd6da94c165cf3
+
+build:
+  number: 0
+  run_exports:
+    - {{ pin_subpackage(name, max_pin='x.x') }}
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - cmake
+    - ninja
+
+test:
+  commands:
+    - test -f $PREFIX/lib/libImath${SHLIB_EXT}  # [unix]
+    - test -f $PREFIX/include/Imath/ImathVec.h  # [unix]
+    - if not exist %LIBRARY_PREFIX%\lib\Imath-3_1.lib exit 1  # [win]
+    - if not exist %LIBRARY_PREFIX%\include\Imath\ImathVec.h exit 1  # [win]
+
+about:
+  home: https://imath.readthedocs.io/
+  license: BSD-3-Clause
+  license_file: LICENSE.md
+  summary: Imath is a C++ and python library of 2D and 3D vector, matrix, and math operations
+  doc_url: https://imath.readthedocs.io/
+  dev_url: https://github.com/AcademySoftwareFoundation/Imath
+
+extra:
+  recipe-maintainers:
+    - vfx-bootstrap

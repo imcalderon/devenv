@@ -1,0 +1,26 @@
+{
+  "enabled": false,
+  "runlevel": 4,
+  "platforms": {
+    "windows": {
+      "enabled": true
+    }
+  },
+  "vault": {
+    "backend": "openbao",
+    "version": "2.1.0",
+    "mode": "dev",
+    "listen_address": "127.0.0.1:8200",
+    "secrets_path": "secret/devenv",
+    "auto_unseal": true
+  },
+  "shell": {
+    "aliases": {
+      "vault": {
+        "vs": "devenv secrets show",
+        "vset": "devenv secrets set",
+        "vget": "devenv secrets get"
+      }
+    }
+  }
+}

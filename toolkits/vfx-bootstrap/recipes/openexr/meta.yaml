@@ -1,0 +1,52 @@
+{% set name = "openexr" %}
+{% set version = "3.2.1" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/AcademySoftwareFoundation/openexr/archive/v{{ version }}.tar.gz
+  sha256: 61e175aa2203399fb3c8c2288752fbea3c2637680d50b6e306ea5f8ffdd46a9b
+
+build:
+  number: 0
+  run_exports:
+    - {{ pin_subpackage(name, max_pin='x.x') }}
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - cmake
+    - ninja
+  host:
+    - imath
+    - zlib
+    - libdeflate
+  run:
+    - imath
+
+test:
+  commands:
+    - test -f $PREFIX/lib/libOpenEXR${SHLIB_EXT}  # [unix]
+    - test -f $PREFIX/lib/libOpenEXRCore${SHLIB_EXT}  # [unix]
+    - test -f $PREFIX/include/OpenEXR/ImfHeader.h  # [unix]
+    - exrinfo --version  # [unix]
+    - if not exist %LIBRARY_PREFIX%\lib\OpenEXR-3_2.lib exit 1  # [win]
+    - if not exist %LIBRARY_PREFIX%\include\OpenEXR\ImfHeader.h exit 1  # [win]
+
+about:
+  home: https://www.openexr.com/
+  license: BSD-3-Clause
+  license_file: LICENSE.md
+  summary: High dynamic-range (HDR) image file format
+  description: |
+    OpenEXR is a high dynamic-range (HDR) image file format developed
+    by Industrial Light & Magic for use in computer imaging applications.
+  doc_url: https://openexr.com/en/latest/
+  dev_url: https://github.com/AcademySoftwareFoundation/openexr
+
+extra:
+  recipe-maintainers:
+    - vfx-bootstrap

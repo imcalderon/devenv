@@ -1,0 +1,45 @@
+{% set name = "tbb" %}
+{% set version = "2021.12.0" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/oneapi-src/oneTBB/archive/v{{ version }}.tar.gz
+  sha256: c7bb7aa69c254d91b8f0041a71c5bcc3936acb64408a1719aec0b2b7639dd84f
+
+build:
+  number: 0
+  run_exports:
+    - {{ pin_subpackage(name, max_pin='x.x') }}
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - cmake
+    - ninja
+
+test:
+  commands:
+    - test -f $PREFIX/lib/libtbb${SHLIB_EXT}  # [unix]
+    - test -f $PREFIX/include/tbb/tbb.h  # [unix]
+    - if not exist %LIBRARY_PREFIX%\include\tbb\tbb.h exit 1  # [win]
+    - if not exist %LIBRARY_PREFIX%\lib\tbb12.lib exit 1  # [win]
+
+about:
+  home: https://github.com/oneapi-src/oneTBB
+  license: Apache-2.0
+  license_file: LICENSE.txt
+  summary: oneAPI Threading Building Blocks
+  description: |
+    oneAPI Threading Building Blocks (oneTBB) is a widely used,
+    award-winning C++ library for shared-memory parallel programming
+    and heterogeneous computing.
+  doc_url: https://oneapi-src.github.io/oneTBB/
+  dev_url: https://github.com/oneapi-src/oneTBB
+
+extra:
+  recipe-maintainers:
+    - vfx-bootstrap

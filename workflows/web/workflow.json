@@ -1,0 +1,33 @@
+{
+  "name": "Web Development",
+  "description": "Web development environment with Node.js, Docker, and VS Code",
+  "version": "1.0.0",
+  "modules": {
+    "linux": ["zsh", "git", "nodejs", "vscode", "docker"],
+    "darwin": ["zsh", "git", "nodejs", "vscode", "docker"],
+    "windows": ["terminal", "powershell", "git", "nodejs", "vscode", "docker"]
+  },
+  "subtypes": {
+    "phaser": {
+      "description": "Phaser 3 + TypeScript game project",
+      "scaffold": "web/phaser",
+      "variables": {
+        "FRAMEWORK": "phaser",
+        "PHASER_VERSION": "3.80",
+        "BUNDLER": "vite"
+      }
+    },
+    "vanilla": {
+      "description": "Vanilla TypeScript + Vite project",
+      "scaffold": "web/vanilla",
+      "variables": {
+        "FRAMEWORK": "vanilla",
+        "BUNDLER": "vite"
+      }
+    }
+  },
+  "variables": {
+    "NODE_VERSION": "20",
+    "TYPESCRIPT_VERSION": "5.4"
+  }
+}

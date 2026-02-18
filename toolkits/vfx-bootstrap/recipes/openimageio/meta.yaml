@@ -1,0 +1,73 @@
+{% set name = "openimageio" %}
+{% set version = "2.5.16.0" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/AcademySoftwareFoundation/OpenImageIO/archive/v{{ version }}.tar.gz
+  sha256: e5438e28d34a5b0a09428ed77ec310edd47c141db1b259364859110847e161e7
+
+build:
+  number: 0
+  run_exports:
+    - {{ pin_subpackage(name, max_pin='x.x') }}
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - cmake
+    - ninja
+  host:
+    - python
+    - pybind11 >=2.9.1
+    - boost
+    - tbb
+    - openexr
+    - imath
+    - opencolorio
+    - openvdb
+    - ptex
+    - libtiff
+    - libjpeg-turbo
+    - libpng
+    - zlib
+    - fmt
+    - freetype
+    - giflib
+  run:
+    - python
+    - {{ pin_compatible('boost', max_pin='x.x') }}
+    - tbb
+    - openexr
+    - imath
+    - opencolorio
+    - openvdb
+    - ptex
+
+test:
+  imports:
+    - OpenImageIO
+  commands:
+    - test -f $PREFIX/lib/libOpenImageIO${SHLIB_EXT}  # [unix]
+    - oiiotool --help  # [unix]
+    - if not exist %LIBRARY_PREFIX%\lib\OpenImageIO.lib exit 1  # [win]
+
+about:
+  home: https://sites.google.com/site/openaborage/
+  license: Apache-2.0
+  license_file: LICENSE.md
+  summary: Reading, writing, and processing images in a wide variety of file formats
+  description: |
+    OpenImageIO is a library for reading and writing images, and a bunch of
+    related classes, utilities, and applications. It is used widely in the
+    visual effects and animation industry, as well as in other industries
+    that rely on high-quality image processing.
+  doc_url: https://openimageio.readthedocs.io/
+  dev_url: https://github.com/AcademySoftwareFoundation/OpenImageIO
+
+extra:
+  recipe-maintainers:
+    - vfx-bootstrap

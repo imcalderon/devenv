@@ -1,0 +1,81 @@
+{% set name = "usd" %}
+{% set version = "24.03" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/PixarAnimationStudios/OpenUSD/archive/v{{ version }}.tar.gz
+  sha256: 0724421cff8ae04d0a7108ffa7c104e6ec3f7295418d4d50caaae767e59795ef
+
+build:
+  number: 0
+  run_exports:
+    - {{ pin_subpackage(name, max_pin='x.x') }}
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - cmake
+    - ninja
+  host:
+    - python
+    - boost
+    - tbb
+    - openexr
+    - imath
+    - opensubdiv
+    - alembic
+    - materialx
+    - openvdb
+    - openimageio
+    - opencolorio
+    - ptex
+    - pybind11 >=2.9.1
+    - jinja2
+    - pyopengl
+  run:
+    - python
+    - {{ pin_compatible('boost', max_pin='x.x') }}
+    - {{ pin_compatible('tbb', max_pin='x.x') }}
+    - {{ pin_compatible('openexr', max_pin='x.x') }}
+    - {{ pin_compatible('imath', max_pin='x.x') }}
+    - opensubdiv
+    - alembic
+    - materialx
+    - openvdb
+    - openimageio
+    - opencolorio
+    - ptex
+    - pyside6
+    - jinja2
+    - pyopengl
+
+test:
+  imports:
+    - pxr.Usd
+    - pxr.UsdGeom
+    - pxr.UsdShade
+  commands:
+    - usdcat --help
+    - usdview --help  # [linux and x11]
+    - test -f $PREFIX/lib/libusd_usd${SHLIB_EXT}  # [unix]
+    - if not exist %LIBRARY_PREFIX%\lib\usd_usd.lib exit 1  # [win]
+
+about:
+  home: https://openusd.org/
+  license: Apache-2.0
+  license_file: LICENSE.txt
+  summary: Universal Scene Description (USD)
+  description: |
+    Universal Scene Description (USD) is an efficient, scalable system
+    for authoring, reading, and streaming time-sampled scene description
+    for interchange between graphics applications.
+  doc_url: https://openusd.org/docs/
+  dev_url: https://github.com/PixarAnimationStudios/OpenUSD
+
+extra:
+  recipe-maintainers:
+    - vfx-bootstrap

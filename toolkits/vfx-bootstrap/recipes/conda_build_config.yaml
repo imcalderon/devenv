@@ -1,0 +1,100 @@
+# VFX Platform 2024 version pins
+# Reference: https://vfxplatform.com/
+
+# Python version
+python:
+  - "3.11"
+
+# Core C++ libraries
+boost:
+  - "1.86"
+
+tbb:
+  - "2021"
+
+# Math and imaging
+imath:
+  - "3.1"
+
+openexr:
+  - "3.2"
+
+# Optional VFX libraries
+opencolorio:
+  - "2.3"
+
+openimageio:
+  - "2.5"
+
+openvdb:
+  - "11"
+
+ptex:
+  - "2.4"
+
+opensubdiv:
+  - "3.6"
+
+alembic:
+  - "1.8"
+
+materialx:
+  - "1.38"
+
+# Target
+usd:
+  - "24"
+
+# Python libraries
+numpy:
+  - "1.24"
+
+# Compression
+blosc:
+  - "1.21"
+
+# Compiler settings (conda-forge defaults)
+c_compiler:
+  - gcc                        # [linux]
+  - clang                      # [osx]
+  - vs2022                     # [win]
+
+cxx_compiler:
+  - gxx                        # [linux]
+  - clangxx                    # [osx]
+  - vs2022                     # [win]
+
+c_compiler_version:
+  - "11"                       # [linux]
+  - "14"                       # [osx]
+
+cxx_compiler_version:
+  - "11"                       # [linux]
+  - "14"                       # [osx]
+
+# C++ standard
+cxx_standard:
+  - "17"
+
+# Platform settings
+MACOSX_DEPLOYMENT_TARGET:      # [osx]
+  - "10.15"                    # [osx]
+
+# Build tools
+cmake:
+  - "3.27"
+
+ninja:
+  - "1.11"
+
+# Pin behavior for run exports
+pin_run_as_build:
+  python:
+    min_pin: x.x
+    max_pin: x.x
+  boost:
+    min_pin: x.x
+    max_pin: x.x
+  tbb:
+    min_pin: x.x
+    max_pin: x.x

@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vfx-bootstrap"
+version = "0.1.0"
+description = "VFX Platform development toolkit for building USD and dependencies"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Ivan Calderon"}
+]
+keywords = ["vfx", "usd", "openusd", "pixar", "pipeline", "build", "conda"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+    "Topic :: Software Development :: Build Tools",
+]
+dependencies = [
+    "pyyaml>=6.0",
+    "click>=8.0",
+    "tqdm>=4.0",
+    "requests>=2.28",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "isort>=5.0",
+    "mypy>=1.0",
+    "flake8>=6.0",
+]
+
+[project.scripts]
+vfx-bootstrap = "builder.cli:main"
+vfx-package = "packager.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/imcalderon/vfx-bootstrap"
+Documentation = "https://github.com/imcalderon/vfx-bootstrap#readme"
+Repository = "https://github.com/imcalderon/vfx-bootstrap.git"
+
+[tool.setuptools.packages.find]
+exclude = ["tests*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"

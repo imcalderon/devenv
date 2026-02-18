@@ -1,0 +1,50 @@
+{% set name = "ptex" %}
+{% set version = "2.4.3" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/wdas/ptex/archive/v{{ version }}.tar.gz
+  sha256: 435aa2ee1781ff24859bd282b7616bfaeb86ca10604b13d085ada8aa7602ad27
+
+build:
+  number: 0
+  run_exports:
+    - {{ pin_subpackage(name, max_pin='x.x') }}
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - cmake
+    - ninja
+  host:
+    - zlib
+  run:
+    - zlib
+
+test:
+  commands:
+    - test -f $PREFIX/lib/libPtex${SHLIB_EXT}  # [unix]
+    - test -f $PREFIX/include/PtexHalf.h  # [unix]
+    - ptxinfo -v  # [unix]
+    - if not exist %LIBRARY_PREFIX%\lib\Ptex.lib exit 1  # [win]
+    - if not exist %LIBRARY_PREFIX%\include\PtexHalf.h exit 1  # [win]
+
+about:
+  home: https://ptex.us/
+  license: BSD-3-Clause
+  license_file: LICENSE
+  summary: Per-face texture mapping for production rendering
+  description: |
+    Ptex is a texture mapping system developed by Walt Disney Animation Studios
+    for production-quality rendering. It provides per-face texture assignment
+    with no UV assignment required.
+  doc_url: https://ptex.us/documentation.html
+  dev_url: https://github.com/wdas/ptex
+
+extra:
+  recipe-maintainers:
+    - vfx-bootstrap

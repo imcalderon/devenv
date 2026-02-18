@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/imcalderon/devenv/schemas/workflow.schema.json",
+  "title": "DevEnv Workflow Definition",
+  "description": "Schema for workflow definitions in workflows/<type>/workflow.json",
+  "type": "object",
+  "required": ["name", "description", "modules"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Human-readable workflow name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Short description of the workflow"
+    },
+    "version": {
+      "type": "string",
+      "description": "Workflow definition version",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "modules": {
+      "type": "object",
+      "description": "Per-platform module lists",
+      "propertyNames": {
+        "enum": ["linux", "darwin", "windows"]
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "subtypes": {
+      "type": "object",
+      "description": "Named sub-types with their own scaffold and variables",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "description": { "type": "string" },
+          "scaffold": { "type": "string", "description": "Path relative to scaffolds/" },
+          "variables": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      }
+    },
+    "scaffold": {
+      "type": "string",
+      "description": "Default scaffold directory relative to scaffolds/ (used when no subtype)"
+    },
+    "variables": {
+      "type": "object",
+      "description": "Template variables for scaffolding",
+      "additionalProperties": { "type": "string" }
+    },
+    "toolkits": {
+      "type": "array",
+      "description": "Toolkit directories this workflow depends on (e.g. vfx-bootstrap)",
+      "items": { "type": "string" }
+    },
+    "post_init": {
+      "type": "array",
+      "description": "Commands to run after workflow init completes",
+      "items": { "type": "string" }
+    }
+  }
+}
