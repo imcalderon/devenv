@@ -40,7 +40,7 @@ requirements:
 
 test:
   imports:
-    - pyopenvdb
+    - pyopenvdb  # [unix]
   commands:
     - test -f $PREFIX/lib/libopenvdb${SHLIB_EXT}  # [unix]
     - vdb_print --version  # [unix]

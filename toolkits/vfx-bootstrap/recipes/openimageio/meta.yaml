@@ -13,6 +13,9 @@ build:
   number: 0
   run_exports:
     - {{ pin_subpackage(name, max_pin='x.x') }}
+  missing_dso_whitelist:            # [win]
+    - "*/Ptex.dll"                  # [win]
+    - "*/boost_*.dll"               # [win]
 
 requirements:
   build:

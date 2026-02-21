@@ -12,6 +12,11 @@ if defined VSINSTALL (
 
 REM OpenSubdiv build script for vfx-bootstrap (Windows)
 
+REM Clear conda-build's CMAKE_GENERATOR so -G Ninja takes effect
+set "CMAKE_GENERATOR="
+set "CMAKE_GENERATOR_PLATFORM="
+set "CMAKE_GENERATOR_TOOLSET="
+
 mkdir build
 cd build
 
@@ -27,10 +32,11 @@ cmake "%SRC_DIR%" ^
     -DNO_OMP=ON ^
     -DNO_CUDA=ON ^
     -DNO_OPENCL=ON ^
+    -DNO_DX=ON ^
     -DNO_PTEX=ON ^
-    -DNO_OPENGL=ON ^
-    -DNO_GLEW=ON ^
+    -DNO_OPENGL=OFF ^
     -DNO_GLFW=ON ^
+    -DNO_GLEW=ON ^
     -DNO_TBB=OFF ^
     -DTBB_LOCATION="%LIBRARY_PREFIX%"
 if errorlevel 1 exit /b 1

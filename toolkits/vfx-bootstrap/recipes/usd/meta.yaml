@@ -1,5 +1,5 @@
 {% set name = "usd" %}
-{% set version = "24.03" %}
+{% set version = "24.11" %}
 
 package:
   name: {{ name }}
@@ -7,12 +7,25 @@ package:
 
 source:
   url: https://github.com/PixarAnimationStudios/OpenUSD/archive/v{{ version }}.tar.gz
-  sha256: 0724421cff8ae04d0a7108ffa7c104e6ec3f7295418d4d50caaae767e59795ef
+  sha256: 1ab3dc387c8ce8c650d66143c86fb44ed6fe5c9638522bcb3226e85a401c4f69
+  patches:                              # [win]
+    - fix-pch-ninja-msvc.patch          # [win]
 
 build:
   number: 0
   run_exports:
     - {{ pin_subpackage(name, max_pin='x.x') }}
+  missing_dso_whitelist:            # [win]
+    - "*/boost_*.dll"               # [win]
+    - "*/Ptex.dll"                  # [win]
+    - "*/Alembic.dll"               # [win]
+    - "*/openvdb.dll"               # [win]
+    - "*/osd_*.dll"                 # [win]
+    - "*/MaterialX*.dll"            # [win]
+    - "*/OpenImageIO*.dll"          # [win]
+    - "*/OpenColorIO*.dll"          # [win]
+    - "*/tbb*.dll"                  # [win]
+    - "*/usd_*.dll"                 # [win]
 
 requirements:
   build:
@@ -33,7 +46,6 @@ requirements:
     - openimageio
     - opencolorio
     - ptex
-    - pybind11 >=2.9.1
     - jinja2
     - pyopengl
   run:
@@ -49,20 +61,21 @@ requirements:
     - openimageio
     - opencolorio
     - ptex
-    - pyside6
+    - pyside6                        # [not win]
     - jinja2
     - pyopengl
 
 test:
-  imports:
-    - pxr.Usd
-    - pxr.UsdGeom
-    - pxr.UsdShade
+  imports:                                # [unix]
+    - pxr.Usd                            # [unix]
+    - pxr.UsdGeom                        # [unix]
+    - pxr.UsdShade                       # [unix]
   commands:
     - usdcat --help
     - usdview --help  # [linux and x11]
     - test -f $PREFIX/lib/libusd_usd${SHLIB_EXT}  # [unix]
     - if not exist %LIBRARY_PREFIX%\lib\usd_usd.lib exit 1  # [win]
+    - set "PATH=%LIBRARY_PREFIX%\lib;%PATH%" && python -c "from pxr import Usd; print('USD', Usd.GetVersion())"  # [win]
 
 about:
   home: https://openusd.org/

@@ -10,8 +10,13 @@ if defined VSINSTALL (
     if errorlevel 1 exit /b 1
 )
 
-REM USD build script for vfx-bootstrap (Windows)
+REM USD 24.11 build script for vfx-bootstrap (Windows)
 REM This is the primary build target of the project
+
+REM Clear conda-build's CMAKE_GENERATOR so -G Ninja takes effect
+set "CMAKE_GENERATOR="
+set "CMAKE_GENERATOR_PLATFORM="
+set "CMAKE_GENERATOR_TOOLSET="
 
 mkdir build
 cd build
@@ -22,11 +27,10 @@ cmake "%SRC_DIR%" ^
     -DCMAKE_BUILD_TYPE=Release ^
     -DCMAKE_PREFIX_PATH="%LIBRARY_PREFIX%" ^
     -DPXR_ENABLE_PYTHON_SUPPORT=ON ^
-    -DPYTHON_EXECUTABLE="%PYTHON%" ^
-    -DPXR_USE_PYTHON_3=ON ^
+    -DPython_EXECUTABLE="%PYTHON%" ^
     -DPXR_BUILD_IMAGING=ON ^
     -DPXR_BUILD_USD_IMAGING=ON ^
-    -DPXR_BUILD_USDVIEW=ON ^
+    -DPXR_BUILD_USDVIEW=OFF ^
     -DPXR_BUILD_ALEMBIC_PLUGIN=ON ^
     -DPXR_BUILD_DRACO_PLUGIN=OFF ^
     -DPXR_BUILD_EMBREE_PLUGIN=OFF ^
@@ -36,19 +40,12 @@ cmake "%SRC_DIR%" ^
     -DPXR_BUILD_EXAMPLES=OFF ^
     -DPXR_BUILD_TUTORIALS=OFF ^
     -DPXR_ENABLE_MATERIALX_SUPPORT=ON ^
-    -DMATERIALX_ROOT="%LIBRARY_PREFIX%" ^
     -DPXR_ENABLE_OPENSUBDIV_SUPPORT=ON ^
-    -DOPENSUBDIV_ROOT_DIR="%LIBRARY_PREFIX%" ^
     -DPXR_ENABLE_OPENVDB_SUPPORT=ON ^
-    -DOPENVDB_ROOT="%LIBRARY_PREFIX%" ^
     -DPXR_ENABLE_PTEX_SUPPORT=ON ^
-    -DPTEX_LOCATION="%LIBRARY_PREFIX%" ^
-    -DOPENCOLORIO_ROOT="%LIBRARY_PREFIX%" ^
-    -DOPENIMAGEIO_ROOT="%LIBRARY_PREFIX%" ^
-    -DOPENEXR_LOCATION="%LIBRARY_PREFIX%" ^
-    -DTBB_ROOT_DIR="%LIBRARY_PREFIX%" ^
-    -DBOOST_ROOT="%LIBRARY_PREFIX%" ^
-    -DPXR_BUILD_OPENGL_ENABLED=ON
+    -DPXR_BUILD_OPENGL_ENABLED=ON ^
+    -DTBB_ROOT="%LIBRARY_PREFIX%" ^
+    -DBOOST_ROOT="%LIBRARY_PREFIX%"
 if errorlevel 1 exit /b 1
 
 cmake --build . --parallel %CPU_COUNT%
@@ -56,3 +53,7 @@ if errorlevel 1 exit /b 1
 
 cmake --install .
 if errorlevel 1 exit /b 1
+
+REM Copy USD DLLs to bin/ for runtime PATH
+if not exist "%LIBRARY_BIN%" mkdir "%LIBRARY_BIN%"
+for %%f in ("%LIBRARY_LIB%\usd_*.dll") do copy /Y "%%f" "%LIBRARY_BIN%\"
