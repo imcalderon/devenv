@@ -1,0 +1,82 @@
+def _vfx_platform_impl(repository_ctx):
+    conda_prefix = repository_ctx.os.environ.get("CONDA_PREFIX")
+    if not conda_prefix:
+        fail("CONDA_PREFIX environment variable not set. Please activate your conda environment.")
+
+    # Platform-specific path adjustments
+    is_windows = repository_ctx.os.name.lower().startswith("windows")
+    
+    # On Windows, Conda puts headers/libs in Library/
+    if is_windows:
+        include_path = conda_prefix + "/Library/include"
+        lib_path = conda_prefix + "/Library/lib"
+        bin_path = conda_prefix + "/Library/bin"
+    else:
+        include_path = conda_prefix + "/include"
+        lib_path = conda_prefix + "/lib"
+        bin_path = conda_prefix + "/bin"
+
+    # Create symlinks within the repository
+    repository_ctx.symlink(include_path, "include")
+    repository_ctx.symlink(lib_path, "lib")
+    if is_windows:
+        repository_ctx.symlink(bin_path, "bin")
+
+    # Generate the BUILD file for the external repository
+    repository_ctx.file("BUILD.bazel", """
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "imath",
+    hdrs = glob(["include/Imath/*.h"]),
+    includes = ["include"],
+    linkstatic = False,
+    srcs = glob(["lib/Imath*.lib", "lib/libImath*.so*", "lib/libImath*.dylib"]),
+)
+
+cc_library(
+    name = "openexr",
+    hdrs = glob(["include/OpenEXR/*.h"]),
+    includes = ["include"],
+    deps = [":imath"],
+    linkstatic = False,
+    srcs = glob(["lib/OpenEXR*.lib", "lib/libOpenEXR*.so*", "lib/libOpenEXR*.dylib"]),
+)
+
+cc_library(
+    name = "usd",
+    hdrs = glob(["include/pxr/**/*.h"]),
+    includes = ["include"],
+    deps = [":imath", ":tbb"],
+    linkstatic = False,
+    srcs = glob(["lib/usd_*.lib", "lib/libusd_*.so*", "lib/libusd_*.dylib"]),
+)
+
+cc_library(
+    name = "tbb",
+    hdrs = glob(["include/tbb/*.h"]),
+    includes = ["include"],
+    linkstatic = False,
+    srcs = glob(["lib/tbb*.lib", "lib/libtbb*.so*", "lib/libtbb*.dylib"]),
+)
+
+cc_library(
+    name = "qt6",
+    hdrs = glob(["include/Qt*/**/*.h"]),
+    includes = ["include"],
+    linkstatic = False,
+    srcs = glob(["lib/Qt6*.lib", "lib/libQt6*.so*", "lib/libQt6*.dylib"]),
+)
+""")
+
+vfx_platform_repository = repository_rule(
+    implementation = _vfx_platform_impl,
+    environ = ["CONDA_PREFIX"],
+)
+
+def _vfx_module_extension_impl(module_ctx):
+    vfx_platform_repository(name = "vfx_platform")
+
+vfx_extension = module_extension(
+    implementation = _vfx_module_extension_impl,
+)

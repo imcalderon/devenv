@@ -65,7 +65,15 @@ function Invoke-ModeAwareCommand {
                 $Name = Read-Host "Enter project name"
             }
 
-            New-DevEnvProject -ProjectName $Name -Template $Template
+            $params = @{
+                ProjectName = $Name
+                Template = $Template
+            }
+
+            if ($ProjectPath) { $params["ProjectPath"] = $ProjectPath }
+            if ($Description) { $params["Description"] = $Description }
+
+            New-DevEnvProject @params
         }
 
         'install' {

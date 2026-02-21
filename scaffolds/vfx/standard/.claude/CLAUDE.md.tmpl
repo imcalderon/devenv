@@ -1,0 +1,28 @@
+# ${PROJECT_NAME}
+
+## Project Type
+VFX Platform ${VFX_PLATFORM_YEAR} C++ project.
+
+## Build
+```bash
+mkdir build && cd build
+cmake .. -G Ninja -DCMAKE_PREFIX_PATH=$CONDA_PREFIX
+cmake --build .
+```
+
+## Dependencies
+- Imath ${IMATH_VERSION}, OpenEXR ${OPENEXR_VERSION}
+- PySide6 ${PYSIDE_VERSION}, Qt ${QT_VERSION}
+- C++${CXX_STANDARD} standard
+- Built via devenv: `devenv init vfx`
+
+## Key Files
+| File | Purpose |
+|------|---------|
+| CMakeLists.txt | Build configuration |
+| src/main.cpp | Entry point |
+
+## Conventions
+- Use CMake for build system
+- Link against VFX Platform libraries via `find_package()`
+- Use `$CONDA_PREFIX` for dependency paths

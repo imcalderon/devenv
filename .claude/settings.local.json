@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sort:*)",
+      "Bash(ls:*)",
+      "Bash(xargs:*)",
+      "Bash(conda run:*)",
+      "Bash(powershell -NoProfile -Command:*)",
+      "WebSearch",
+      "Bash(curl:*)",
+      "Bash(python -c:*)"
+    ]
+  }
+}

@@ -225,8 +225,8 @@ function Install-BuildDepsComponent {
         return $true
     }
 
-    Write-LogWarning "Some build deps may need a shell restart to be found" $script:ModuleName
-    return $true
+    Write-LogError "Build dependencies not found in PATH (cmake, ninja). A shell restart may be required." $script:ModuleName
+    return $false
 }
 
 function Install-CondaEnvComponent {
@@ -235,6 +235,26 @@ function Install-CondaEnvComponent {
     $condaExe = Get-CondaExe
     if (-not $condaExe) {
         Write-LogError "Conda not found. Install conda module first." $script:ModuleName
+        return $false
+    }
+
+    # Project Mode handling: Check for environment.yml in project root
+    if ($env:DEVENV_PROJECT_MODE -eq "true" -and (Test-Path (Join-Path $env:DEVENV_PROJECT_ROOT "environment.yml"))) {
+        $envYaml = Join-Path $env:DEVENV_PROJECT_ROOT "environment.yml"
+        $envName = (Get-Content $envYaml | Select-String "name: " | Select-Object -First 1).ToString().Split(":")[1].Trim()
+        
+        Write-LogInfo "Project Mode: Creating environment '$envName' from $envYaml" $script:ModuleName
+        
+        $prevEAP = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        
+        # Create or update from yaml
+        & $condaExe env update -n $envName -f $envYaml 2>&1
+        $ErrorActionPreference = $prevEAP
+        
+        if ($LASTEXITCODE -eq 0) {
+            return $true
+        }
         return $false
     }
 

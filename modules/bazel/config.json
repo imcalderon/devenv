@@ -1,0 +1,29 @@
+{
+    "enabled": true,
+    "runlevel": 2,
+    "description": "Bazel build system (via Bazelisk)",
+    "platforms": {
+        "windows": {
+            "enabled": true,
+            "package_id": "Bazel.Bazelisk"
+        },
+        "linux": {
+            "enabled": true,
+            "binary_url": "https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64"
+        },
+        "darwin": {
+            "enabled": true,
+            "brew": ["bazelisk"]
+        }
+    },
+    "shell": {
+        "aliases": {
+            "bazel": {
+                "b": "bazel",
+                "bb": "bazel build",
+                "bt": "bazel test",
+                "br": "bazel run"
+            }
+        }
+    }
+}
