@@ -8,8 +8,8 @@ package:
 source:
   url: https://github.com/PixarAnimationStudios/OpenUSD/archive/v{{ version }}.tar.gz
   sha256: 1ab3dc387c8ce8c650d66143c86fb44ed6fe5c9638522bcb3226e85a401c4f69
-  patches:                              # [win]
-    - fix-pch-ninja-msvc.patch          # [win]
+  patches:                                # [win]
+    - fix-pch-ninja-msvc.patch            # [win]
 
 build:
   number: 0
@@ -48,6 +48,7 @@ requirements:
     - ptex
     - jinja2
     - pyopengl
+    - pyside6
   run:
     - python
     - {{ pin_compatible('boost', max_pin='x.x') }}
@@ -61,34 +62,26 @@ requirements:
     - openimageio
     - opencolorio
     - ptex
-    - pyside6                        # [not win]
     - jinja2
     - pyopengl
+    - pyside6
 
 test:
-  imports:                                # [unix]
-    - pxr.Usd                            # [unix]
-    - pxr.UsdGeom                        # [unix]
-    - pxr.UsdShade                       # [unix]
+  imports:
+    - pxr.Usd
+    - pxr.UsdGeom
+    - pxr.UsdShade
   commands:
     - usdcat --help
-    - usdview --help  # [linux and x11]
+    - usdview --help
     - test -f $PREFIX/lib/libusd_usd${SHLIB_EXT}  # [unix]
     - if not exist %LIBRARY_PREFIX%\lib\usd_usd.lib exit 1  # [win]
-    - set "PATH=%LIBRARY_PREFIX%\lib;%PATH%" && python -c "from pxr import Usd; print('USD', Usd.GetVersion())"  # [win]
+    # Ensure DLLs are in PATH so Python can load the C++ extensions
+    - set "PATH=%LIBRARY_BIN%;%PATH%" && python -c "from pxr import Usd; print('USD Version:', Usd.GetVersion())"  # [win]
 
 about:
   home: https://openusd.org/
   license: Apache-2.0
   license_file: LICENSE.txt
   summary: Universal Scene Description (USD)
-  description: |
-    Universal Scene Description (USD) is an efficient, scalable system
-    for authoring, reading, and streaming time-sampled scene description
-    for interchange between graphics applications.
   doc_url: https://openusd.org/docs/
-  dev_url: https://github.com/PixarAnimationStudios/OpenUSD
-
-extra:
-  recipe-maintainers:
-    - vfx-bootstrap

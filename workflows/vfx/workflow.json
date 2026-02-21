@@ -1,16 +1,32 @@
 {
   "name": "VFX Platform",
-  "description": "VFX Platform development and build environment",
+  "description": "VFX Platform build and QML/USD development environment",
   "version": "1.0.0",
   "modules": {
-    "linux": ["zsh", "git", "docker", "python", "conda", "vfx"],
-    "darwin": ["zsh", "git", "docker", "python", "conda", "vfx"]
+    "linux": ["zsh", "git", "docker", "python", "conda", "vfx", "vscode", "bazel"],
+    "darwin": ["zsh", "git", "docker", "python", "conda", "vfx", "vscode", "bazel"],
+    "windows": ["powershell", "git", "docker", "python", "conda", "vfx", "vscode", "bazel"]
   },
-  "scaffold": "vfx",
+  "subtypes": {
+    "standard": {
+      "description": "Standard C++ VFX Platform project (Imath/OpenEXR)",
+      "scaffold": "vfx/standard"
+    },
+    "qml": {
+      "description": "VFX project with Qt/QML and USD support",
+      "scaffold": "vfx/qml",
+      "variables": {
+        "USE_QML": "ON",
+        "USE_USD": "ON"
+      }
+    }
+  },
   "variables": {
     "VFX_PLATFORM_YEAR": "2024",
     "CXX_STANDARD": "17",
     "PYTHON_VERSION": "3.11",
+    "QT_VERSION": "6.5",
+    "PYSIDE_VERSION": "6.5",
     "IMATH_VERSION": "3.1.9",
     "OPENEXR_VERSION": "3.2.1",
     "BOOST_VERSION": "1.82.0",

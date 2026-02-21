@@ -25,7 +25,9 @@
         "ms-python.python",
         "ms-vscode-remote.remote-wsl",
         "ms-azuretools.vscode-docker",
-        "eamodio.gitlens"
+        "eamodio.gitlens",
+        "qt-tools.qt-qml",
+        "qt-tools.qml-debug"
       ],
       "settings": {
         "workbench.colorTheme": "Default Dark Modern",

@@ -22,6 +22,12 @@ param (
     [string]$Name,
 
     [Parameter()]
+    [string]$ProjectPath,
+
+    [Parameter()]
+    [string]$Description,
+
+    [Parameter()]
     [string]$DataDir,
 
     [Parameter()]
@@ -45,8 +51,38 @@ $script:ScriptPath = if ($PSCommandPath) {
 }
 $script:ScriptDir = Split-Path $script:ScriptPath -Parent
 
+# Robust LibDir resolution
+if (Test-Path (Join-Path $script:ScriptDir "lib\windows")) {
+    $script:LibDir = Join-Path $script:ScriptDir "lib\windows"
+} else {
+    # We might be in a project's bin/ directory. Try to resolve via symlink or parent.
+    $item = Get-Item $script:ScriptPath -ErrorAction SilentlyContinue
+    if ($item.LinkType -eq 'SymbolicLink') {
+        $realPath = $item.Target
+        $realDir = Split-Path $realPath -Parent
+        $script:LibDir = Join-Path $realDir "lib\windows"
+    } else {
+        # Fallback: Check if ../config.json exists (Global mode) or ../devenv.json (Project mode)
+        # If neither, we might need a known location or environment variable
+        $parent = Split-Path $script:ScriptDir -Parent
+        if (Test-Path (Join-Path $parent "config.json")) {
+            $script:LibDir = Join-Path $parent "lib\windows"
+        } else {
+            # Last resort: check known standard locations or DEVENV_ROOT
+            $standardPath = "C:\Users\ivanm\devenv"
+            if (Test-Path (Join-Path $standardPath "lib\windows")) {
+                $script:LibDir = Join-Path $standardPath "lib\windows"
+            } elseif ($env:DEVENV_ROOT -and (Test-Path (Join-Path $env:DEVENV_ROOT "lib\windows"))) {
+                $script:LibDir = Join-Path $env:DEVENV_ROOT "lib\windows"
+            } else {
+                # Just use relative if all else fails, error will be caught during dot-sourcing
+                $script:LibDir = Join-Path $script:ScriptDir "lib\windows"
+            }
+        }
+    }
+}
+
 # Dot-source library modules
-$script:LibDir = Join-Path $script:ScriptDir "lib\windows"
 . (Join-Path $script:LibDir "mode.ps1")
 . (Join-Path $script:LibDir "modules.ps1")
 . (Join-Path $script:LibDir "project.ps1")

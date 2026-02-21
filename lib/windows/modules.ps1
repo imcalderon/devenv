@@ -6,9 +6,11 @@ function Initialize-ModuleSystem {
     #>
     param([hashtable]$DevEnvContext)
 
-    $script:ROOT_DIR = $env:DEVENV_ROOT
+    # Use robust LibDir resolved in devenv.ps1
+    $script:LIB_DIR = $script:LibDir
+    # LibDir is .../lib/windows, ROOT_DIR should be two levels up
+    $script:ROOT_DIR = Split-Path (Split-Path $script:LIB_DIR -Parent) -Parent
     $script:MODULES_DIR = Join-Path $script:ROOT_DIR "modules"
-    $script:LIB_DIR = Join-Path $script:ROOT_DIR "lib\windows"
 
     # Load Windows utilities
     $requiredLibs = @(
@@ -44,6 +46,8 @@ function Get-AvailableModules {
 
     $availableModules = @()
 
+    Write-Verbose "Searching for modules in: $script:MODULES_DIR"
+
     if (Test-Path $script:MODULES_DIR) {
         $moduleDirectories = Get-ChildItem $script:MODULES_DIR -Directory
 
@@ -59,15 +63,18 @@ function Get-AvailableModules {
                 # Check if module is enabled in config
                 if (Test-Path $moduleConfig) {
                     try {
-                        $config = Get-Content $moduleConfig | ConvertFrom-Json
+                        $configText = Get-Content $moduleConfig -Raw
+                        $config = $configText | ConvertFrom-Json
+                        Write-Verbose "Checking module: $moduleName"
+                        
                         $isEnabled = $config.enabled -eq $true
 
                         # Check Windows platform support
-                        if ($config.platforms -and $config.platforms.windows) {
+                        if ($config.PSObject.Properties['platforms'] -and $config.platforms.PSObject.Properties['windows']) {
                             $isEnabled = $isEnabled -and ($config.platforms.windows.enabled -eq $true)
                         }
                     } catch {
-                        Write-Warning "Failed to parse config for module: $moduleName"
+                        Write-Warning "Failed to parse config for module: $moduleName - $_"
                     }
                 }
 
@@ -126,15 +133,24 @@ function Get-ModuleExecutionOrder {
         $configOrder = $null
         $platform = "windows"  # Since this is the PowerShell version
 
-        if ($script:Config -and $script:Config.platforms -and $script:Config.platforms.$platform -and
-            $script:Config.platforms.$platform.modules -and $script:Config.platforms.$platform.modules.order) {
-            $configOrder = $script:Config.platforms.$platform.modules.order
-        }
-
-        # Fallback to global order if it exists
-        if (-not $configOrder -and $script:Config -and $script:Config.global -and
-            $script:Config.global.modules -and $script:Config.global.modules.order) {
-            $configOrder = $script:Config.global.modules.order
+        if ($script:Config) {
+            if ($script:Config.PSObject.Properties['platforms'] -and 
+                $script:Config.platforms.PSObject.Properties[$platform] -and
+                $script:Config.platforms.$platform.PSObject.Properties['modules'] -and 
+                $script:Config.platforms.$platform.modules.PSObject.Properties['order']) {
+                $configOrder = $script:Config.platforms.$platform.modules.order
+            }
+            # Fallback to direct .modules.order (common in project devenv.json)
+            elseif ($script:Config.PSObject.Properties['modules'] -and 
+                    $script:Config.modules.PSObject.Properties['order']) {
+                $configOrder = $script:Config.modules.order
+            }
+            # Fallback to global order if it exists
+            elseif ($script:Config.PSObject.Properties['global'] -and 
+                    $script:Config.global.PSObject.Properties['modules'] -and 
+                    $script:Config.global.modules.PSObject.Properties['order']) {
+                $configOrder = $script:Config.global.modules.order
+            }
         }
 
         if ($configOrder) {

@@ -110,6 +110,8 @@
           "python",
           "nodejs",
           "vscode",
+          "qtcreator",
+          "bazel",
           "conda",
           "vfx"
         ],
@@ -122,6 +124,8 @@
           "python",
           "nodejs",
           "vscode",
+          "qtcreator",
+          "bazel",
           "registry",
           "conda",
           "vfx"
@@ -222,6 +226,8 @@
           "python",
           "nodejs",
           "vscode",
+          "qtcreator",
+          "bazel",
           "conda",
           "vfx"
         ],
@@ -232,6 +238,8 @@
           "python",
           "nodejs",
           "vscode",
+          "qtcreator",
+          "bazel",
           "conda",
           "vfx",
           "react"
@@ -269,6 +277,8 @@
           "python",
           "nodejs",
           "vscode",
+          "qtcreator",
+          "bazel",
           "conda",
           "vfx"
         ],
@@ -279,6 +289,8 @@
           "python",
           "nodejs",
           "vscode",
+          "qtcreator",
+          "bazel",
           "conda",
           "vfx",
           "react"
@@ -330,8 +342,9 @@
     "vfx_platform": {
       "description": "VFX Platform development and build environment",
       "modules": {
-        "linux": ["zsh", "git", "docker", "python", "conda", "vfx"],
-        "darwin": ["zsh", "git", "docker", "python", "conda", "vfx"]
+        "windows": ["terminal", "powershell", "git", "docker", "python", "conda", "vfx", "vscode", "qtcreator", "bazel"],
+        "linux": ["zsh", "git", "docker", "python", "conda", "vfx", "vscode", "qtcreator", "bazel"],
+        "darwin": ["zsh", "git", "docker", "python", "conda", "vfx", "vscode", "qtcreator", "bazel"]
       }
     },
     "web_development": {

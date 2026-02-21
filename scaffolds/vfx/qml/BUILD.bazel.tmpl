@@ -1,0 +1,23 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_qt6//:qt.bzl", "qt_resource_alias")
+
+# QML Resources
+qt_resource_alias(
+    name = "qml_resources",
+    srcs = ["src/main.qml"],
+    prefix = "/",
+)
+
+cc_binary(
+    name = "${PROJECT_NAME}",
+    srcs = [
+        "src/main.cpp",
+    ],
+    deps = [
+        ":qml_resources",
+        "@vfx_platform//:usd",
+        "@vfx_platform//:qt6",
+        "@vfx_platform//:imath",
+        "@vfx_platform//:openexr",
+    ],
+)

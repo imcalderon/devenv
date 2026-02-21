@@ -1,0 +1,27 @@
+{
+    "enabled": true,
+    "runlevel": 3,
+    "description": "Qt Creator IDE for cross-platform C++, QML and Python development",
+    "platforms": {
+        "windows": {
+            "enabled": true,
+            "package_id": "Qt.QtCreator"
+        },
+        "linux": {
+            "enabled": true,
+            "apt": ["qtcreator"],
+            "dnf": ["qt-creator"]
+        },
+        "darwin": {
+            "enabled": true,
+            "brew": ["qt-creator"]
+        }
+    },
+    "shell": {
+        "aliases": {
+            "qt": {
+                "qtcreator": "qtcreator"
+            }
+        }
+    }
+}
