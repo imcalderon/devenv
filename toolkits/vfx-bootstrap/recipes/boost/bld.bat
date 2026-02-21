@@ -63,8 +63,15 @@ REM --layout=system gives clean lib names (boost_system.lib)
     --with-regex ^
     --with-system ^
     --with-thread ^
+    --with-python ^
     -sNO_BZIP2=1 ^
     -sZLIB_INCLUDE="%LIBRARY_INC%" ^
     -sZLIB_LIBPATH="%LIBRARY_LIB%" ^
     -j%CPU_COUNT%
 if %ERRORLEVEL% neq 0 exit /b 1
+
+REM Copy DLLs to bin/ for runtime PATH (keep in lib/ for CMake exports)
+if not exist "%LIBRARY_BIN%" mkdir "%LIBRARY_BIN%"
+for %%f in ("%LIBRARY_LIB%\boost_*.dll") do (
+    copy /Y "%%f" "%LIBRARY_BIN%\"
+)

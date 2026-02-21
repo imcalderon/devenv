@@ -12,6 +12,11 @@ if defined VSINSTALL (
 
 REM Alembic build script for vfx-bootstrap (Windows)
 
+REM Clear conda-build's CMAKE_GENERATOR so -G Ninja takes effect
+set "CMAKE_GENERATOR="
+set "CMAKE_GENERATOR_PLATFORM="
+set "CMAKE_GENERATOR_TOOLSET="
+
 mkdir build
 cd build
 
@@ -34,3 +39,7 @@ if errorlevel 1 exit /b 1
 
 cmake --install .
 if errorlevel 1 exit /b 1
+
+REM Copy DLLs to bin/ for runtime PATH (keep in lib/ for CMake exports)
+if not exist "%LIBRARY_BIN%" mkdir "%LIBRARY_BIN%"
+copy /Y "%LIBRARY_LIB%\Alembic.dll" "%LIBRARY_BIN%\"

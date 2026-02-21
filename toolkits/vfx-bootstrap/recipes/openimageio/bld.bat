@@ -12,6 +12,11 @@ if defined VSINSTALL (
 
 REM OpenImageIO build script for vfx-bootstrap (Windows)
 
+REM Clear conda-build's CMAKE_GENERATOR so -G Ninja takes effect
+set "CMAKE_GENERATOR="
+set "CMAKE_GENERATOR_PLATFORM="
+set "CMAKE_GENERATOR_TOOLSET="
+
 mkdir build
 cd build
 

@@ -30,3 +30,7 @@ if errorlevel 1 exit /b 1
 
 cmake --install .
 if errorlevel 1 exit /b 1
+
+REM Copy DLLs to bin/ for runtime PATH (keep in lib/ for CMake exports)
+if not exist "%LIBRARY_BIN%" mkdir "%LIBRARY_BIN%"
+copy /Y "%LIBRARY_LIB%\Ptex.dll" "%LIBRARY_BIN%\"

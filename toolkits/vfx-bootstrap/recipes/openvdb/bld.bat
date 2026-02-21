@@ -11,6 +11,9 @@ if defined VSINSTALL (
 )
 
 REM OpenVDB build script for vfx-bootstrap (Windows)
+REM Python module disabled on Windows: pyGrid.h uses POSIX ssize_t which MSVC
+REM lacks. Core C++ library builds fine; downstream packages (OIIO, USD) only
+REM need the C++ lib. Revisit when OpenVDB upstream fixes MSVC Python support.
 
 mkdir build
 cd build
@@ -22,15 +25,13 @@ cmake "%SRC_DIR%" ^
     -DCMAKE_PREFIX_PATH="%LIBRARY_PREFIX%" ^
     -DOPENVDB_BUILD_CORE=ON ^
     -DOPENVDB_BUILD_BINARIES=ON ^
-    -DOPENVDB_BUILD_PYTHON_MODULE=ON ^
+    -DOPENVDB_BUILD_PYTHON_MODULE=OFF ^
     -DOPENVDB_BUILD_UNITTESTS=OFF ^
     -DOPENVDB_BUILD_DOCS=OFF ^
     -DUSE_BLOSC=ON ^
     -DUSE_ZLIB=ON ^
     -DUSE_EXR=ON ^
     -DUSE_TBB=ON ^
-    -DUSE_NUMPY=ON ^
-    -DPython_EXECUTABLE="%PYTHON%" ^
     -DTBB_ROOT="%LIBRARY_PREFIX%" ^
     -DBLOSC_ROOT="%LIBRARY_PREFIX%" ^
     -DOpenEXR_ROOT="%LIBRARY_PREFIX%" ^
