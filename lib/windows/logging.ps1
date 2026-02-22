@@ -17,42 +17,41 @@ function Initialize-Logging {
         $script:LOG_LEVEL = $env:LOG_LEVEL
     }
     
-    # Get log directory from module config if available
-    $logDir = $DEFAULT_LOG_DIR
+    # Get log directory from environment or fallback
+    $logDir = $env:DEVENV_LOGS_DIR
+    if (-not $logDir) {
+        $logDir = Join-Path $env:USERPROFILE ".devenv\logs"
+    }
     
-    if ($ModuleName -and (Test-Path "$env:ROOT_DIR\modules\$ModuleName\config.json")) {
-        $logDir = Get-JsonValue "$env:ROOT_DIR\modules\$ModuleName\config.json" ".logging.dir" $DEFAULT_LOG_DIR
+    # If module specified, try to find module-specific log dir
+    if ($ModuleName -and $env:DEVENV_ROOT) {
+        $moduleConfigPath = Join-Path $env:DEVENV_ROOT "modules\$ModuleName\config.json"
+        if (Test-Path $moduleConfigPath) {
+            $moduleLogDir = Get-JsonValue $moduleConfigPath ".logging.dir" $null
+            if ($moduleLogDir) { $logDir = $moduleLogDir }
+        }
     }
     
     # Create log directory
-    try {
-        if (-not (Test-Path $logDir)) {
-            New-Item -Path $logDir -ItemType Directory -Force | Out-Null
-        }
-    } catch {
-        Write-Host "ERROR: Failed to create log directory: $logDir" -ForegroundColor Red
-        return $false
-    }
-    
-    # Set up log file with module prefix if applicable
-    $prefix = if ($ModuleName) { "${ModuleName}_" } else { "" }
-    $script:LOG_FILE = "${logDir}\devenv_${prefix}$(Get-Date -Format 'yyyyMMdd').log"
-    
-    # Create symlink to latest log
-    try {
-        $latestLog = "${logDir}\${prefix}latest.log"
-        if (Test-Path $latestLog) {
-            Remove-Item $latestLog -Force
-        }
-        New-Item -ItemType SymbolicLink -Path $latestLog -Target $script:LOG_FILE -Force | Out-Null
-    } catch {
-        # Symlinks might not be available, just create a copy
+    if (-not (Test-Path $logDir)) {
         try {
-            Copy-Item $script:LOG_FILE $latestLog -Force
+            New-Item -Path $logDir -ItemType Directory -Force | Out-Null
         } catch {
-            # Ignore errors with the latest log
+            # Absolute fallback to USERPROFILE\.devenv\logs if specified failed
+            $logDir = Join-Path $env:USERPROFILE ".devenv\logs"
+            if (-not (Test-Path $logDir)) {
+                New-Item -Path $logDir -ItemType Directory -Force | Out-Null
+            }
         }
     }
+    
+    # Set up log file with module prefix
+    $prefix = if ($ModuleName) { "${ModuleName}_" } else { "" }
+    $timestamp = Get-Date -Format 'yyyyMMdd'
+    if ($null -eq $logDir) {
+        $logDir = Join-Path $env:USERPROFILE ".devenv\logs"
+    }
+    $script:LOG_FILE = Join-Path $logDir "devenv_${prefix}${timestamp}.log"
     
     return $true
 }

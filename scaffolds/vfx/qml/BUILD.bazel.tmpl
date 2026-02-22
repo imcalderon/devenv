@@ -1,11 +1,17 @@
-load("@rules_cc//cc:defs.bzl", "cc_binary")
-load("@rules_qt6//:qt.bzl", "qt_resource_alias")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
-# QML Resources
-qt_resource_alias(
+# Compile QML Resources manually using rcc from conda
+genrule(
+    name = "qrc_cpp",
+    srcs = ["src/resources.qrc", "src/main.qml"],
+    outs = ["src/qrc_resources.cpp"],
+    cmd_bat = "rcc $(location src/resources.qrc) -o $@",
+)
+
+cc_library(
     name = "qml_resources",
-    srcs = ["src/main.qml"],
-    prefix = "/",
+    srcs = [":qrc_cpp"],
+    deps = ["@vfx_platform//:qt6"],
 )
 
 cc_binary(
@@ -13,11 +19,18 @@ cc_binary(
     srcs = [
         "src/main.cpp",
     ],
+    copts = select({
+        "@bazel_tools//src/conditions:windows": ["/std:c++17", "/Zc:__cplusplus", "/permissive-"],
+        "//conditions:default": ["-std=c++17"],
+    }),
     deps = [
         ":qml_resources",
         "@vfx_platform//:usd",
         "@vfx_platform//:qt6",
         "@vfx_platform//:imath",
         "@vfx_platform//:openexr",
+        "@vfx_platform//:boost",
+        "@vfx_platform//:tbb",
     ],
 )
+

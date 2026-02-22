@@ -2,7 +2,9 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <iostream>
+#include <string>
 
+#include <pxr/pxr.h>
 #include <pxr/usd/usd/common.h>
 #include <pxr/base/tf/diagnostic.h>
 
@@ -11,12 +13,15 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
 
     // USD Version Check
-    std::cout << "USD Version: " << pxr::UsdGetVersion() << std::endl;
+    std::string usdVersion = std::to_string(PXR_MAJOR_VERSION) + "." + 
+                             std::to_string(PXR_MINOR_VERSION) + "." + 
+                             std::to_string(PXR_PATCH_VERSION);
+    std::cout << "USD Version: " << usdVersion << std::endl;
 
     QQmlApplicationEngine engine;
     
     // Register USD version to QML
-    engine.rootContext()->setContextProperty("usdVersion", QString::fromStdString(std::to_string(pxr::UsdGetVersion())));
+    engine.rootContext()->setContextProperty("usdVersion", QString::fromStdString(usdVersion));
 
     const QUrl url(QStringLiteral("qrc:/main.qml"));
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,

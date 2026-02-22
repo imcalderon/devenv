@@ -114,6 +114,7 @@ function Initialize-ExecutionEnvironment {
     $env:DEVENV_LOGS_DIR = Join-Path $DevEnvContext.DataDir "logs"
     $env:DEVENV_BACKUPS_DIR = Join-Path $DevEnvContext.DataDir "backups"
     $env:DEVENV_MODULES_DIR = Join-Path $env:DEVENV_ROOT "modules"
+    $env:ROOT_DIR = $env:DEVENV_ROOT
 
     # Module-specific data directories
     $env:DEVENV_PYTHON_DIR = Join-Path $DevEnvContext.DataDir "python"

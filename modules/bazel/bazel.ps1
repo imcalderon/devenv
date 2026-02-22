@@ -107,7 +107,39 @@ function Install-CoreComponent {
         winget.exe install --exact --id $packageId --silent --accept-package-agreements --accept-source-agreements
         
         if ($LASTEXITCODE -eq 0) {
-            Write-LogInfo "Bazel (Bazelisk) installed successfully" $script:ModuleName
+            Write-LogInfo "Bazel (Bazelisk) installed successfully via winget" $script:ModuleName
+            
+            # Refresh PATH from system/user to catch winget changes
+            $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+            
+            # If still not found, try to find where winget put it and add to PATH
+            if (-not (Get-Command bazel -ErrorAction SilentlyContinue)) {
+                $wingetPath = Join-Path $env:LOCALAPPDATA "Microsoft\WinGet\Packages"
+                $bazelDir = Get-ChildItem -Path $wingetPath -Filter "Bazel.Bazelisk*" -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+                
+                if ($bazelDir) {
+                    # Create bazel.exe symlink to bazelisk.exe if it doesn't exist
+                    $bazeliskExe = Join-Path $bazelDir.FullName "bazelisk.exe"
+                    $bazelExe = Join-Path $bazelDir.FullName "bazel.exe"
+                    if (Test-Path $bazeliskExe -and -not (Test-Path $bazelExe)) {
+                        try {
+                            New-Item -ItemType SymbolicLink -Path $bazelExe -Target $bazeliskExe -Force | Out-Null
+                            Write-LogInfo "Created bazel.exe symlink to bazelisk.exe" $script:ModuleName
+                        } catch {
+                            Write-LogWarning "Failed to create symlink (needs admin/dev mode). Using copy fallback." $script:ModuleName
+                            Copy-Item -Path $bazeliskExe -Destination $bazelExe -Force
+                        }
+                    }
+
+                    $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+                    if ($currentPath -notlike "*$($bazelDir.FullName)*") {
+                        [Environment]::SetEnvironmentVariable("PATH", "$currentPath;$($bazelDir.FullName)", "User")
+                        $env:PATH = "$env:PATH;$($bazelDir.FullName)"
+                        Write-LogInfo "Added $($bazelDir.FullName) to User PATH" $script:ModuleName
+                    }
+                }
+            }
+            
             return $true
         }
         return $false

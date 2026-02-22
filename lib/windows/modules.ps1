@@ -159,17 +159,10 @@ function Get-ModuleExecutionOrder {
             # Ensure configOrder is treated as array
             $configOrderArray = @($configOrder)
 
-            # Add modules in configured order first
+            # Add modules in configured order
             foreach ($moduleName in $configOrderArray) {
                 $module = $availableModules | Where-Object { $_.Name -eq $moduleName }
                 if ($module) {
-                    $orderedModules += $module
-                }
-            }
-
-            # Add any remaining modules not in the configured order
-            foreach ($module in $availableModules) {
-                if ($module.Name -notin $configOrderArray) {
                     $orderedModules += $module
                 }
             }
@@ -324,7 +317,8 @@ function Invoke-ModuleInstallation {
     foreach ($module in $modulesToInstall) {
         $moduleStartTime = Get-Date
 
-        if (Install-DevEnvModule -Module $module -Force $Force -DevEnvContext $DevEnvContext) {
+        $result = Install-DevEnvModule -Module $module -Force $Force -DevEnvContext $DevEnvContext
+        if ($result) {
             $successCount++
         } else {
             $failureCount++
