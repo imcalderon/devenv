@@ -5,13 +5,14 @@ genrule(
     name = "qrc_cpp",
     srcs = ["src/resources.qrc", "src/main.qml"],
     outs = ["src/qrc_resources.cpp"],
-    cmd_bat = "rcc $(location src/resources.qrc) -o $@",
+    cmd_bat = "C:\\Users\\ivanm\\miniconda3\\envs\\manifold\\Library\\bin\\rcc.exe $(location src/resources.qrc) -o $@",
 )
 
 cc_library(
     name = "qml_resources",
     srcs = [":qrc_cpp"],
     deps = ["@vfx_platform//:qt6"],
+    alwayslink = True,
 )
 
 cc_binary(
@@ -34,3 +35,24 @@ cc_binary(
     ],
 )
 
+# Generate project manifest for mkInstaller using a python script to find DLLs
+genrule(
+    name = "installer_manifest",
+    srcs = [
+        ":${PROJECT_NAME}",
+        "bin/generate_manifest.py",
+    ],
+    outs = ["${PROJECT_NAME}_manifest.json"],
+    cmd_bat = "python $(location bin/generate_manifest.py) $@ $(location :${PROJECT_NAME})",
+)
+
+# Task to build the installer using mkInstaller
+# Usage: bazel run //:build_installer
+sh_binary(
+    name = "build_installer",
+    srcs = ["bin/build_installer.ps1"],
+    data = [
+        ":${PROJECT_NAME}",
+        ":installer_manifest",
+    ],
+)

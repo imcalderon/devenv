@@ -1,6 +1,9 @@
 #include <QGuiApplication>
+#include <QCoreApplication>
+#include <QDir>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QDirIterator>
 #include <iostream>
 #include <string>
 
@@ -10,6 +13,24 @@
 
 int main(int argc, char *argv[])
 {
+    std::cout << "${PROJECT_NAME} starting..." << std::endl;
+    std::cout.flush();
+
+    // Setup runtime paths relative to executable for the installer bundle
+    QString appDir = QCoreApplication::applicationDirPath();
+    
+    // Qt platform plugins
+    QString platformsPath = appDir + "/platforms";
+    if (QDir(platformsPath).exists()) {
+        qputenv("QT_QPA_PLATFORM_PLUGIN_PATH", platformsPath.toLocal8Bit());
+    }
+
+    // QML import paths
+    QString qmlPath = appDir + "/qml";
+    if (QDir(qmlPath).exists()) {
+        qputenv("QML2_IMPORT_PATH", qmlPath.toLocal8Bit());
+    }
+
     QGuiApplication app(argc, argv);
 
     // USD Version Check
