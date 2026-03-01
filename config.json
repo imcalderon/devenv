@@ -112,6 +112,7 @@
           "vscode",
           "qtcreator",
           "bazel",
+          "mkinstaller",
           "conda",
           "vfx"
         ],
@@ -126,6 +127,7 @@
           "vscode",
           "qtcreator",
           "bazel",
+          "mkinstaller",
           "registry",
           "conda",
           "vfx"

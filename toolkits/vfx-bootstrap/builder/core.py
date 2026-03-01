@@ -7,6 +7,7 @@ Manages the build process for VFX Platform packages using conda-build.
 import datetime
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Union
 
@@ -249,17 +250,26 @@ class VFXBuilder:
             print(f"[CMD] {' '.join(cmd)}")
 
         try:
-            with open(log_file, "w") as log:
-                process = subprocess.run(
+            with open(log_file, "w", encoding="utf-8") as log:
+                process = subprocess.Popen(
                     cmd,
-                    stdout=subprocess.PIPE if not verbose else None,
-                    stderr=subprocess.STDOUT if not verbose else None,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     env=self._build_env(),
                 )
 
-                if not verbose and process.stdout:
-                    log.write(process.stdout)
+                if process.stdout:
+                    for line in process.stdout:
+                        if verbose:
+                            sys.stdout.write(line)
+                            sys.stdout.flush()
+                        log.write(line)
+                        log.flush()
+
+                process.wait()
 
             if process.returncode == 0:
                 outputs = self._find_build_outputs(recipe)

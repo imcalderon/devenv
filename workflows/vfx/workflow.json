@@ -5,7 +5,7 @@
   "modules": {
     "linux": ["zsh", "git", "docker", "python", "conda", "vfx", "vscode", "bazel"],
     "darwin": ["zsh", "git", "docker", "python", "conda", "vfx", "vscode", "bazel"],
-    "windows": ["powershell", "git", "docker", "python", "conda", "vfx", "vscode", "bazel"]
+    "windows": ["vfx", "vscode", "bazel"]
   },
   "subtypes": {
     "standard": {
@@ -29,9 +29,9 @@
     "PYSIDE_VERSION": "6.5",
     "IMATH_VERSION": "3.1.9",
     "OPENEXR_VERSION": "3.2.1",
-    "BOOST_VERSION": "1.82.0",
-    "TBB_VERSION": "2020.3",
-    "USD_VERSION": "24.03"
+    "BOOST_VERSION": "1.86.0",
+    "TBB_VERSION": "2021.12.0",
+    "USD_VERSION": "24.11"
   },
   "toolkits": ["vfx-bootstrap"],
   "post_init": [

@@ -239,23 +239,25 @@ function Install-CondaEnvComponent {
     }
 
     # Project Mode handling: Check for environment.yml in project root
-    if ($env:DEVENV_PROJECT_MODE -eq "true" -and (Test-Path (Join-Path $env:DEVENV_PROJECT_ROOT "environment.yml"))) {
+    if ($env:DEVENV_PROJECT_MODE -eq "true" -and $env:DEVENV_PROJECT_ROOT) {
         $envYaml = Join-Path $env:DEVENV_PROJECT_ROOT "environment.yml"
-        $envName = (Get-Content $envYaml | Select-String "name: " | Select-Object -First 1).ToString().Split(":")[1].Trim()
-        
-        Write-LogInfo "Project Mode: Creating environment '$envName' from $envYaml" $script:ModuleName
-        
-        $prevEAP = $ErrorActionPreference
-        $ErrorActionPreference = 'Continue'
-        
-        # Create or update from yaml
-        & $condaExe env update -n $envName -f $envYaml 2>&1
-        $ErrorActionPreference = $prevEAP
-        
-        if ($LASTEXITCODE -eq 0) {
-            return $true
+        if (Test-Path $envYaml) {
+            $envName = (Get-Content $envYaml | Select-String "name: " | Select-Object -First 1).ToString().Split(":")[1].Trim()
+            
+            Write-LogInfo "Project Mode: Creating environment '$envName' from $envYaml" $script:ModuleName
+            
+            $prevEAP = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            
+            # Create or update from yaml
+            & $condaExe env update -n $envName -f $envYaml 2>&1
+            $ErrorActionPreference = $prevEAP
+            
+            if ($LASTEXITCODE -eq 0) {
+                return $true
+            }
+            return $false
         }
-        return $false
     }
 
     $envName = Get-ModuleConfig $script:ModuleName ".conda.env_name"
@@ -513,7 +515,13 @@ function Install-Module {
         return $true
     }
 
-    # Create backup before installation
+    # Project Mode: Surgical install of local environment only
+    if ($env:DEVENV_PROJECT_MODE -eq "true") {
+        Write-LogInfo "Project Mode: Skipping global components, setting up local environment..." $script:ModuleName
+        return Install-Component 'conda_env'
+    }
+
+    # Global Mode: Create backup before installation
     New-Backup $script:ModuleName
 
     # Install each component

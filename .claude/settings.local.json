@@ -8,7 +8,10 @@
       "Bash(powershell -NoProfile -Command:*)",
       "WebSearch",
       "Bash(curl:*)",
-      "Bash(python -c:*)"
+      "Bash(python -c:*)",
+      "Bash(find C:\\\\Users\\\\ivanm\\\\Development\\\\vfx\\\\OpenUSD:*)",
+      "Bash(powershell.exe:*)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

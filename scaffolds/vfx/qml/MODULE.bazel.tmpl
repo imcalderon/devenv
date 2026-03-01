@@ -5,9 +5,10 @@ module(
 
 # Core rules
 bazel_dep(name = "rules_cc", version = "0.0.9")
-bazel_dep(name = "rules_qt6", version = "1.0.0")
+bazel_dep(name = "rules_qt", version = "0.0.6")
 
 # VFX Platform Integration
-vfx = use_extension("//bazel:vfx_platform.bzl", "vfx_extension")
+vfx = use_extension("//:bazel/vfx_platform.bzl", "vfx_extension")
 use_repo(vfx, "vfx_platform")
+
 

@@ -190,11 +190,16 @@ function Initialize-Module {
     if ([string]::IsNullOrWhiteSpace($rootDir)) {
         $rootDir = $env:ROOT_DIR
     }
+    if ([string]::IsNullOrWhiteSpace($rootDir)) {
+        $rootDir = "C:\Users\ivanm\devenv"
+    }
     
     if (-not [string]::IsNullOrWhiteSpace($rootDir)) {
         $env:MODULE_NAME = $Module
         $env:MODULE_DIR = Join-Path $rootDir "modules\$Module"
         $env:MODULE_CONFIG = Join-Path $env:MODULE_DIR "config.json"
+        $env:DEVENV_ROOT = $rootDir
+        $env:ROOT_DIR = $rootDir
     }
     
     return $true
