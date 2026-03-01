@@ -1,0 +1,21 @@
+{
+    "enabled": true,
+    "runlevel": 4,
+    "dependencies": ["python", "git"],
+    "description": "Installer building system for MSI and self-extracting executables",
+    "platforms": {
+        "windows": {
+            "enabled": true,
+            "install_path": "%USERPROFILE%\\mkInstaller",
+            "modern_archive_path": "%USERPROFILE%\\ModernArchive"
+        }
+    },
+    "shell": {
+        "aliases": {
+            "installer": {
+                "mki": "python %USERPROFILE%\\mkInstaller\\run_installer_build.py",
+                "mki-web": "python %USERPROFILE%\\mkInstaller\\start_web_api.py"
+            }
+        }
+    }
+}
