@@ -98,6 +98,14 @@ function Initialize-ExecutionEnvironment {
     $env:DEVENV_MODE = $DevEnvContext.Mode
     $env:DEVENV_DATA_DIR = $DevEnvContext.DataDir
     $env:DEVENV_CONFIG_FILE = $DevEnvContext.ConfigFile
+
+    # DEVENV_TOOLS_DIR: base directory for tool installations (miniconda3, VFX builds, etc.)
+    # Pre-set this before running devenv to redirect installs off C:.
+    # Example:  $env:DEVENV_TOOLS_DIR = "D:\tools"
+    if (-not $env:DEVENV_TOOLS_DIR) {
+        $env:DEVENV_TOOLS_DIR = $env:USERPROFILE
+    }
+
     $env:DEVENV_ROOT = if ($DevEnvContext.Mode -eq "Global") {
         Split-Path $DevEnvContext.ScriptPath -Parent
     } else {
@@ -132,6 +140,8 @@ function Initialize-ExecutionEnvironment {
         Write-Host (Split-Path $DevEnvContext.ProjectRoot -Leaf) -ForegroundColor White
         Write-Host "   Data Dir: " -NoNewline -ForegroundColor Gray
         Write-Host $DevEnvContext.DataDir -ForegroundColor Yellow
+        Write-Host "   Tools Dir: " -NoNewline -ForegroundColor Gray
+        Write-Host $env:DEVENV_TOOLS_DIR -ForegroundColor Yellow
 
         if ($DevEnvContext.IsSymlink) {
             Write-Host "   Symlink: " -NoNewline -ForegroundColor Gray
@@ -147,6 +157,8 @@ function Initialize-ExecutionEnvironment {
         Write-Host "DevEnv Global Mode" -ForegroundColor Green
         Write-Host "   Data Dir: " -NoNewline -ForegroundColor Gray
         Write-Host $DevEnvContext.DataDir -ForegroundColor Yellow
+        Write-Host "   Tools Dir: " -NoNewline -ForegroundColor Gray
+        Write-Host $env:DEVENV_TOOLS_DIR -ForegroundColor Yellow
     }
 
     Write-Host ""

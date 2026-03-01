@@ -14,6 +14,8 @@ cd devenv
 ./devenv init vfx                    # Or initialize a specific workflow
 
 # Windows PowerShell
+# Optional: redirect large tool installs off C: (miniconda3, VFX builds)
+$env:DEVENV_TOOLS_DIR = "D:\tools"   # defaults to $USERPROFILE if not set
 .\devenv.ps1 install                 # Install all modules
 .\devenv.ps1 install git python      # Install specific modules
 ```
@@ -91,7 +93,27 @@ Full VFX Platform stack built from source via conda-build, with native MSVC supp
 .\devenv\scripts\build_vfx.ps1 -All
 ```
 
-Recipes live in `toolkits/vfx-bootstrap/recipes/`. Each recipe has a `meta.yaml`, `build.sh` (Linux/macOS), and `bld.bat` (Windows). Builds output to `~/Development/vfx/builds/` with local channel indexing in `~/Development/vfx/channel/`.
+Recipes live in `toolkits/vfx-bootstrap/recipes/`. Each recipe has a `meta.yaml`, `build.sh` (Linux/macOS), and `bld.bat` (Windows). Builds output to `%DEVENV_TOOLS_DIR%\Development\vfx\builds\` with local channel indexing in `%DEVENV_TOOLS_DIR%\Development\vfx\channel\`.
+
+## Windows Path Configuration
+
+By default, large tool installations land under `$USERPROFILE` (C: drive). Set `DEVENV_TOOLS_DIR` before running devenv to redirect them to another drive:
+
+```powershell
+$env:DEVENV_TOOLS_DIR = "D:\tools"   # miniconda3 → D:\tools\miniconda3
+.\devenv.ps1 install
+```
+
+Affected paths:
+
+| Tool | Default | With `DEVENV_TOOLS_DIR=D:\tools` |
+|------|---------|----------------------------------|
+| Miniconda3 | `C:\Users\<user>\miniconda3` | `D:\tools\miniconda3` |
+| VFX builds | `C:\Users\<user>\Development\vfx\builds` | `D:\tools\Development\vfx\builds` |
+| VFX channel | `C:\Users\<user>\Development\vfx\channel` | `D:\tools\Development\vfx\channel` |
+| VFX platform spec | `C:\Users\<user>\.vfx-devenv` | `D:\tools\.vfx-devenv` |
+
+The state/log directory (`DEVENV_DATA_DIR`, `%USERPROFILE%\.devenv`) always stays on C: — it only holds small metadata files.
 
 ## Hermetic Environments
 

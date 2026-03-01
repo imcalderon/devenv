@@ -137,7 +137,7 @@ function Install-ModernArchive {
     Write-LogInfo "Building ModernArchive with CMake..." $script:ModuleName
     Push-Location $buildDir
     try {
-        $condaPrefix = Join-Path $env:USERPROFILE "miniconda3\Library"
+        $condaPrefix = Join-Path $env:DEVENV_TOOLS_DIR "miniconda3\Library"
         & cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$condaPrefix"
         & cmake --build . --config Release
     } finally {
@@ -182,7 +182,7 @@ function Install-MkInstallerCore {
 function Install-DbInit {
     Write-LogInfo "Initializing mkInstaller database..." $script:ModuleName
     
-    $condaPython = Join-Path $env:USERPROFILE "miniconda3\python.exe"
+    $condaPython = Join-Path $env:DEVENV_TOOLS_DIR "miniconda3\python.exe"
     
     # Ensure dependencies are installed (redundant check but safe)
     $reqFile = Join-Path $script:InstallPath "requirements.txt"

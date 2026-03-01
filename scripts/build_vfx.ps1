@@ -34,9 +34,11 @@ $env:__VSCMD_ARG_NO_LOGO = "1"
 # Derive paths relative to this script's location in devenv/scripts/
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $devenvRoot = Split-Path -Parent $scriptDir
-$condaExe = Join-Path $env:USERPROFILE "miniconda3\Scripts\conda.exe"
+# DEVENV_TOOLS_DIR: set this env var to redirect installs off C: (e.g. "D:\tools")
+$toolsDir = if ($env:DEVENV_TOOLS_DIR) { $env:DEVENV_TOOLS_DIR } else { $env:USERPROFILE }
+$condaExe = Join-Path $toolsDir "miniconda3\Scripts\conda.exe"
 $builderDir = Join-Path $devenvRoot "toolkits\vfx-bootstrap"
-$vfxRoot = Join-Path $env:USERPROFILE "Development\vfx"
+$vfxRoot = Join-Path $toolsDir "Development\vfx"
 $outputDir = Join-Path $vfxRoot "builds"
 $channelDir = Join-Path $vfxRoot "channel"
 
@@ -53,7 +55,7 @@ $cliArgs = @(
 )
 
 if ($Clean) {
-    $condaBld = Join-Path $env:USERPROFILE "miniconda3\envs\$CondaEnv\conda-bld"
+    $condaBld = Join-Path $toolsDir "miniconda3\envs\$CondaEnv\conda-bld"
     $broken = Join-Path $condaBld "broken"
     if ($Package) {
         $pattern = "${Package}_*"
@@ -119,7 +121,7 @@ if ($Clean) {
 
 # Clean leftover conda-build work dirs for the target package
 if ($Package) {
-    $condaBld = Join-Path $env:USERPROFILE "miniconda3\envs\$CondaEnv\conda-bld"
+    $condaBld = Join-Path $toolsDir "miniconda3\envs\$CondaEnv\conda-bld"
     Get-ChildItem "$condaBld\${Package}_*" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
         Write-Host "Removing stale: $($_.Name)"
         Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue

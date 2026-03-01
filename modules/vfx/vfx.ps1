@@ -76,7 +76,7 @@ function Test-ComponentState {
 }
 
 function Get-CondaExe {
-    $condaRoot = Join-Path $env:USERPROFILE "miniconda3"
+    $condaRoot = Join-Path $env:DEVENV_TOOLS_DIR "miniconda3"
     $condaExe = Join-Path $condaRoot "Scripts\conda.exe"
     if (Test-Path $condaExe) {
         return $condaExe
@@ -129,7 +129,7 @@ function Test-Component {
             }
         }
         'channels' {
-            $channelDir = Join-Path $env:USERPROFILE "Development\vfx\channel"
+            $channelDir = Join-Path $env:DEVENV_TOOLS_DIR "Development\vfx\channel"
             return (Test-Path $channelDir) -and (Test-Path (Join-Path $channelDir "channeldata.json"))
         }
         'shell' {
@@ -137,7 +137,7 @@ function Test-Component {
             return (Test-Path $aliasesFile) -and (Get-ModuleAliases $script:ModuleName)
         }
         'platform_version' {
-            $platformFile = Join-Path $env:USERPROFILE ".vfx-devenv\platform.json"
+            $platformFile = Join-Path $env:DEVENV_TOOLS_DIR ".vfx-devenv\platform.json"
             return (Test-Path $platformFile)
         }
         default {
@@ -336,7 +336,7 @@ function Install-VfxBootstrapComponent {
 function Install-ChannelsComponent {
     Write-LogInfo "Configuring VFX local channel..." $script:ModuleName
 
-    $channelDir = Join-Path $env:USERPROFILE "Development\vfx\channel"
+    $channelDir = Join-Path $env:DEVENV_TOOLS_DIR "Development\vfx\channel"
 
     # Create channel subdirectories
     foreach ($subdir in @("win-64", "noarch")) {
@@ -391,8 +391,8 @@ function Install-ChannelsComponent {
     }
 
     # Create output directories
-    $buildOutput = Join-Path $env:USERPROFILE "Development\vfx\builds"
-    $packageOutput = Join-Path $env:USERPROFILE "Development\vfx\packages"
+    $buildOutput = Join-Path $env:DEVENV_TOOLS_DIR "Development\vfx\builds"
+    $packageOutput = Join-Path $env:DEVENV_TOOLS_DIR "Development\vfx\packages"
     foreach ($dir in @($buildOutput, $packageOutput)) {
         if (-not (Test-Path $dir)) {
             New-Item -Path $dir -ItemType Directory -Force | Out-Null
@@ -428,7 +428,7 @@ function Install-ShellComponent {
 function Install-PlatformVersionComponent {
     Write-LogInfo "Writing VFX Platform version specs..." $script:ModuleName
 
-    $vfxHome = Join-Path $env:USERPROFILE ".vfx-devenv"
+    $vfxHome = Join-Path $env:DEVENV_TOOLS_DIR ".vfx-devenv"
     if (-not (Test-Path $vfxHome)) {
         New-Item -Path $vfxHome -ItemType Directory -Force | Out-Null
     }
@@ -559,7 +559,7 @@ function Remove-Module {
     # Remove local channel from conda config
     $condaExe = Get-CondaExe
     if ($condaExe) {
-        $channelDir = Join-Path $env:USERPROFILE "Development\vfx\channel"
+        $channelDir = Join-Path $env:DEVENV_TOOLS_DIR "Development\vfx\channel"
         $channelUrl = "file:///$($channelDir -replace '\\', '/')"
         try {
             & $condaExe config --remove channels $channelUrl 2>$null
@@ -567,7 +567,7 @@ function Remove-Module {
     }
 
     # Remove channel directory
-    $channelDir = Join-Path $env:USERPROFILE "Development\vfx\channel"
+    $channelDir = Join-Path $env:DEVENV_TOOLS_DIR "Development\vfx\channel"
     if (Test-Path $channelDir) {
         Remove-Item $channelDir -Recurse -Force
     }
@@ -674,7 +674,7 @@ Quick Start:
     }
 
     # Show platform version if available
-    $platformFile = Join-Path $env:USERPROFILE ".vfx-devenv\platform.json"
+    $platformFile = Join-Path $env:DEVENV_TOOLS_DIR ".vfx-devenv\platform.json"
     if (Test-Path $platformFile) {
         Write-Host ""
         Write-Host "VFX Platform Version:" -ForegroundColor Yellow

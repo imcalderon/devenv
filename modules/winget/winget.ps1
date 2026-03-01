@@ -88,7 +88,7 @@ function Test-Component {
         'sources' {
             # Verify configured sources
             try {
-                $sources = winget.exe source list 2>$null
+                $sources = winget.exe source list --accept-source-agreements 2>$null
                 return ($sources -match "msstore") -and ($sources -match "winget")
             } catch {
                 return $false
@@ -99,7 +99,7 @@ function Test-Component {
             $requiredPackages = Get-ModuleConfig $script:ModuleName ".winget.packages.development[]"
             foreach ($package in $requiredPackages) {
                 try {
-                    $result = winget.exe list --exact --id $package 2>$null
+                    $result = winget.exe list --exact --id $package --accept-source-agreements 2>$null
                     if ($LASTEXITCODE -ne 0) {
                         return $false
                     }
@@ -189,7 +189,7 @@ function Install-SourcesComponent {
     
     try {
         # Reset sources to default if needed
-        $sources = winget.exe source list 2>$null
+        $sources = winget.exe source list --accept-source-agreements 2>$null
         
         # Add Microsoft Store source if missing
         if (-not ($sources -match "msstore")) {
@@ -231,7 +231,7 @@ function Install-PackagesComponent {
         
         try {
             # Check if already installed
-            $listResult = winget.exe list --exact --id $package 2>$null
+            $listResult = winget.exe list --exact --id $package --accept-source-agreements 2>$null
             if ($LASTEXITCODE -eq 0 -and $listResult -match $package) {
                 Write-LogInfo "Package already installed: $package" $script:ModuleName
                 continue
@@ -557,14 +557,14 @@ function Show-ModuleInfo {
             Write-Host "  Version: $version" -ForegroundColor Gray
             
             # Show sources
-            $sources = winget.exe source list 2>$null
+            $sources = winget.exe source list --accept-source-agreements 2>$null
             if ($sources) {
                 Write-Host "  Sources: Available" -ForegroundColor Gray
             }
             
             # Show installed package count
             try {
-                $installedCount = (winget.exe list 2>$null | Measure-Object -Line).Lines - 2  # Subtract header lines
+                $installedCount = (winget.exe list --accept-source-agreements 2>$null | Measure-Object -Line).Lines - 2  # Subtract header lines
                 if ($installedCount -gt 0) {
                     Write-Host "  Installed Packages: $installedCount" -ForegroundColor Gray
                 }

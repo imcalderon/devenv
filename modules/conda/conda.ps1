@@ -76,7 +76,7 @@ function Test-Component {
 
     switch ($Component) {
         'core' {
-            $condaRoot = Join-Path $env:USERPROFILE "miniconda3"
+            $condaRoot = Join-Path $env:DEVENV_TOOLS_DIR "miniconda3"
             $condaExe = Join-Path $condaRoot "Scripts\conda.exe"
             return (Test-Path $condaExe)
         }
@@ -107,7 +107,7 @@ function Test-Component {
 function Install-CoreComponent {
     Write-LogInfo "Installing Miniconda..." $script:ModuleName
 
-    $condaRoot = Join-Path $env:USERPROFILE "miniconda3"
+    $condaRoot = Join-Path $env:DEVENV_TOOLS_DIR "miniconda3"
     $condaExe = Join-Path $condaRoot "Scripts\conda.exe"
 
     # Check if already installed
@@ -172,7 +172,7 @@ function Install-CoreComponent {
 function Install-ConfigComponent {
     Write-LogInfo "Configuring conda..." $script:ModuleName
 
-    $condaRoot = Join-Path $env:USERPROFILE "miniconda3"
+    $condaRoot = Join-Path $env:DEVENV_TOOLS_DIR "miniconda3"
     $condaExe = Join-Path $condaRoot "Scripts\conda.exe"
 
     if (-not (Test-Path $condaExe)) {
@@ -234,7 +234,7 @@ function Install-ConfigComponent {
 function Install-ShellComponent {
     Write-LogInfo "Configuring conda shell integration..." $script:ModuleName
 
-    $condaRoot = Join-Path $env:USERPROFILE "miniconda3"
+    $condaRoot = Join-Path $env:DEVENV_TOOLS_DIR "miniconda3"
     $condaExe = Join-Path $condaRoot "Scripts\conda.exe"
 
     if (-not (Test-Path $condaExe)) {
@@ -398,7 +398,7 @@ function Remove-Module {
     }
 
     Write-LogInfo "Conda module configuration removed" $script:ModuleName
-    Write-LogWarning "Miniconda installation preserved. Remove manually: $env:USERPROFILE\miniconda3" $script:ModuleName
+    Write-LogWarning "Miniconda installation preserved. Remove manually: $(Join-Path $env:DEVENV_TOOLS_DIR 'miniconda3')" $script:ModuleName
 
     return $true
 }
@@ -420,7 +420,7 @@ function Test-ModuleVerification {
     if ($allVerified) {
         Write-LogInfo "Conda module verification completed successfully" $script:ModuleName
 
-        $condaRoot = Join-Path $env:USERPROFILE "miniconda3"
+        $condaRoot = Join-Path $env:DEVENV_TOOLS_DIR "miniconda3"
         $condaExe = Join-Path $condaRoot "Scripts\conda.exe"
         try {
             $version = & $condaExe --version 2>$null
@@ -486,7 +486,7 @@ cl                       # List packages
 
             switch ($component) {
                 'core' {
-                    $condaRoot = Join-Path $env:USERPROFILE "miniconda3"
+                    $condaRoot = Join-Path $env:DEVENV_TOOLS_DIR "miniconda3"
                     $condaExe = Join-Path $condaRoot "Scripts\conda.exe"
                     try {
                         $version = & $condaExe --version 2>$null
