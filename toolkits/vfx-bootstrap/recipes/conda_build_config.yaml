@@ -43,7 +43,7 @@ materialx:
 
 # Target
 usd:
-  - "24"
+  - "25.11"
 
 # Python libraries
 numpy:
@@ -52,6 +52,9 @@ numpy:
 # Compression
 blosc:
   - "1.21"
+
+draco:
+  - "1.5"
 
 # Compiler settings (conda-forge defaults)
 c_compiler:

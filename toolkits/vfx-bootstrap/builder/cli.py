@@ -21,6 +21,7 @@ def cmd_build(args):
         log_dir=args.log_dir,
         platform=args.platform,
         channels=args.channel,
+        conda_build_exe=args.conda_build,
     )
 
     if args.recipe:
@@ -195,6 +196,7 @@ def main():
     parser.add_argument("--cache-dir", type=Path, help="Build cache directory")
     parser.add_argument("--log-dir", type=Path, help="Log directory")
     parser.add_argument("--channel", "-c", action="append", help="Additional conda channels")
+    parser.add_argument("--conda-build", help="Path to conda-build executable")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
 
     # Build command

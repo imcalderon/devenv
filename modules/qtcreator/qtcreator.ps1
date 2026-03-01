@@ -109,7 +109,8 @@ function Install-CoreComponent {
 
     try {
         Write-LogInfo "Installing $packageId via winget..." $script:ModuleName
-        winget.exe install --exact --id $packageId --silent --accept-package-agreements --accept-source-agreements
+        # Use Out-Host to prevent stdout from polluting the pipeline
+        winget.exe install --exact --id $packageId --silent --accept-package-agreements --accept-source-agreements | Out-Host
         
         if ($LASTEXITCODE -eq 0) {
             Write-LogInfo "Qt Creator installed successfully" $script:ModuleName

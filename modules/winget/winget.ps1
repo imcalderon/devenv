@@ -194,18 +194,19 @@ function Install-SourcesComponent {
         # Add Microsoft Store source if missing
         if (-not ($sources -match "msstore")) {
             Write-LogInfo "Adding Microsoft Store source..." $script:ModuleName
-            winget.exe source add --name "msstore" --arg "https://storeedgefd.dsx.mp.microsoft.com/v9.0" --type "Microsoft.REST"
-        }
-        
-        # Ensure winget community source is available
-        if (-not ($sources -match "winget")) {
+            winget.exe source add --name "msstore" --arg "https://storeedgefd.dsx.mp.microsoft.com/v9.0" --type "Microsoft.REST" | Out-Host
+            }
+
+            # Ensure winget community source is available
+            if (-not ($sources -match "winget")) {
             Write-LogInfo "Adding WinGet community source..." $script:ModuleName
-            winget.exe source add --name "winget" --arg "https://cdn.winget.microsoft.com/cache" --type "Microsoft.PreIndexed.Package"
-        }
-        
-        # Update sources
-        Write-LogInfo "Updating package sources..." $script:ModuleName
-        winget.exe source update
+            winget.exe source add --name "winget" --arg "https://cdn.winget.microsoft.com/cache" --type "Microsoft.PreIndexed.Package" | Out-Host
+            }
+
+            # Update sources
+            Write-LogInfo "Updating WinGet sources..." $script:ModuleName
+            winget.exe source update | Out-Host
+
         
         return $true
     } catch {

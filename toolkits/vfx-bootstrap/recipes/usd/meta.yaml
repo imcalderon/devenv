@@ -1,5 +1,5 @@
 {% set name = "usd" %}
-{% set version = "24.11" %}
+{% set version = "25.11" %}
 
 package:
   name: {{ name }}
@@ -7,7 +7,7 @@ package:
 
 source:
   url: https://github.com/PixarAnimationStudios/OpenUSD/archive/v{{ version }}.tar.gz
-  sha256: 1ab3dc387c8ce8c650d66143c86fb44ed6fe5c9638522bcb3226e85a401c4f69
+  sha256: c37c633b5037a4552f61574670ecca8836229b78326bd62622f3422671188667
   patches:                                # [win]
     - fix-pch-ninja-msvc.patch            # [win]
 
@@ -25,6 +25,7 @@ build:
     - "*/OpenImageIO*.dll"          # [win]
     - "*/OpenColorIO*.dll"          # [win]
     - "*/tbb*.dll"                  # [win]
+    - "*/draco.dll"                 # [win]
     - "*/usd_*.dll"                 # [win]
 
 requirements:
@@ -46,6 +47,7 @@ requirements:
     - openimageio
     - opencolorio
     - ptex
+    - draco
     - jinja2
     - pyopengl
     - pyside6
@@ -62,6 +64,7 @@ requirements:
     - openimageio
     - opencolorio
     - ptex
+    - draco
     - jinja2
     - pyopengl
     - pyside6

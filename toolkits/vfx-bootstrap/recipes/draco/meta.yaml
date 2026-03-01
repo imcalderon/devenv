@@ -1,0 +1,38 @@
+{% set name = "draco" %}
+{% set version = "1.5.7" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/google/draco/archive/{{ version }}.tar.gz
+  sha256: bf6b105b79223eab2b86795363dfe5e5356050006a96521477973aba8f036fe1
+
+build:
+  number: 0
+  run_exports:
+    - {{ pin_subpackage(name, max_pin='x.x') }}
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - cmake
+    - ninja
+  host:
+  run:
+
+test:
+  commands:
+    - draco_encoder -h || cmd /c "exit /b 0"
+    - if not exist %LIBRARY_BIN%\draco.dll exit 1
+    - if not exist %LIBRARY_INC%\draco\compression\decode.h exit 1
+    # Check for either import lib or static lib
+    - if not exist %LIBRARY_LIB%\draco.lib (if not exist %LIBRARY_LIB%\draco_static.lib exit 1)
+
+about:
+  home: https://google.github.io/draco/
+  license: Apache-2.0
+  license_file: LICENSE
+  summary: Draco is a library for compressing and decompressing 3D geometric meshes and point clouds.

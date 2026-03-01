@@ -174,7 +174,7 @@ function Install-CoreComponent {
     # Install VSCode via winget
     try {
         Write-LogInfo "Installing VSCode via winget..." $script:ModuleName
-        winget.exe install --exact --id Microsoft.VisualStudioCode --silent --accept-package-agreements --accept-source-agreements
+        winget.exe install --exact --id Microsoft.VisualStudioCode --silent --accept-package-agreements --accept-source-agreements | Out-Host
         
         if ($LASTEXITCODE -eq 0) {
             Write-LogInfo "VSCode installed successfully via winget" $script:ModuleName

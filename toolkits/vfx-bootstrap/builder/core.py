@@ -57,6 +57,7 @@ class VFXBuilder:
         log_dir: Optional[Union[str, Path]] = None,
         platform: str = "vfx2024",
         channels: Optional[List[str]] = None,
+        conda_build_exe: Optional[str] = None,
     ):
         """
         Initialize the builder.
@@ -69,10 +70,12 @@ class VFXBuilder:
             log_dir: Directory for build logs (optional).
             platform: VFX Platform target (e.g., "vfx2024").
             channels: Additional conda channels.
+            conda_build_exe: Path to conda-build executable.
         """
         self.recipes_dir = Path(recipes_dir).resolve()
         self.output_dir = Path(output_dir).resolve()
         self.platform = platform
+        self.conda_build_exe = conda_build_exe or "conda-build"
 
         # Local channel for publishing
         if channel_dir:
@@ -98,6 +101,9 @@ class VFXBuilder:
         # Channels for dependency resolution
         self.channels = channels or ["conda-forge"]
 
+        # Detect CPU count for parallel builds
+        self.cpu_count = os.cpu_count() or 1
+
         # Load VFX Platform configuration
         self.config = self._load_platform_config()
 
@@ -106,6 +112,24 @@ class VFXBuilder:
 
         # Build dependency graph
         self.dependencies = self._build_dependency_graph()
+
+        # Initialize local channel
+        self._initialize_channel()
+
+    def _initialize_channel(self) -> None:
+        """Ensure the local channel directory exists and has valid repodata."""
+        self.channel_dir.mkdir(parents=True, exist_ok=True)
+        # Create structure for common subdirs
+        for subdir in ["win-64", "noarch"]:
+            subdir_path = self.channel_dir / subdir
+            subdir_path.mkdir(parents=True, exist_ok=True)
+            repodata = subdir_path / "repodata.json"
+            if not repodata.exists():
+                with open(repodata, "w") as f:
+                    f.write('{"packages": {}, "packages.conda": {}, "removed": [], "repodata_version": 1}')
+        
+        # Initial index
+        self._index_channel()
 
     def _load_platform_config(self) -> dict:
         """Load VFX Platform version configuration."""
@@ -227,13 +251,13 @@ class VFXBuilder:
         for channel in self.channels:
             channel_args.extend(["-c", channel])
 
-        # Include output directory as channel for dependencies
+        # Include output directory and channel directory for dependencies
         channel_args.extend(["-c", str(self.output_dir)])
+        channel_args.extend(["-c", str(self.channel_dir)])
 
         # Build command
         cmd = [
-            "conda",
-            "build",
+            self.conda_build_exe,
             str(recipe_dir),
             *channel_args,
             "--override-channels",
@@ -249,6 +273,12 @@ class VFXBuilder:
         if verbose:
             print(f"[CMD] {' '.join(cmd)}")
 
+        # Prepare build environment with max CPU count
+        build_env = self._build_env()
+        build_env["CPU_COUNT"] = str(self.cpu_count)
+        # Some build tools look at these specifically
+        build_env["CMAKE_BUILD_PARALLEL_LEVEL"] = str(self.cpu_count)
+
         try:
             with open(log_file, "w", encoding="utf-8") as log:
                 process = subprocess.Popen(
@@ -257,8 +287,9 @@ class VFXBuilder:
                     stderr=subprocess.STDOUT,
                     text=True,
                     encoding="utf-8",
-                    errors="replace",
-                    env=self._build_env(),
+                    errors="backslashreplace",
+                    env=build_env,
+                    shell=(os.name == "nt"),
                 )
 
                 if process.stdout:
@@ -408,7 +439,19 @@ class VFXBuilder:
     def _build_env(self) -> dict:
         """Create environment for build subprocess."""
         env = os.environ.copy()
-        # Add any VFX-specific environment variables
+        
+        # Set a simple prompt to avoid parentheses breaking .bat files
+        env["PROMPT"] = "$P$G"
+        
+        # Disable prompt modification which is known to cause
+        # path/parsing issues on some Windows setups.
+        env["CONDA_CHANGEPS1"] = "0"
+        
+        # Prevent conda-build from creating .env export files which can 
+        # trigger OS file association dialogs if mis-executed.
+        env["CONDA_BUILD_NO_ENV_EXPORT"] = "1"
+        env["CONDA_EMIT_ENV_VARS_FILE"] = "0"
+        
         return env
 
     def _compute_cache_key(self, recipe: str) -> str:

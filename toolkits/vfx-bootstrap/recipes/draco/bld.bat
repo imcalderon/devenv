@@ -18,23 +18,18 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-REM OpenEXR build script for vfx-bootstrap (Windows)
-
 mkdir build
 cd build
 
-cmake "%SRC_DIR%" ^
-    -G Ninja ^
-    -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
+cmake -G Ninja ^
     -DCMAKE_BUILD_TYPE=Release ^
-    -DCMAKE_PREFIX_PATH="%LIBRARY_PREFIX%" ^
+    -DCMAKE_INSTALL_PREFIX="%LIBRARY_PREFIX%" ^
     -DBUILD_SHARED_LIBS=ON ^
-    -DOPENEXR_INSTALL_TOOLS=ON ^
-    -DOPENEXR_INSTALL_EXAMPLES=OFF ^
-    -DBUILD_TESTING=OFF
+    -DDRACO_FAST=ON ^
+    ..
 if errorlevel 1 exit /b 1
 
-cmake --build . --parallel %CPU_COUNT%
+cmake --build . --config Release
 if errorlevel 1 exit /b 1
 
 cmake --install .

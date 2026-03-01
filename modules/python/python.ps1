@@ -196,7 +196,7 @@ function Install-CoreComponent {
         Write-LogInfo "Installing Python via winget..." $script:ModuleName
         $pythonId = "Python.Python.3.11"  # Use Python 3.11 for better compatibility
         
-        winget.exe install --exact --id $pythonId --silent --accept-package-agreements --accept-source-agreements
+        winget.exe install --exact --id $pythonId --silent --accept-package-agreements --accept-source-agreements | Out-Host
         
         if ($LASTEXITCODE -eq 0) {
             Write-LogInfo "Python installed successfully via winget" $script:ModuleName

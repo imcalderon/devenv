@@ -164,7 +164,7 @@ function Install-CoreComponent {
     # Try installing via winget first
     try {
         Write-LogInfo "Installing Windows Terminal via winget..." $script:ModuleName
-        winget.exe install --exact --id Microsoft.WindowsTerminal --silent --accept-package-agreements --accept-source-agreements
+        winget.exe install --exact --id Microsoft.WindowsTerminal --silent --accept-package-agreements --accept-source-agreements | Out-Host
         
         if ($LASTEXITCODE -eq 0) {
             Write-LogInfo "Windows Terminal installed successfully via winget" $script:ModuleName
